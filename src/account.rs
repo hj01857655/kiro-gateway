@@ -25,8 +25,12 @@ impl Default for AccountStatus {
 pub struct Account {
     pub id: String,
     pub name: Option<String>,
+    pub provider: Option<String>,
+    #[serde(default)]
     pub auth_method: String,
+    #[serde(default)]
     pub access_token: String,
+    #[serde(default)]
     pub refresh_token: String,
     #[serde(default)]
     pub profile_arn: String,
@@ -67,11 +71,15 @@ impl Account {
             return now >= expires_ms - buffer_ms;
         }
 
-        true
+        // 没有过期时间信息：
+        // - 如果有 accessToken，假设有效，让请求去验证
+        // - 如果没有 accessToken，需要刷新
+        self.access_token.is_empty()
     }
 
     pub fn is_idc(&self) -> bool {
-        self.auth_method.to_lowercase() == "idc" || !self.profile_arn.is_empty()
+        // 有 clientId 就是 IDC 账号，或者 authMethod 明确指定为 idc
+        self.client_id.is_some() || self.auth_method.to_lowercase() == "idc"
     }
 
     pub fn is_throttled(&self) -> bool {
@@ -93,6 +101,7 @@ pub struct AccountManager {
     accounts: RwLock<Vec<Account>>,
     current_index: RwLock<usize>,
     http_client: reqwest::Client,
+    accounts_file: RwLock<Option<String>>,
 }
 
 impl AccountManager {
@@ -101,28 +110,40 @@ impl AccountManager {
             accounts: RwLock::new(Vec::new()),
             current_index: RwLock::new(0),
             http_client: reqwest::Client::new(),
+            accounts_file: RwLock::new(None),
         }
     }
 
-    pub fn load_from_json(&self, json_str: &str) -> Result<(), AppError> {
-        #[derive(Deserialize)]
-        struct AccountsConfig {
-            accounts: Vec<Account>,
-        }
+    /// 设置账号文件路径
+    pub fn set_accounts_file(&self, path: &str) {
+        *self.accounts_file.write() = Some(path.to_string());
+    }
 
-        let config: AccountsConfig = serde_json::from_str(json_str)
-            .map_err(|e| AppError::ParseError(e.to_string()))?;
+    pub fn load_from_json(&self, json_str: &str) -> Result<(), AppError> {
+        // 支持两种格式：数组 [] 或对象 { "accounts": [] }
+        let accounts: Vec<Account> = if json_str.trim().starts_with('[') {
+            serde_json::from_str(json_str)
+                .map_err(|e| AppError::ParseError(e.to_string()))?
+        } else {
+            #[derive(Deserialize)]
+            struct AccountsConfig {
+                accounts: Vec<Account>,
+            }
+            let config: AccountsConfig = serde_json::from_str(json_str)
+                .map_err(|e| AppError::ParseError(e.to_string()))?;
+            config.accounts
+        };
 
         // 检查 refreshToken 长度
-        for acc in &config.accounts {
+        for acc in &accounts {
             if acc.refresh_token.len() < 100 {
                 warn!("账号 {} 的 refreshToken 长度 < 100，可能无效", acc.id);
             }
         }
 
-        let mut accounts = self.accounts.write();
-        *accounts = config.accounts;
-        info!("加载了 {} 个账号", accounts.len());
+        let mut stored = self.accounts.write();
+        *stored = accounts;
+        info!("加载了 {} 个账号", stored.len());
         Ok(())
     }
 
@@ -194,6 +215,70 @@ impl AccountManager {
         }
     }
 
+    /// 设置账号启用/禁用
+    pub fn set_account_enabled(&self, account_id: &str, enabled: bool) -> Result<(), AppError> {
+        let mut accounts = self.accounts.write();
+        if let Some(acc) = accounts.iter_mut().find(|a| a.id == account_id) {
+            acc.enabled = enabled;
+            acc.status = if enabled { AccountStatus::Active } else { AccountStatus::Disabled };
+            info!("账号 {} 已{}", account_id, if enabled { "启用" } else { "禁用" });
+            Ok(())
+        } else {
+            Err(AppError::BadRequest(format!("账号 {} 不存在", account_id)))
+        }
+    }
+
+    /// 更新账号文件中指定账号的 token
+    fn update_account_in_file(&self, account: &Account) {
+        let file_path = self.accounts_file.read();
+        if let Some(ref path) = *file_path {
+            // 读取原文件
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!("读取账号文件失败: {}", e);
+                    return;
+                }
+            };
+            
+            // 解析为 JSON（支持数组或对象格式）
+            let mut json: serde_json::Value = match serde_json::from_str(&content) {
+                Ok(j) => j,
+                Err(e) => {
+                    warn!("解析账号文件失败: {}", e);
+                    return;
+                }
+            };
+            
+            // 找到并更新对应账号（支持数组格式和对象格式）
+            let accounts = if json.is_array() {
+                json.as_array_mut()
+            } else {
+                json.get_mut("accounts").and_then(|a| a.as_array_mut())
+            };
+            
+            if let Some(accounts) = accounts {
+                for acc in accounts.iter_mut() {
+                    if acc.get("id").and_then(|v| v.as_str()) == Some(&account.id) {
+                        acc["accessToken"] = serde_json::Value::String(account.access_token.clone());
+                        acc["refreshToken"] = serde_json::Value::String(account.refresh_token.clone());
+                        if let Some(expires_at) = account.expires_at {
+                            acc["expiresAt"] = serde_json::Value::Number(expires_at.into());
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // 写回文件
+            if let Err(e) = std::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()) {
+                warn!("更新账号文件失败: {}", e);
+            } else {
+                info!("账号 {} 的 token 已更新到文件", account.id);
+            }
+        }
+    }
+
     async fn refresh_token(&self, mut account: Account) -> Result<Account, AppError> {
         let result = if account.is_idc() {
             self.refresh_idc_token(&mut account).await
@@ -203,14 +288,18 @@ impl AccountManager {
 
         match result {
             Ok(()) => {
-                let mut accounts = self.accounts.write();
-                if let Some(stored) = accounts.iter_mut().find(|a| a.id == account.id) {
-                    stored.access_token = account.access_token.clone();
-                    stored.refresh_token = account.refresh_token.clone();
-                    stored.expires_at = account.expires_at;
-                    stored.status = AccountStatus::Active;
-                    stored.throttled_until = None;
+                {
+                    let mut accounts = self.accounts.write();
+                    if let Some(stored) = accounts.iter_mut().find(|a| a.id == account.id) {
+                        stored.access_token = account.access_token.clone();
+                        stored.refresh_token = account.refresh_token.clone();
+                        stored.expires_at = account.expires_at;
+                        stored.status = AccountStatus::Active;
+                        stored.throttled_until = None;
+                    }
                 }
+                // 更新文件中的 token
+                self.update_account_in_file(&account);
                 Ok(account)
             }
             Err(e) => {
@@ -238,6 +327,10 @@ impl AccountManager {
             return Err(AppError::TokenRefreshFailed(format!("{}: {}", status, text)));
         }
 
+        // 先获取原始响应文本用于调试
+        let text = resp.text().await.unwrap_or_default();
+        info!("Social Token 刷新响应: {}", &text[..text.len().min(500)]);
+
         #[derive(Deserialize)]
         #[serde(rename_all = "camelCase")]
         struct RefreshResponse {
@@ -246,7 +339,8 @@ impl AccountManager {
             expires_in: Option<i64>,
         }
 
-        let data: RefreshResponse = resp.json().await?;
+        let data: RefreshResponse = serde_json::from_str(&text)
+            .map_err(|e| AppError::ParseError(format!("解析刷新响应失败: {} - 响应: {}", e, &text[..text.len().min(200)])))?;
         account.access_token = data.access_token;
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;
@@ -266,8 +360,10 @@ impl AccountManager {
         let region = account.region.as_deref().unwrap_or("us-east-1");
         let url = format!("https://oidc.{}.amazonaws.com/token", region);
 
+        // 按文档用 JSON + camelCase
         let resp = self.http_client
             .post(&url)
+            .header("Content-Type", "application/json")
             .json(&serde_json::json!({
                 "clientId": client_id,
                 "clientSecret": client_secret,
@@ -284,15 +380,19 @@ impl AccountManager {
             return Err(AppError::TokenRefreshFailed(format!("{}: {}", status, text)));
         }
 
-        // IDC 返回 snake_case（与 Social 的 camelCase 不同）
+        let text = resp.text().await.unwrap_or_default();
+        info!("IDC Token 刷新响应: {}", &text[..text.len().min(500)]);
+
         #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
         struct IdcRefreshResponse {
             access_token: String,
             refresh_token: Option<String>,
             expires_in: Option<i64>,
         }
 
-        let data: IdcRefreshResponse = resp.json().await?;
+        let data: IdcRefreshResponse = serde_json::from_str(&text)
+            .map_err(|e| AppError::ParseError(format!("解析 IDC 刷新响应失败: {} - 响应: {}", e, &text[..text.len().min(200)])))?;
         account.access_token = data.access_token;
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;

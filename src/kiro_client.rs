@@ -170,6 +170,10 @@ impl KiroClient {
         let url = format!("{}/generateAssistantResponse", self.config.kiro_endpoint);
         let invocation_id = uuid::Uuid::new_v4().to_string();
 
+        // 调试：打印请求体
+        let request_json = serde_json::to_string_pretty(request).unwrap_or_default();
+        info!("Kiro 请求体:\n{}", request_json);
+
         debug!("调用 Kiro API: {}", url);
 
         let response = self.client
@@ -283,54 +287,138 @@ where
     S: Stream<Item = Result<Bytes, reqwest::Error>> + Unpin,
 {
     let mut buffer = String::new();
+    let mut event_count = 0;
 
     while let Some(chunk) = stream.next().await {
         match chunk {
             Ok(bytes) => {
-                buffer.push_str(&String::from_utf8_lossy(&bytes));
+                let chunk_str = String::from_utf8_lossy(&bytes);
+                debug!("收到数据块 ({} bytes)", bytes.len());
+                buffer.push_str(&chunk_str);
 
-                while let Some(pos) = buffer.find('\n') {
-                    let line = buffer[..pos].trim().to_string();
-                    buffer = buffer[pos + 1..].to_string();
+                // 解析 AWS Event Stream 格式的 JSON payload
+                // Kiro 返回格式: {"content":"..."} 或 {"name":"xxx","toolUseId":"xxx",...}
+                let mut search_start = 0;
+                loop {
+                    // 查找 JSON 对象的开始位置
+                    let json_start = match buffer[search_start..].find('{') {
+                        Some(pos) => search_start + pos,
+                        None => break,
+                    };
 
-                    if line.is_empty() {
-                        continue;
+                    // 使用括号计数法找到完整的 JSON 对象
+                    let mut brace_count = 0;
+                    let mut in_string = false;
+                    let mut escape_next = false;
+                    let mut json_end = None;
+
+                    for (i, ch) in buffer[json_start..].char_indices() {
+                        if escape_next {
+                            escape_next = false;
+                            continue;
+                        }
+
+                        match ch {
+                            '\\' if in_string => escape_next = true,
+                            '"' => in_string = !in_string,
+                            '{' if !in_string => brace_count += 1,
+                            '}' if !in_string => {
+                                brace_count -= 1;
+                                if brace_count == 0 {
+                                    json_end = Some(json_start + i + 1);
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
                     }
 
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            return;
+                    let json_end = match json_end {
+                        Some(end) => end,
+                        None => {
+                            // 不完整的 JSON，保留在缓冲区等待更多数据
+                            buffer = buffer[json_start..].to_string();
+                            break;
                         }
+                    };
 
-                        match serde_json::from_str::<KiroEvent>(data) {
-                            Ok(event) => {
-                                if let Some(ref invalid) = event.invalid_state_event {
-                                    let msg = invalid.message.clone()
-                                        .or_else(|| invalid.reason.clone())
-                                        .unwrap_or_else(|| "未知错误".to_string());
-                                    let _ = tx.send(Err(AppError::KiroApiError(msg))).await;
-                                    return;
+                    let json_str = &buffer[json_start..json_end];
+                    
+                    // 调试：打印原始 JSON（安全截取，避免 UTF-8 边界问题）
+                    let preview = if json_str.len() > 500 {
+                        json_str.chars().take(500).collect::<String>()
+                    } else {
+                        json_str.to_string()
+                    };
+                    info!("📥 收到 JSON #{}: {}", event_count + 1, preview);
+                    
+                    // 尝试解析 JSON
+                    match serde_json::from_str::<KiroEvent>(json_str) {
+                        Ok(event) => {
+                            event_count += 1;
+                            
+                            // 安全截取字符串用于日志
+                            let content_preview = event.content.as_ref().map(|s| {
+                                if s.len() > 50 {
+                                    s.chars().take(50).collect::<String>()
+                                } else {
+                                    s.clone()
                                 }
+                            });
+                            let text_preview = event.text.as_ref().map(|s| {
+                                if s.len() > 50 {
+                                    s.chars().take(50).collect::<String>()
+                                } else {
+                                    s.clone()
+                                }
+                            });
+                            
+                            info!("✅ 解析事件 #{}: content={:?}, text={:?}, tool_use_id={:?}, language={:?}, usage={:?}", 
+                                event_count,
+                                content_preview,
+                                text_preview,
+                                event.tool_use_id,
+                                event.language,
+                                event.usage
+                            );
+                            
+                            if let Some(ref reason) = event.reason {
+                                let msg = event.message.clone().unwrap_or_else(|| reason.clone());
+                                let _ = tx.send(Err(AppError::KiroApiError(msg))).await;
+                                return;
+                            }
 
-                                if tx.send(Ok(event)).await.is_err() {
-                                    return;
-                                }
-                            }
-                            Err(e) => {
-                                debug!("解析事件失败: {} - {}", e, data);
+                            if tx.send(Ok(event)).await.is_err() {
+                                return;
                             }
                         }
-                    } else if line.starts_with('{') {
-                        match serde_json::from_str::<KiroEvent>(&line) {
-                            Ok(event) => {
-                                if tx.send(Ok(event)).await.is_err() {
-                                    return;
-                                }
-                            }
-                            Err(e) => {
-                                debug!("解析 JSON 失败: {} - {}", e, line);
-                            }
+                        Err(e) => {
+                            debug!("解析 JSON 失败: {} - {}", e, &json_str[..json_str.len().min(200)]);
                         }
+                    }
+
+                    search_start = json_end;
+                    if search_start >= buffer.len() {
+                        buffer.clear();
+                        break;
+                    }
+                }
+
+                // 如果 search_start 有进展，截取剩余部分（安全处理 UTF-8 边界）
+                if search_start > 0 && !buffer.is_empty() {
+                    // 找到 search_start 之后的第一个字符边界
+                    if search_start < buffer.len() {
+                        let mut idx = search_start;
+                        while idx < buffer.len() && !buffer.is_char_boundary(idx) {
+                            idx += 1;
+                        }
+                        if idx < buffer.len() {
+                            buffer = buffer[idx..].to_string();
+                        } else {
+                            buffer.clear();
+                        }
+                    } else {
+                        buffer.clear();
                     }
                 }
             }
@@ -341,30 +429,56 @@ where
             }
         }
     }
+    
+    info!("流结束，共处理 {} 个事件", event_count);
 }
 
 // ============ 高级功能 API ============
 
 impl KiroClient {
     /// 获取配额使用情况
+    /// 返回: Ok(json) 正常, Err(TokenExpired) token过期, Err(AccountBanned) 封禁
     pub async fn get_usage_limits(&self, account: &Account) -> Result<serde_json::Value, AppError> {
-        let url = format!("{}/GetUsageLimits", self.config.kiro_endpoint);
+        let url = format!(
+            "{}/getUsageLimits?isEmailRequired=true&origin=AI_EDITOR&resourceType=AGENTIC_REQUEST",
+            self.config.kiro_endpoint
+        );
         
         let resp = self.client
             .get(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("x-amz-user-agent", self.get_user_agent())
+            .header("amz-sdk-invocation-id", uuid::Uuid::new_v4().to_string())
+            .header("amz-sdk-request", "attempt=1; max=1")
             .send()
             .await
             .map_err(|e| AppError::NetworkError(e.to_string()))?;
 
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::KiroApiError(format!("{}: {}", status, text)));
+        let status = resp.status().as_u16();
+        
+        if resp.status().is_success() {
+            return resp.json().await.map_err(|e| AppError::ParseError(e.to_string()));
         }
 
-        resp.json().await.map_err(|e| AppError::ParseError(e.to_string()))
+        let text = resp.text().await.unwrap_or_default();
+        let msg_lower = text.to_lowercase();
+        
+        match status {
+            // 401 → token 过期
+            401 => Err(AppError::TokenExpired),
+            
+            // 403/423 → 检查是 token 无效还是封禁
+            403 | 423 => {
+                // token 无效（不是封禁）
+                if msg_lower.contains("invalid") || msg_lower.contains("expired") {
+                    return Err(AppError::TokenExpired);
+                }
+                // 403/423 其他情况都是封禁
+                Err(AppError::AccountBanned(text))
+            }
+            
+            _ => Err(AppError::KiroApiError(format!("{}: {}", status, text))),
+        }
     }
 
     /// 健康检查（使用 dryRun）

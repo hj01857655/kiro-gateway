@@ -35,6 +35,9 @@ pub enum AppError {
 
     #[error("配额已用尽")]
     QuotaExceeded,
+
+    #[error("账号已被封禁: {0}")]
+    AccountBanned(String),
 }
 
 impl IntoResponse for AppError {
@@ -54,6 +57,9 @@ impl IntoResponse for AppError {
             }
             AppError::QuotaExceeded => {
                 (StatusCode::TOO_MANY_REQUESTS, "rate_limit_error", self.to_string())
+            }
+            AppError::AccountBanned(_) => {
+                (StatusCode::FORBIDDEN, "account_banned", self.to_string())
             }
             AppError::KiroApiError(_) | AppError::NetworkError(_) => {
                 (StatusCode::BAD_GATEWAY, "api_error", self.to_string())

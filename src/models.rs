@@ -10,7 +10,9 @@ pub struct OpenAIRequest {
     #[serde(default)]
     pub stream: bool,
     pub tools: Option<Vec<OpenAITool>>,
+    #[allow(dead_code)]
     pub max_tokens: Option<i32>,
+    #[allow(dead_code)]
     pub temperature: Option<f32>,
 }
 
@@ -135,6 +137,7 @@ pub struct AnthropicRequest {
     #[serde(default)]
     pub stream: bool,
     pub tools: Option<Vec<AnthropicTool>>,
+    #[allow(dead_code)]
     pub max_tokens: Option<i32>,
 }
 
@@ -185,7 +188,8 @@ pub struct AnthropicTool {
 #[serde(rename_all = "camelCase")]
 pub struct KiroRequest {
     pub conversation_state: ConversationState,
-    pub profile_arn: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile_arn: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -206,38 +210,34 @@ pub struct CurrentMessage {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInputMessage {
-    pub content: Vec<String>,
+    /// content 是字符串，不是数组
+    pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
-    pub user_intent: String,
-    pub user_input_message_context: UserInputMessageContext,
+    /// origin 必须是 "AI_EDITOR"
+    pub origin: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_input_message_context: Option<UserInputMessageContext>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<KiroImage>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInputMessageContext {
+    /// tools 放在这里
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<KiroTool>>,
-    pub additional_context: AdditionalContext,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdditionalContext {
+    /// toolResults 放在这里（用于多轮对话）
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub system_prompt: Option<String>,
+    pub tool_results: Option<Vec<ToolResultContent>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KiroTool {
-    pub tool_spec: ToolSpec,
+    /// 注意：是 toolSpecification 不是 toolSpec
+    pub tool_specification: ToolSpec,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -287,7 +287,7 @@ pub struct UserHistoryMessage {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserHistoryContent {
-    pub content: Vec<String>,
+    pub content: String,
     pub user_intent: String,
 }
 
@@ -337,21 +337,49 @@ pub struct TextContent {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KiroEvent {
-    pub assistant_response_event: Option<AssistantResponseEvent>,
-    pub tool_use_event: Option<KiroToolUseEvent>,
-    pub message_metadata_event: Option<MessageMetadataEvent>,
-    pub metadata_event: Option<MetadataEvent>,
-    pub context_usage_event: Option<ContextUsageEvent>,
-    pub code_event: Option<CodeEvent>,
-    pub reasoning_content_event: Option<ReasoningContentEvent>,
-    pub invalid_state_event: Option<InvalidStateEvent>,
+    // 文本响应 - 直接 content 字段
+    pub content: Option<String>,
+    
+    // 工具调用
+    #[serde(rename = "toolUseId")]
+    pub tool_use_id: Option<String>,
+    pub name: Option<String>,
+    pub input: Option<Value>,
+    
+    // 代码块
+    pub language: Option<String>,
+    // content 字段已在上面定义
+    
+    // Token 使用统计
+    #[allow(dead_code)]
+    pub unit: Option<String>,
+    pub usage: Option<f64>,
+    
+    // 上下文使用率
+    pub context_usage_percentage: Option<f64>,
+    
+    // 消息元数据
+    pub message_id: Option<String>,
+    #[allow(dead_code)]
+    pub conversation_id: Option<String>,
+    
+    // Thinking block
+    pub text: Option<String>,
+    pub signature: Option<String>,
+    
+    // 错误
+    pub reason: Option<String>,
+    pub message: Option<String>,
 }
 
+// 以下结构体保留用于文档参考，但当前使用扁平的 KiroEvent
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct AssistantResponseEvent {
     pub content: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KiroToolUseEvent {
@@ -360,18 +388,21 @@ pub struct KiroToolUseEvent {
     pub input: Value,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageMetadataEvent {
     pub message_id: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetadataEvent {
     pub token_usage: Option<TokenUsage>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenUsage {
@@ -379,24 +410,28 @@ pub struct TokenUsage {
     pub total_tokens: Option<i32>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContextUsageEvent {
     pub context_usage_percentage: Option<f32>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct CodeEvent {
     pub language: Option<String>,
     pub content: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReasoningContentEvent {
     pub text: String,
     pub signature: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct InvalidStateEvent {
     pub reason: Option<String>,

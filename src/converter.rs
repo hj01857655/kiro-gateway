@@ -35,7 +35,8 @@ pub fn map_model(model: &str) -> String {
             }
         }
     };
-    format!("qdev::{}", kiro_model)
+    // Kiro API 不需要 qdev:: 前缀！
+    kiro_model.to_string()
 }
 
 /// 合并 OpenAI 消息（Kiro 不接受连续相同 role 的消息）
@@ -99,7 +100,7 @@ fn merge_anthropic_messages(messages: &[AnthropicMessage]) -> Vec<AnthropicMessa
 }
 
 // OpenAI 请求转 Kiro 请求
-pub fn openai_to_kiro(request: &OpenAIRequest, profile_arn: &str) -> KiroRequest {
+pub fn openai_to_kiro(request: &OpenAIRequest, profile_arn: &str, auth_method: &str) -> KiroRequest {
     let system_prompt = request.messages.iter()
         .find(|m| m.role == "system")
         .and_then(|m| m.content.as_ref())
@@ -132,8 +133,18 @@ pub fn openai_to_kiro(request: &OpenAIRequest, profile_arn: &str) -> KiroRequest
     let tools = request.tools.as_ref().map(|t| convert_openai_tools(t));
     let model_id = request.model.as_ref().map(|m| map_model(m));
 
-    // 处理长 tool description
-    let (tools, system_prompt) = process_long_tool_descriptions(tools, system_prompt);
+    // 处理长 tool description（注意：Kiro 不支持 additionalContext，长描述移到 system prompt 后无法使用）
+    let (tools, _system_prompt) = process_long_tool_descriptions(tools, system_prompt);
+
+    // userInputMessageContext 只在有 tools 时才添加
+    let user_input_message_context = if !tools.is_empty() {
+        Some(UserInputMessageContext {
+            tools: Some(tools),
+            tool_results: None,
+        })
+    } else {
+        None
+    };
 
     KiroRequest {
         conversation_state: ConversationState {
@@ -141,21 +152,20 @@ pub fn openai_to_kiro(request: &OpenAIRequest, profile_arn: &str) -> KiroRequest
             chat_trigger_type: "MANUAL".to_string(),
             current_message: CurrentMessage {
                 user_input_message: UserInputMessage {
-                    content: vec![current_content],
+                    content: current_content,
                     model_id,
-                    user_intent: "CODE_GENERATION".to_string(),
-                    user_input_message_context: UserInputMessageContext {
-                        tools,
-                        additional_context: AdditionalContext { system_prompt },
-                    },
+                    origin: "AI_EDITOR".to_string(),
+                    user_input_message_context,
                     images,
-                    max_tokens: request.max_tokens,
-                    temperature: request.temperature,
                 },
             },
             history,
         },
-        profile_arn: profile_arn.to_string(),
+        profile_arn: if auth_method == "social" && !profile_arn.is_empty() {
+            Some(profile_arn.to_string())
+        } else {
+            None
+        },
     }
 }
 
@@ -170,7 +180,7 @@ pub fn is_stream_request_anthropic(request: &AnthropicRequest) -> bool {
 }
 
 // Anthropic 请求转 Kiro 请求
-pub fn anthropic_to_kiro(request: &AnthropicRequest, profile_arn: &str) -> KiroRequest {
+pub fn anthropic_to_kiro(request: &AnthropicRequest, profile_arn: &str, auth_method: &str) -> KiroRequest {
     let system_prompt = request.system.clone();
 
     // 合并相邻同 role 消息
@@ -192,8 +202,18 @@ pub fn anthropic_to_kiro(request: &AnthropicRequest, profile_arn: &str) -> KiroR
     let tools = request.tools.as_ref().map(|t| convert_anthropic_tools(t));
     let model_id = request.model.as_ref().map(|m| map_model(m));
 
-    // 处理长 tool description
-    let (tools, system_prompt) = process_long_tool_descriptions(tools, system_prompt);
+    // 处理长 tool description（注意：Kiro 不支持 additionalContext，长描述移到 system prompt 后无法使用）
+    let (tools, _system_prompt) = process_long_tool_descriptions(tools, system_prompt);
+
+    // userInputMessageContext 只在有 tools 时才添加
+    let user_input_message_context = if !tools.is_empty() {
+        Some(UserInputMessageContext {
+            tools: Some(tools),
+            tool_results: None,
+        })
+    } else {
+        None
+    };
 
     KiroRequest {
         conversation_state: ConversationState {
@@ -201,21 +221,20 @@ pub fn anthropic_to_kiro(request: &AnthropicRequest, profile_arn: &str) -> KiroR
             chat_trigger_type: "MANUAL".to_string(),
             current_message: CurrentMessage {
                 user_input_message: UserInputMessage {
-                    content: vec![current_content],
+                    content: current_content,
                     model_id,
-                    user_intent: "CODE_GENERATION".to_string(),
-                    user_input_message_context: UserInputMessageContext {
-                        tools,
-                        additional_context: AdditionalContext { system_prompt },
-                    },
+                    origin: "AI_EDITOR".to_string(),
+                    user_input_message_context,
                     images,
-                    max_tokens: request.max_tokens,
-                    temperature: None,
                 },
             },
             history,
         },
-        profile_arn: profile_arn.to_string(),
+        profile_arn: if auth_method == "social" && !profile_arn.is_empty() {
+            Some(profile_arn.to_string())
+        } else {
+            None
+        },
     }
 }
 
@@ -311,7 +330,7 @@ fn build_history(messages: &[&OpenAIMessage]) -> Vec<HistoryMessage> {
                 let content = msg.content.as_ref().map(|c| extract_text_content(c)).unwrap_or_default();
                 history.push(HistoryMessage::User(UserHistoryMessage {
                     user_input_message: UserHistoryContent {
-                        content: vec![content],
+                        content,
                         user_intent: "CODE_GENERATION".to_string(),
                     },
                 }));
@@ -372,7 +391,7 @@ fn build_anthropic_history(messages: &[AnthropicMessage]) -> Vec<HistoryMessage>
                 let content = extract_anthropic_text(&msg.content);
                 history.push(HistoryMessage::User(UserHistoryMessage {
                     user_input_message: UserHistoryContent {
-                        content: vec![content],
+                        content,
                         user_intent: "CODE_GENERATION".to_string(),
                     },
                 }));
@@ -420,7 +439,7 @@ fn convert_openai_tools(tools: &[OpenAITool]) -> Vec<KiroTool> {
     tools.iter()
         .filter(|t| t.tool_type == "function")
         .map(|t| KiroTool {
-            tool_spec: ToolSpec {
+            tool_specification: ToolSpec {
                 name: t.function.name.clone(),
                 description: t.function.description.clone(),
                 input_schema: InputSchema {
@@ -434,7 +453,7 @@ fn convert_openai_tools(tools: &[OpenAITool]) -> Vec<KiroTool> {
 fn convert_anthropic_tools(tools: &[AnthropicTool]) -> Vec<KiroTool> {
     tools.iter()
         .map(|t| KiroTool {
-            tool_spec: ToolSpec {
+            tool_specification: ToolSpec {
                 name: t.name.clone(),
                 description: t.description.clone(),
                 input_schema: InputSchema {
@@ -445,60 +464,71 @@ fn convert_anthropic_tools(tools: &[AnthropicTool]) -> Vec<KiroTool> {
         .collect()
 }
 
-/// 处理长 tool description（超过 4000 字符移到 system prompt）
+/// 处理长 tool description（超过 4000 字符截断，因为 Kiro 不支持 additionalContext）
 pub fn process_long_tool_descriptions(
     tools: Option<Vec<KiroTool>>,
     system_prompt: Option<String>,
-) -> (Option<Vec<KiroTool>>, Option<String>) {
+) -> (Vec<KiroTool>, Option<String>) {
     let Some(tools) = tools else {
-        return (None, system_prompt);
+        return (vec![], system_prompt);
     };
 
     let mut processed = Vec::new();
-    let mut tool_docs = Vec::new();
 
     for tool in tools {
-        let desc = tool.tool_spec.description.as_deref().unwrap_or("");
+        let desc = tool.tool_specification.description.as_deref().unwrap_or("");
 
         if desc.len() <= TOOL_DESCRIPTION_MAX_LENGTH {
             processed.push(tool);
         } else {
-            // 长 description 移到 system prompt
-            let name = tool.tool_spec.name.clone();
-            tool_docs.push(format!("## Tool: {}\n\n{}", &name, desc));
+            // 长 description 截断并警告
+            tracing::warn!(
+                "Tool '{}' description too long ({} chars), truncating to {} chars",
+                tool.tool_specification.name,
+                desc.len(),
+                TOOL_DESCRIPTION_MAX_LENGTH
+            );
 
             processed.push(KiroTool {
-                tool_spec: ToolSpec {
-                    name: name.clone(),
+                tool_specification: ToolSpec {
+                    name: tool.tool_specification.name.clone(),
                     description: Some(format!(
-                        "[See system prompt: '## Tool: {}']",
-                        &name
+                        "{}... [truncated]",
+                        &desc[..TOOL_DESCRIPTION_MAX_LENGTH.min(desc.len())]
                     )),
-                    input_schema: tool.tool_spec.input_schema,
+                    input_schema: tool.tool_specification.input_schema,
                 },
             });
         }
     }
 
-    let new_prompt = if tool_docs.is_empty() {
-        system_prompt
-    } else {
-        let doc_section = format!(
-            "\n\n---\n# Tool Documentation\n\n{}",
-            tool_docs.join("\n\n---\n\n")
-        );
-        Some(system_prompt.unwrap_or_default() + &doc_section)
-    };
-
-    (Some(processed), new_prompt)
+    (processed, system_prompt)
 }
 
 // Kiro 事件转 OpenAI 格式
 pub fn kiro_to_openai(event: &KiroEvent, request_id: &str) -> Option<OpenAIChunk> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
 
-    // 文本响应
-    if let Some(ref resp) = event.assistant_response_event {
+    // 文本响应 - content 字段
+    if let Some(ref content) = event.content {
+        // 如果有 language 字段，说明是代码块
+        if let Some(ref lang) = event.language {
+            let code_content = format!("```{}\n{}\n```", lang, content);
+            return Some(OpenAIChunk {
+                id: format!("chatcmpl-{}", request_id),
+                object: "chat.completion.chunk".to_string(),
+                created: timestamp,
+                model: "kiro".to_string(),
+                choices: vec![OpenAIChoice {
+                    index: 0,
+                    delta: OpenAIDelta { content: Some(code_content), ..Default::default() },
+                    finish_reason: None,
+                }],
+                usage: None,
+            });
+        }
+        
+        // 普通文本响应
         return Some(OpenAIChunk {
             id: format!("chatcmpl-{}", request_id),
             object: "chat.completion.chunk".to_string(),
@@ -506,33 +536,16 @@ pub fn kiro_to_openai(event: &KiroEvent, request_id: &str) -> Option<OpenAIChunk
             model: "kiro".to_string(),
             choices: vec![OpenAIChoice {
                 index: 0,
-                delta: OpenAIDelta { content: Some(resp.content.clone()), ..Default::default() },
+                delta: OpenAIDelta { content: Some(content.clone()), ..Default::default() },
                 finish_reason: None,
             }],
             usage: None,
         });
     }
 
-    // 代码块
-    if let Some(ref code) = event.code_event {
-        let lang = code.language.as_deref().unwrap_or("");
-        let content = format!("```{}\n{}\n```", lang, code.content);
-        return Some(OpenAIChunk {
-            id: format!("chatcmpl-{}", request_id),
-            object: "chat.completion.chunk".to_string(),
-            created: timestamp,
-            model: "kiro".to_string(),
-            choices: vec![OpenAIChoice {
-                index: 0,
-                delta: OpenAIDelta { content: Some(content), ..Default::default() },
-                finish_reason: None,
-            }],
-            usage: None,
-        });
-    }
-
-    // 工具调用
-    if let Some(ref tool) = event.tool_use_event {
+    // 工具调用 - toolUseId + name + input
+    if let (Some(ref tool_use_id), Some(ref name), Some(ref input)) = 
+        (&event.tool_use_id, &event.name, &event.input) {
         return Some(OpenAIChunk {
             id: format!("chatcmpl-{}", request_id),
             object: "chat.completion.chunk".to_string(),
@@ -543,11 +556,11 @@ pub fn kiro_to_openai(event: &KiroEvent, request_id: &str) -> Option<OpenAIChunk
                 delta: OpenAIDelta {
                     tool_calls: Some(vec![ToolCallDelta {
                         index: 0,
-                        id: Some(tool.tool_use_id.clone()),
+                        id: Some(tool_use_id.clone()),
                         call_type: Some("function".to_string()),
                         function: FunctionCallDelta {
-                            name: Some(tool.name.clone()),
-                            arguments: Some(serde_json::to_string(&tool.input).unwrap_or_default()),
+                            name: Some(name.clone()),
+                            arguments: Some(serde_json::to_string(input).unwrap_or_default()),
                         },
                     }]),
                     ..Default::default()
@@ -564,18 +577,18 @@ pub fn kiro_to_openai(event: &KiroEvent, request_id: &str) -> Option<OpenAIChunk
 /// Kiro 事件转 Anthropic 格式（用于 SSE 事件）
 pub fn kiro_to_anthropic(event: &KiroEvent) -> Option<String> {
     // 文本响应
-    if let Some(ref resp) = event.assistant_response_event {
-        let escaped = resp.content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-        return Some(format!(
-            r#"{{"type":"content_block_delta","index":0,"delta":{{"type":"text_delta","text":"{}"}}}}"#,
-            escaped
-        ));
-    }
-
-    // 代码块
-    if let Some(ref code) = event.code_event {
-        let lang = code.language.as_deref().unwrap_or("");
-        let content = format!("```{}\n{}\n```", lang, code.content);
+    if let Some(ref content) = event.content {
+        // 如果有 language 字段，说明是代码块
+        if let Some(ref lang) = event.language {
+            let code_content = format!("```{}\n{}\n```", lang, content);
+            let escaped = code_content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
+            return Some(format!(
+                r#"{{"type":"content_block_delta","index":0,"delta":{{"type":"text_delta","text":"{}"}}}}"#,
+                escaped
+            ));
+        }
+        
+        // 普通文本
         let escaped = content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
         return Some(format!(
             r#"{{"type":"content_block_delta","index":0,"delta":{{"type":"text_delta","text":"{}"}}}}"#,
@@ -583,13 +596,9 @@ pub fn kiro_to_anthropic(event: &KiroEvent) -> Option<String> {
         ));
     }
 
-    // thinking block
-    if let Some(ref reasoning) = event.reasoning_content_event {
-        let escaped = reasoning.text.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-        // 如果有 signature，记录日志
-        if let Some(ref sig) = reasoning.signature {
-            tracing::debug!("Reasoning signature: {}", sig);
-        }
+    // thinking block - text + signature
+    if let Some(ref thinking_text) = event.text {
+        let escaped = thinking_text.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
         return Some(format!(
             r#"{{"type":"content_block_delta","index":0,"delta":{{"type":"thinking_delta","thinking":"{}"}}}}"#,
             escaped

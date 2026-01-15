@@ -276,6 +276,7 @@ KiroGate 支持两种 Kiro 认证方式：
 - [实现指南](./implementation-guide.md) - **完整流程图 + 最简代码实现**
 
 ### 核心文档
+- [Kiro API 规范](./kiro-api.md) - **官方源码参考 + API 详解**
 - [Kiro Chat API](./chat-api.md) - Kiro 原生对话 API 详解
 - [认证方式](./auth-methods.md) - Social 和 IDC 两种认证的区别
 - [格式转换](./format-conversion.md) - OpenAI/Anthropic ↔ Kiro 请求格式转换

@@ -1,1 +1,8 @@
 /target
+
+# 前端
+web/node_modules/
+web/dist/
+
+# 账号数据
+data/

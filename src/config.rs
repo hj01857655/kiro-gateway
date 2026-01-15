@@ -13,6 +13,16 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_env() -> Self {
+        // 默认账号文件路径：data/accounts.json
+        let default_accounts_file = "data/accounts.json".to_string();
+        let accounts_file = env::var("ACCOUNTS_FILE").ok().or_else(|| {
+            if std::path::Path::new(&default_accounts_file).exists() {
+                Some(default_accounts_file)
+            } else {
+                None
+            }
+        });
+
         Self {
             host: env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             port: env::var("PORT")
@@ -22,7 +32,7 @@ impl AppConfig {
             kiro_endpoint: env::var("KIRO_ENDPOINT")
                 .unwrap_or_else(|_| "https://codewhisperer.us-east-1.amazonaws.com".to_string()),
             api_key: env::var("API_KEY").ok(),
-            accounts_file: env::var("ACCOUNTS_FILE").ok(),
+            accounts_file,
             accounts_json: env::var("ACCOUNTS_JSON").ok(),
             machine_id: env::var("MACHINE_ID").ok().or_else(|| Some(generate_machine_id())),
         }

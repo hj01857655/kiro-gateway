@@ -1,0 +1,9 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "写一个 Python 的 hello world"
+    }
+  ],
+  "stream": true
+}
