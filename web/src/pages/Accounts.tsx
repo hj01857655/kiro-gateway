@@ -41,14 +41,20 @@ const exampleJson = `// Social 账号（Google/GitHub）
 
 interface QuotaInfo {
   email?: string
+  userId?: string
   used: number
   limit: number
   usagePercent: number
   subscriptionType?: string
+  subscriptionTypeCode?: string
+  upgradeCapability?: string
   freeTrialStatus?: string
   freeTrialExpiry?: number
   nextReset?: number
+  daysUntilReset?: number
   currency?: string
+  unit?: string
+  displayName?: string
   overageRate?: number
 }
 
@@ -62,13 +68,8 @@ export default function Accounts() {
 
   const parseQuotaResponse = (response: any): QuotaInfo | null => {
     try {
-      console.log('🔍 原始配额响应:', response)
-      
       const breakdown = response.usageBreakdownList?.[0]
-      if (!breakdown) {
-        console.warn('⚠️ 没有找到 usageBreakdownList')
-        return null
-      }
+      if (!breakdown) return null
 
       const freeTrialInfo = breakdown.freeTrialInfo
       const isFreeTrialActive = freeTrialInfo?.freeTrialStatus === 'ACTIVE'
@@ -81,23 +82,26 @@ export default function Accounts() {
         ? (freeTrialInfo.usageLimitWithPrecision ?? 0)
         : (breakdown.usageLimitWithPrecision ?? 0)
 
-      const quotaInfo = {
+      return {
         email: response.userInfo?.email,
+        userId: response.userInfo?.userId,
         used,
         limit,
         usagePercent: limit > 0 ? Math.round((used / limit) * 100) : 0,
         subscriptionType: response.subscriptionInfo?.subscriptionTitle,
+        subscriptionTypeCode: response.subscriptionInfo?.type,
+        upgradeCapability: response.subscriptionInfo?.upgradeCapability,
         freeTrialStatus: freeTrialInfo?.freeTrialStatus,
         freeTrialExpiry: freeTrialInfo?.freeTrialExpiry,
         nextReset: response.nextDateReset || breakdown.nextDateReset,
+        daysUntilReset: response.daysUntilReset,
         currency: breakdown.currency,
+        unit: breakdown.unit,
+        displayName: breakdown.displayName,
         overageRate: breakdown.overageRate,
       }
-      
-      console.log('✅ 解析后的配额信息:', quotaInfo)
-      return quotaInfo
     } catch (e) {
-      console.error('❌ 解析配额响应失败:', e)
+      console.error('解析配额响应失败:', e)
       return null
     }
   }
@@ -276,14 +280,26 @@ export default function Accounts() {
 
                   {/* 详细信息 */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(var(--muted-foreground))]">
+                    {quota.userId && (
+                      <span title="用户 ID">ID: {quota.userId.split('.')[1]?.substring(0, 8)}...</span>
+                    )}
+                    {quota.subscriptionTypeCode && (
+                      <span title="订阅类型代码">{quota.subscriptionTypeCode}</span>
+                    )}
+                    {quota.upgradeCapability === 'UPGRADE_CAPABLE' && (
+                      <span className="text-blue-500">可升级</span>
+                    )}
                     {quota.freeTrialExpiry && (
                       <span>试用到期: {new Date(quota.freeTrialExpiry * 1000).toLocaleDateString()}</span>
                     )}
                     {quota.nextReset && (
                       <span>配额重置: {new Date(quota.nextReset * 1000).toLocaleDateString()}</span>
                     )}
+                    {quota.daysUntilReset !== undefined && quota.daysUntilReset > 0 && (
+                      <span>{quota.daysUntilReset} 天后重置</span>
+                    )}
                     {quota.overageRate && quota.currency && (
-                      <span>超额费率: {quota.overageRate} {quota.currency}/次</span>
+                      <span>超额: {quota.overageRate} {quota.currency}/{quota.unit || '次'}</span>
                     )}
                   </div>
                 </div>
