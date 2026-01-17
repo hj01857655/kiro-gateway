@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Badge } from '@mantine/core'
 
 // 检测是否在 Tauri 环境中运行
@@ -7,11 +7,8 @@ const isTauri = () => {
 }
 
 export default function TauriStatus() {
-  const [mode, setMode] = useState<'web' | 'desktop'>('web')
-
-  useEffect(() => {
-    setMode(isTauri() ? 'desktop' : 'web')
-  }, [])
+  // 直接在初始化时计算，避免在 effect 中 setState
+  const [mode] = useState<'web' | 'desktop'>(() => (isTauri() ? 'desktop' : 'web'))
 
   return (
     <Badge

@@ -1,5 +1,0 @@
-dist
-node_modules
-src-tauri/target
-*.config.js
-*.config.ts

@@ -99,7 +99,17 @@ export default function Accounts() {
       })
       return
     }
-    addAccount(formData as any)
+    // 构造符合 Partial<Account> 类型的对象
+    const accountData: Partial<Account> = {
+      name: formData.name,
+      authMethod: formData.authMethod,
+      refreshToken: formData.refreshToken,
+      profileArn: formData.profileArn,
+      region: formData.region,
+      clientId: formData.clientId,
+      clientSecret: formData.clientSecret,
+    }
+    addAccount(accountData)
     setShowAddModal(false)
     setFormData({
       name: '',
@@ -195,9 +205,10 @@ export default function Accounts() {
   }
 
   const handleToggle = (account: Account) => {
+    const newStatus: Account['status'] = account.status === 'disabled' ? 'active' : 'disabled'
     updateAccount({
       id: account.id,
-      updates: { status: account.status === 'disabled' ? 'active' : 'disabled' } as any,
+      updates: { status: newStatus },
     })
   }
 
