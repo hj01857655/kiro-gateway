@@ -1,168 +1,255 @@
-# kiro-gateway
+# Kiro Gateway
 
-Kiro API 网关服务，提供 OpenAI/Anthropic 兼容接口。
+Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，提供 OpenAI/Anthropic 兼容的 Kiro API 网关服务。
 
-## 功能特性
+## 项目简介
 
-- ✅ OpenAI 兼容 `/v1/chat/completions`
-- ✅ Anthropic 兼容 `/v1/messages`
-- ✅ Kiro 多账号轮询 + 自动 Token 刷新
-- ✅ 限流跳过、过期标记
-- ✅ 工具调用、图片、Thinking block 支持
-- ✅ Web 管理界面
-- ✅ Tauri 2 桌面应用
-- ✅ 防抖保存（减少文件 I/O）
-- ✅ Metrics 统计监控
-- ✅ 日志系统
+Kiro Gateway 将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
+
+**核心特性**：
+- 🔄 OpenAI/Anthropic API 完全兼容
+- 👥 多账号轮询和自动切换
+- 🔐 自动 Token 刷新和管理
+- 📊 实时统计和日志监控
+- 🖥️ 友好的桌面管理界面
+- 🛠️ 工具调用和图片支持
+- 💭 Thinking block 解析
 
 ## 技术栈
 
-- **后端**: Rust + Axum + Tokio
-- **前端**: React 19 + TypeScript + Vite 6 + TailwindCSS 4
-- **桌面**: Tauri 2.0
+**后端**：
+- Rust + Axum - HTTP API 服务
+- Tauri 2.0 - 桌面应用框架
+- Tokio - 异步运行时
+- Reqwest - HTTP 客户端
 
-## 快速开始
+**前端**：
+- React 19 - UI 框架
+- TypeScript - 类型安全
+- Vite - 构建工具
+- TailwindCSS - 样式框架
 
-### Web 版本
+## 项目结构
 
-```bash
-# 1. 配置账号
-cp data/accounts.json.example data/accounts.json
-# 编辑 data/accounts.json 添加你的 Kiro 账号
-
-# 2. 启动后端
-cargo run --release
-
-# 3. 启动前端（可选）
-cd web
-npm install
-npm run dev
+```
+kiro-gateway/
+├── src-tauri/              # Tauri + Rust 后端
+│   ├── src/
+│   │   ├── main.rs        # Tauri 入口（启动 Axum + 窗口）
+│   │   ├── server.rs      # Axum HTTP 服务器
+│   │   ├── account.rs     # 账号管理
+│   │   ├── auth.rs        # Token 刷新
+│   │   ├── converter.rs   # 格式转换
+│   │   ├── kiro_client.rs # Kiro API 客户端
+│   │   ├── config.rs      # 配置管理
+│   │   ├── error.rs       # 错误处理
+│   │   ├── models.rs      # 数据模型
+│   │   ├── logger.rs      # 日志系统
+│   │   ├── metrics.rs     # 统计系统
+│   │   └── thinking_parser.rs  # Thinking 解析
+│   └── Cargo.toml
+├── src/                    # React 前端
+│   ├── App.tsx            # 主应用组件
+│   ├── main.tsx           # React 入口
+│   └── index.css          # 样式
+├── index.html             # HTML 入口
+├── package.json           # 前端依赖
+├── vite.config.ts         # Vite 配置
+└── tauri.conf.json        # Tauri 配置
 ```
 
-访问 http://localhost:8080 使用 Web 管理界面。
+## 开发命令
 
-### 桌面版本
+### 安装依赖
 
 ```bash
-# 1. 安装依赖
-cd web
+# 安装前端依赖
 npm install
 
-# 2. 启动桌面应用（开发模式）
-npm run tauri:dev
+# Rust 依赖会在构建时自动安装
+```
 
-# 3. 构建桌面应用
+### 开发模式
+
+```bash
+# 启动开发模式（热重载）
+npm run tauri:dev
+```
+
+### 构建应用
+
+```bash
+# 构建桌面应用
 npm run tauri:build
+
+# 构建产物位于 src-tauri/target/release/
+```
+
+### 其他命令
+
+```bash
+# 仅启动前端开发服务器
+npm run dev
+
+# 仅构建前端
+npm run build
+
+# 代码检查
+cd src-tauri && cargo clippy
+
+# 代码格式化
+cd src-tauri && cargo fmt
 ```
 
 ## 配置说明
 
 ### 环境变量
 
+在 `src-tauri/.env` 或系统环境变量中配置：
+
 ```bash
-HOST=127.0.0.1          # 监听地址
-PORT=8080               # 监听端口
-API_KEY=your-api-key    # 客户端访问密钥（可选）
-ACCOUNTS_FILE=data/accounts.json  # 账号配置文件路径
+# HTTP 服务监听地址（默认 127.0.0.1）
+HOST=127.0.0.1
+
+# HTTP 服务监听端口（默认 8080）
+PORT=8080
+
+# 账号配置文件路径（默认 accounts.json）
+ACCOUNTS_FILE=accounts.json
+
+# 管理员 API Key（可选）
+ADMIN_API_KEY=your-admin-key
 ```
 
 ### 账号配置
 
-支持两种账号类型：
+在 `accounts.json` 中配置 Kiro 账号：
 
-**Social 账号**（Google/GitHub）:
 ```json
 {
-  "id": "account-1",
-  "authMethod": "social",
-  "refreshToken": "your-refresh-token",
-  "region": "us-east-1",
-  "enabled": true
+  "accounts": [
+    {
+      "name": "账号1",
+      "type": "social",
+      "access_token": "your-access-token",
+      "refresh_token": "your-refresh-token",
+      "expires_at": "2024-01-01T00:00:00Z"
+    }
+  ]
 }
 ```
 
-**IDC 账号**（AWS Builder ID）:
-```json
-{
-  "id": "account-2",
-  "authMethod": "idc",
-  "refreshToken": "your-refresh-token",
-  "clientId": "your-client-id",
-  "clientSecret": "your-client-secret",
-  "region": "us-east-1",
-  "enabled": true
-}
-```
+**获取凭证**：
+- 从 Kiro IDE 缓存：`~/.aws/sso/cache/kiro-auth-token.json`
+- 或使用 Kiro Account Manager 导出
 
 ## API 端点
 
-### 核心 API
-
-- `POST /v1/chat/completions` - OpenAI 兼容接口
-- `POST /v1/messages` - Anthropic 兼容接口
-- `GET /v1/models` - 模型列表
-- `GET /health` - 健康检查
-
-### 管理 API
-
-- `GET /admin/accounts` - 列出所有账号
-- `POST /admin/accounts` - 添加账号
-- `DELETE /admin/accounts/:id` - 删除账号
-- `POST /admin/accounts/:id/refresh` - 刷新 Token
-- `POST /admin/accounts/:id/enable` - 启用账号
-- `POST /admin/accounts/:id/disable` - 禁用账号
-- `GET /admin/quota/:id` - 获取配额
-- `GET /admin/metrics` - 统计数据
-- `GET /admin/logs` - 日志查看
-- `POST /admin/logs/clear` - 清空日志
-
-## 开发
+### OpenAI 兼容
 
 ```bash
-# 检查代码
-cargo check
+POST http://127.0.0.1:8080/v1/chat/completions
+Content-Type: application/json
+Authorization: Bearer your-api-key
 
-# 运行测试
-cargo test
-
-# 格式化代码
-cargo fmt
-
-# Lint 检查
-cargo clippy
-
-# 前端开发
-cd web
-npm run dev
-
-# Tauri 开发
-cd web
-npm run tauri:dev
+{
+  "model": "gpt-4",
+  "messages": [
+    {"role": "user", "content": "Hello"}
+  ],
+  "stream": true
+}
 ```
 
-## 部署
-
-### Docker
+### Anthropic 兼容
 
 ```bash
-docker build -t kiro-gateway .
-docker run -d -p 8080:8080 -v ./data:/app/data kiro-gateway
+POST http://127.0.0.1:8080/v1/messages
+Content-Type: application/json
+x-api-key: your-api-key
+anthropic-version: 2023-06-01
+
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "messages": [
+    {"role": "user", "content": "Hello"}
+  ],
+  "max_tokens": 1024,
+  "stream": true
+}
 ```
 
-### 二进制
+### 管理端点
 
 ```bash
-cargo build --release
-./target/release/kiro-gateway
+# 健康检查
+GET http://127.0.0.1:8080/health
+
+# 获取统计数据
+GET http://127.0.0.1:8080/admin/metrics
+
+# 获取日志
+GET http://127.0.0.1:8080/admin/logs
+
+# 清空日志
+POST http://127.0.0.1:8080/admin/logs/clear
 ```
+
+## 模型映射
+
+**OpenAI → Kiro**：
+- `gpt-4` / `gpt-4-turbo` / `gpt-4o` → `claude-sonnet-4.5`
+- `gpt-3.5-turbo` → `claude-haiku-4.5`
+
+**Anthropic → Kiro**：
+- `claude-3-5-sonnet-*` → `claude-sonnet-4.5`
+- `claude-3-opus-*` → `claude-opus-4.5`
+- `claude-3-haiku-*` → `claude-haiku-4.5`
+
+## 功能特性
+
+### 已实现
+
+- ✅ OpenAI Chat Completions API 兼容
+- ✅ Anthropic Messages API 兼容
+- ✅ 多账号轮询和自动切换
+- ✅ 自动 Token 刷新
+- ✅ 流式响应（SSE）
+- ✅ 工具调用支持
+- ✅ 图片上传支持
+- ✅ Thinking block 解析
+- ✅ 日志系统
+- ✅ 统计监控
+- ✅ 桌面管理界面
+
+### 待实现
+
+- ⏳ WebSearch 集成
+- ⏳ API Key 管理系统
+- ⏳ Metrics 持久化
 
 ## 参考项目
 
 - [aliom-v/KiroGate](https://github.com/aliom-v/KiroGate) - Python 实现，主要参考
-- [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust 实现，前端参考
+- [justlovemaki/AIClient-2-API](https://github.com/justlovemaki/AIClient-2-API) - 多 Provider 架构参考
 - [aiclientproxy/proxycast](https://github.com/aiclientproxy/proxycast) - Tauri 桌面应用参考
-- [justlovemaki/AIClient-2-API](https://github.com/justlovemaki/AIClient-2-API) - 架构设计参考
+- [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust 实现参考
 
-## License
+## 开发规范
 
-MIT
+- 代码注释：中文
+- 变量/函数命名：英文（snake_case）
+- 日志 target：`kiro_gateway`
+- 提交信息：遵循 Conventional Commits
+
+## 许可证
+
+MIT License
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 联系方式
+
+- GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)

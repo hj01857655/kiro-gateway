@@ -6,7 +6,95 @@
 - **GitHub 私有仓库**: https://github.com/hj01857655/kiro-gateway_dev
 - **GitHub 公开仓库**: https://github.com/hj01857655/kiro-gateway
 - **本地路径**: `E:\VSCodeSpace\Kiro\kiro-gateway`
-- **技术栈**: Rust + Axum (后端)，React + TypeScript + Vite (前端)
+- **项目类型**: Tauri 2.0 桌面应用（Axum 后端 + React 前端）
+- **技术栈**: 
+  - 后端: Rust + Axum (HTTP API 服务)
+  - 前端: React 19 + TypeScript + Vite + TailwindCSS 4
+  - 状态管理: Zustand + TanStack Query (React Query)
+  - UI 组件: shadcn/ui (Radix UI + TailwindCSS)
+  - 图标: Lucide React
+  - 图表: Recharts
+  - 表单: React Hook Form + Zod
+  - 工具: date-fns
+  - 桌面框架: Tauri 2.0
+
+## 项目结构
+
+```
+kiro-gateway/
+├── src-tauri/              # Tauri + Rust 后端
+│   ├── src/
+│   │   ├── main.rs        # Tauri 入口（启动 Axum + 窗口）
+│   │   ├── server.rs      # Axum HTTP 服务器
+│   │   ├── account.rs     # 账号管理
+│   │   ├── auth.rs        # Token 刷新
+│   │   ├── converter.rs   # 格式转换
+│   │   ├── kiro_client.rs # Kiro API 客户端
+│   │   ├── config.rs      # 配置管理
+│   │   ├── error.rs       # 错误处理
+│   │   ├── models.rs      # 数据模型
+│   │   ├── logger.rs      # 日志系统
+│   │   ├── metrics.rs     # 统计系统
+│   │   ├── api_key.rs     # API Key 管理
+│   │   ├── thinking_parser.rs  # Thinking 解析
+│   │   └── websearch.rs   # WebSearch 集成
+│   └── Cargo.toml
+├── src/                    # React 前端
+│   ├── api/               # API 请求封装
+│   ├── components/        # React 组件
+│   │   └── ui/           # shadcn/ui 组件
+│   ├── hooks/            # 自定义 hooks
+│   ├── lib/              # 工具函数
+│   ├── pages/            # 页面组件
+│   ├── stores/           # Zustand stores
+│   ├── types/            # TypeScript 类型
+│   ├── App.tsx           # 主应用组件
+│   ├── main.tsx          # React 入口
+│   └── index.css         # 样式
+├── index.html             # HTML 入口
+├── package.json           # 前端依赖
+├── vite.config.ts         # Vite 配置
+└── tauri.conf.json        # Tauri 配置
+```
+
+## 架构说明
+
+**Tauri 桌面应用架构**：
+
+```
+┌─────────────────────────────────────────┐
+│  Tauri 窗口 (桌面应用)                   │
+│  ┌───────────────────────────────────┐  │
+│  │  React 前端 (管理界面)             │  │
+│  │  - 账号管理                        │  │
+│  │  - 日志查看                        │  │
+│  │  - 统计监控                        │  │
+│  └──────────┬────────────────────────┘  │
+│             │ HTTP (127.0.0.1:8080)     │
+│             ↓                            │
+│  ┌───────────────────────────────────┐  │
+│  │  Axum 后端 (HTTP API)              │  │
+│  │  - /v1/chat/completions            │  │
+│  │  - /v1/messages                    │  │
+│  │  - /health                         │  │
+│  └──────────┬────────────────────────┘  │
+│             │                            │
+│             ↓                            │
+│  ┌───────────────────────────────────┐  │
+│  │  Kiro API 客户端                   │  │
+│  │  - Token 管理                      │  │
+│  │  - 格式转换                        │  │
+│  │  - 流式响应                        │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+**工作流程**：
+1. Tauri 启动时，在 `main.rs` 中通过 `tokio::spawn` 启动 Axum 服务器
+2. Axum 监听 `127.0.0.1:8080`，提供 HTTP API
+3. React 前端通过 `fetch` 调用 Axum API
+4. Axum 处理请求，转发到 Kiro API，返回结果
+5. 用户可以通过桌面应用管理账号、查看日志、监控统计
 
 ## 项目定位
 

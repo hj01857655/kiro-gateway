@@ -6,13 +6,14 @@ Cargo.lock
 /src-tauri/target
 
 # Web
-/web/node_modules
-/web/dist
-/web/tsconfig.tsbuildinfo
+/node_modules
+/dist
+/tsconfig.tsbuildinfo
+/assets
 
 # Data
 /data/*.json
-!/data/accounts.json.example
+!/data/.gitkeep
 
 # IDE
 .vscode/

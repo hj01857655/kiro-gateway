@@ -1,6 +1,38 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+// Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+pub mod account;
+pub mod auth;
+pub mod converter;
+pub mod config;
+pub mod error;
+pub mod kiro_client;
+pub mod models;
+pub mod thinking_parser;
+pub mod websearch;
+pub mod logger;
+pub mod metrics;
+pub mod api_key;
+pub mod server;
+pub mod health_checker;
+pub mod token_allocator;
+
 fn main() {
-    kiro_gateway_desktop::run();
+    // 初始化 Logger
+    logger::init_logger();
+    
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .setup(|_app| {
+            // 启动 Axum 后端服务器
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = server::start_server().await {
+                    eprintln!("后端服务器启动失败: {}", e);
+                }
+            });
+
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
