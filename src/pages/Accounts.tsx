@@ -65,16 +65,15 @@ export default function Accounts() {
   "profileArn": "",
   "region": "us-east-1",
   "enabled": true
-}`)
+}
 
-  const [batchJsonInput, setBatchJsonInput] = useState(`[
+// 或者批量导入（数组格式）：
+[
   {
     "id": "account-1",
     "name": "账号 1",
     "authMethod": "social",
     "refreshToken": "token1",
-    "profileArn": "",
-    "region": "us-east-1",
     "enabled": true
   },
   {
@@ -83,7 +82,6 @@ export default function Accounts() {
     "authMethod": "idc",
     "refreshToken": "token2",
     "profileArn": "arn:aws:...",
-    "region": "us-east-1",
     "clientId": "client-id",
     "clientSecret": "client-secret",
     "enabled": true
@@ -129,36 +127,28 @@ export default function Accounts() {
 
   const handleJsonSubmit = () => {
     try {
-      const account = JSON.parse(jsonInput)
-      addAccount(account)
-      setShowAddModal(false)
-      notifications.show({
-        title: '成功',
-        message: 'JSON 账号添加成功',
-        color: 'green',
-      })
-    } catch (error) {
-      notifications.show({
-        title: '错误',
-        message: 'JSON 格式错误: ' + (error as Error).message,
-        color: 'red',
-      })
-    }
-  }
-
-  const handleBatchJsonSubmit = () => {
-    try {
-      const accountsArray = JSON.parse(batchJsonInput)
-      if (!Array.isArray(accountsArray)) {
-        throw new Error('必须是数组格式')
+      const data = JSON.parse(jsonInput)
+      
+      // 自动检测是单个对象还是数组
+      if (Array.isArray(data)) {
+        // 批量导入
+        data.forEach((account) => addAccount(account))
+        setShowAddModal(false)
+        notifications.show({
+          title: '成功',
+          message: `批量导入 ${data.length} 个账号成功`,
+          color: 'green',
+        })
+      } else {
+        // 单个导入
+        addAccount(data)
+        setShowAddModal(false)
+        notifications.show({
+          title: '成功',
+          message: 'JSON 账号添加成功',
+          color: 'green',
+        })
       }
-      accountsArray.forEach((account) => addAccount(account))
-      setShowAddModal(false)
-      notifications.show({
-        title: '成功',
-        message: `批量导入 ${accountsArray.length} 个账号成功`,
-        color: 'green',
-      })
     } catch (error) {
       notifications.show({
         title: '错误',
@@ -346,16 +336,7 @@ export default function Accounts() {
                 setShowAddModal(true)
               }}
             >
-              JSON 编辑
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<FileJson size={16} />}
-              onClick={() => {
-                setActiveTab('batch')
-                setShowAddModal(true)
-              }}
-            >
-              批量导入
+              JSON 导入
             </Menu.Item>
             <Menu.Item
               leftSection={<Upload size={16} />}
@@ -489,9 +470,6 @@ export default function Accounts() {
             <Tabs.Tab value="json" leftSection={<FileJson size={16} />}>
               JSON
             </Tabs.Tab>
-            <Tabs.Tab value="batch" leftSection={<FileJson size={16} />}>
-              批量
-            </Tabs.Tab>
             <Tabs.Tab value="file" leftSection={<Upload size={16} />}>
               文件
             </Tabs.Tab>
@@ -521,7 +499,9 @@ export default function Accounts() {
                 placeholder="粘贴 Refresh Token"
                 value={formData.refreshToken}
                 onChange={(e) => setFormData({ ...formData, refreshToken: e.target.value })}
-                minRows={3}
+                minRows={4}
+                autosize
+                maxRows={8}
                 required
               />
               {formData.authMethod === 'idc' && (
@@ -563,12 +543,14 @@ export default function Accounts() {
           <Tabs.Panel value="json" pt="md">
             <Stack gap="md">
               <Text size="sm" c="dimmed">
-                粘贴或编辑 JSON 格式的账号信息
+                支持单个对象或数组格式，自动识别
               </Text>
               <Textarea
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                minRows={12}
+                minRows={15}
+                autosize
+                maxRows={25}
                 styles={{ input: { fontFamily: 'monospace', fontSize: '0.9em' } }}
               />
               <Group justify="flex-end">
@@ -576,26 +558,6 @@ export default function Accounts() {
                   取消
                 </Button>
                 <Button onClick={handleJsonSubmit}>导入</Button>
-              </Group>
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="batch" pt="md">
-            <Stack gap="md">
-              <Text size="sm" c="dimmed">
-                粘贴 JSON 数组格式的多个账号
-              </Text>
-              <Textarea
-                value={batchJsonInput}
-                onChange={(e) => setBatchJsonInput(e.target.value)}
-                minRows={12}
-                styles={{ input: { fontFamily: 'monospace', fontSize: '0.9em' } }}
-              />
-              <Group justify="flex-end">
-                <Button variant="light" onClick={() => setShowAddModal(false)}>
-                  取消
-                </Button>
-                <Button onClick={handleBatchJsonSubmit}>批量导入</Button>
               </Group>
             </Stack>
           </Tabs.Panel>
