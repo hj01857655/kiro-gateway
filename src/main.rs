@@ -40,7 +40,7 @@ struct AppState {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(std::env::var("RUST_LOG.*kiro_gateway=info".to_string()))
+        .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "kiro_gateway=info".to_string()))
         .init();
 
     let config = AppConfig::from_env();
@@ -125,7 +125,7 @@ async fn chat_completions(
     // 日志记录
 
     let is_stream = is_stream_request_openai(&request);
-    let model = request.model.as_deref().unwrap_or("auto");
+    let model = request.model.as_str();
     
     // 获取账号信息
     let account = state.accounts.get_account().await?;
@@ -285,7 +285,7 @@ async fn messages(
     verify_api_key(&headers, &state.config)?;
 
     let is_stream = is_stream_request_anthropic(&request);
-    let model = request.model.as_deref().unwrap_or("auto");
+    let model = request.model.as_str();
     
     // 获取账号信息
     let account = state.accounts.get_account().await?;

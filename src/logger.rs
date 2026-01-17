@@ -31,16 +31,16 @@ pub fn emit_log_sync(level: &str, target: &str, message: &str) {
         target: target.to_string(),
         message: message.to_string(),
     };
-    
-    // 同时输出到 tracing
+
+    // 同时输出到 tracing（使用固定 target）
     match level {
-        "INFO" => tracing::info!(target: target, "{}", message),
-        "DEBUG" => tracing::debug!(target: target, "{}", message),
-        "WARN" => tracing::warn!(target: target, "{}", message),
-        "ERROR" => tracing::error!(target: target, "{}", message),
+        "INFO" => tracing::info!(target: "kiro_gateway", "[{}] {}", target, message),
+        "DEBUG" => tracing::debug!(target: "kiro_gateway", "[{}] {}", target, message),
+        "WARN" => tracing::warn!(target: "kiro_gateway", "[{}] {}", target, message),
+        "ERROR" => tracing::error!(target: "kiro_gateway", "[{}] {}", target, message),
         _ => {}
     }
-    
+
     // 存储到内存（用于 /admin/logs API）
     if let Some(logs) = LOGS.get() {
         if let Ok(mut guard) = logs.try_write() {
@@ -74,7 +74,7 @@ macro_rules! kirogate_info {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            $crate::logger::emit_log_sync("INFO", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("INFO", "kiro_gateway", &msg);
         }
     };
 }
@@ -85,7 +85,7 @@ macro_rules! kirogate_debug {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            $crate::logger::emit_log_sync("DEBUG", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("DEBUG", "kiro_gateway", &msg);
         }
     };
 }
@@ -96,7 +96,7 @@ macro_rules! kirogate_warn {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            $crate::logger::emit_log_sync("WARN", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("WARN", "kiro_gateway", &msg);
         }
     };
 }
@@ -107,7 +107,7 @@ macro_rules! kirogate_error {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            $crate::logger::emit_log_sync("ERROR", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("ERROR", "kiro_gateway", &msg);
         }
     };
 }

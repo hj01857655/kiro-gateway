@@ -187,6 +187,7 @@ pub struct UserInputMessage {
   pub model_id: String,
   pub origin: String,
   #[serde(skip_serializing_if = "Option::is_none")]
+  pub images: Option<Vec<KiroImage>>,
   pub user_input_message_context: Option<UserInputMessageContext>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub inference_config: Option<InferenceConfig>,
@@ -260,6 +261,7 @@ pub struct HistoryUserMessage {
   pub model_id: String,
   pub origin: String,
   #[serde(skip_serializing_if = "Option::is_none")]
+  pub images: Option<Vec<KiroImage>>,
   pub user_input_message_context: Option<UserInputMessageContext>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub inference_config: Option<InferenceConfig>,
@@ -279,6 +281,22 @@ pub struct KiroToolUse {
   pub name: String,
   pub input: serde_json::Value,
   pub tool_use_id: String,
+}
+
+
+// ============================================================
+// 图片支持
+// ============================================================
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KiroImage {
+  pub format: String,
+  pub source: KiroImageSource,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KiroImageSource {
+  pub bytes: String,
 }
 
 // ============================================================
@@ -466,137 +484,6 @@ pub struct KiroToolSpecification {
 }
 
 #[derive(Debug, Clone, Serialize)]
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[derive(Debug, Clone, Serialize)]
-pub enum KiroHistoryItem {
-    User {
-        #[serde(rename = "userInputMessage")]
-        user_input_message: KiroHistoryUserMessage,
-    },
-    Assistant {
-        #[serde(rename = "assistantResponseMessage")]
-        assistant_response_message: KiroHistoryAssistantMessage,
-    },
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroHistoryUserMessage {
-    pub content: String,
-    pub model_id: String,
-    pub origin: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroHistoryAssistantMessage {
-    pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_uses: Option<Vec<KiroToolUse>>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-
-// ============================================================
-// Kiro API 流式响应事件（补充完整）
-// ============================================================
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroEvent {
-    #[serde(default)]
-    pub content: Option<String>,
-    #[serde(default)]
-    pub text: Option<String>,
-    #[serde(default)]
-    pub language: Option<String>,
-    #[serde(default)]
-    pub tool_use_id: Option<String>,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub input: Option<serde_json::Value>,
-    #[serde(default)]
-    pub usage: Option<f64>,
-    #[serde(default)]
-    pub reason: Option<String>,
-    #[serde(default)]
-    pub message: Option<String>,
-    #[serde(default)]
-    pub signature: Option<String>,
-    #[serde(default)]
-    pub message_id: Option<String>,
-    #[serde(default)]
-    pub context_usage_percentage: Option<f64>,
-}
-
-// ============================================================
-// Kiro API 请求（补充完整）
-// ============================================================
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroRequest {
-    pub conversation_state: KiroConversationState,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub profile_arn: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroConversationState {
-    pub agent_continuation_id: String,
-    pub agent_task_type: String,
-    pub chat_trigger_type: String,
-    pub conversation_id: String,
-    pub current_message: KiroCurrentMessage,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub history: Option<Vec<KiroHistoryItem>>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroCurrentMessage {
-    pub user_input_message: KiroUserInputMessage,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroUserInputMessage {
-    pub content: String,
-    pub model_id: String,
-    pub origin: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_input_message_context: Option<KiroUserInputMessageContext>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroUserInputMessageContext {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<KiroToolWrapper>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_results: Option<Vec<KiroToolResult>>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroToolWrapper {
-    pub tool_specification: KiroToolSpecification,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroToolSpecification {
-    pub name: String,
-    pub description: String,
-    pub input_schema: KiroInputSchema,
-}
-
-#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum KiroHistoryItem {
     User {
@@ -605,7 +492,7 @@ pub enum KiroHistoryItem {
     },
     Assistant {
         #[serde(rename = "assistantResponseMessage")]
-        assistant_response_message: KiroHistoryAssistantMessage,
+        assistant_response_message: HistoryAssistantMessage,
     },
 }
 
@@ -617,10 +504,12 @@ pub struct KiroHistoryUserMessage {
     pub origin: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KiroHistoryAssistantMessage {
-    pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_uses: Option<Vec<KiroToolUse>>,
-}
+// ==========================================================
+// 类型别名（兼容性）
+// ==========================================================
+
+/// OpenAI Chat Completion 请求别名
+pub type OpenAIRequest = ChatCompletionRequest;
+
+/// Anthropic Messages 请求别名
+pub type AnthropicRequest = AnthropicMessagesRequest;
