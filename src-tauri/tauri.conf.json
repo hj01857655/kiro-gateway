@@ -19,7 +19,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "identifier": "com.kiro.gateway",
     "publisher": "Kiro Gateway",
     "copyright": "Copyright © 2026 Kiro Gateway",
     "category": "DeveloperTool",
@@ -37,8 +36,7 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
-        "center": true,
-        "icon": "icons/icon.png"
+        "center": true
       }
     ],
     "security": {

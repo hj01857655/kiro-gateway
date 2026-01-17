@@ -473,6 +473,13 @@ export default function Accounts() {
         onClose={() => setShowAddModal(false)}
         title="添加账号"
         size="lg"
+        styles={{
+          body: {
+            minHeight: '500px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+          },
+        }}
       >
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
