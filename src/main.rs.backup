@@ -20,9 +20,7 @@ mod error;
 mod kiro_client;
 mod models;
 mod thinking_parser;
-// mod websearch; // TODO: 需要适配独立服务架构
-mod logger;
-mod metrics;
+mod websearch;
 
 use account::AccountManager;
 use config::AppConfig;
@@ -79,9 +77,6 @@ async fn main() {
         .route("/admin/quota/:account_id", get(admin_get_quota))
         .route("/admin/health", get(admin_health_check))
         .route("/admin/stats", get(admin_stats))
-        .route("/admin/logs", get(admin_logs))
-        .route("/admin/logs/clear", post(admin_clear_logs))
-        .route("/admin/metrics", get(admin_metrics))
         .route("/admin/accounts/import-kiro", post(admin_import_kiro))
         .route("/admin/accounts", post(admin_add_account))
         .route("/admin/accounts/:account_id", delete(admin_delete_account))
@@ -121,8 +116,6 @@ async fn chat_completions(
     Json(request): Json<OpenAIRequest>,
 ) -> Result<Response, AppError> {
     verify_api_key(&headers, &state.config)?;
-
-    // 日志记录
 
     let is_stream = is_stream_request_openai(&request);
     let model = request.model.as_deref().unwrap_or("auto");
@@ -298,9 +291,6 @@ async fn messages(
         // 流式响应
         let anthropic_stream = async_stream::stream! {
             tokio::pin!(stream);
-            
-            // 创建 ThinkingParser
-            let mut thinking_parser = thinking_parser::ThinkingParser::new();
 
             // message_start
             yield Ok::<_, Infallible>(Event::default().event("message_start").data(format!(
@@ -360,47 +350,8 @@ async fn messages(
                         )));
                         in_thinking = false;
                     }
-                    
-                    // 使用 ThinkingParser 解析内容
-                    if let Some(ref content) = event.content {
-                        let segments = thinking_parser.push_and_parse(content);
-                        
-                        for segment in segments {
-                            match segment.segment_type {
-                                thinking_parser::SegmentType::Thinking => {
-                                    // 发送 thinking block
-                                    if !in_thinking {
-                                        block_index += 1;
-                                        let sig = thinking_signature.as_deref().unwrap_or("");
-                                        yield Ok::<_, Infallible>(Event::default().event("content_block_start").data(format!(
-                                            r#"{{"type":"content_block_start","index":{},"content_block":{{"type":"thinking","thinking":"","signature":"{}"}}}}"#,
-                                            block_index, sig
-                                        )));
-                                        in_thinking = true;
-                                    }
-                                    let escaped = segment.content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-                                    yield Ok::<_, Infallible>(Event::default().event("content_block_delta").data(format!(
-                                        r#"{{"type":"content_block_delta","index":{},"delta":{{"type":"thinking_delta","thinking":"{}"}}}}"#,
-                                        block_index, escaped
-                                    )));
-                                }
-                                thinking_parser::SegmentType::Text => {
-                                    // 关闭 thinking block（如果有）
-                                    if in_thinking {
-                                        yield Ok::<_, Infallible>(Event::default().event("content_block_stop").data(format!(
-                                            r#"{{"type":"content_block_stop","index":{}}}"#, block_index
-                                        )));
-                                        in_thinking = false;
-                                    }
-                                    // 发送 text delta
-                                    let escaped = segment.content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-                                    yield Ok::<_, Infallible>(Event::default().event("content_block_delta").data(format!(
-                                        r#"{{"type":"content_block_delta","index":0,"delta":{{"type":"text_delta","text":"{}"}}}}"#,
-                                        escaped
-                                    )));
-                                }
-                            }
-                        }
+                    if let Some(data) = kiro_to_anthropic(&event) {
+                        yield Ok::<_, Infallible>(Event::default().event("content_block_delta").data(data));
                     }
                 }
 
@@ -419,42 +370,6 @@ async fn messages(
                     yield Ok::<_, Infallible>(Event::default().event("content_block_stop").data(format!(
                         r#"{{"type":"content_block_stop","index":{}}}"#, block_index
                     )));
-                }
-            }
-            
-            // 刷新 ThinkingParser 缓冲区
-            let final_segments = thinking_parser.flush();
-            for segment in final_segments {
-                match segment.segment_type {
-                    thinking_parser::SegmentType::Thinking => {
-                        if !in_thinking {
-                            block_index += 1;
-                            let sig = thinking_signature.as_deref().unwrap_or("");
-                            yield Ok::<_, Infallible>(Event::default().event("content_block_start").data(format!(
-                                r#"{{"type":"content_block_start","index":{},"content_block":{{"type":"thinking","thinking":"","signature":"{}"}}}}"#,
-                                block_index, sig
-                            )));
-                            in_thinking = true;
-                        }
-                        let escaped = segment.content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-                        yield Ok::<_, Infallible>(Event::default().event("content_block_delta").data(format!(
-                            r#"{{"type":"content_block_delta","index":{},"delta":{{"type":"thinking_delta","thinking":"{}"}}}}"#,
-                            block_index, escaped
-                        )));
-                    }
-                    thinking_parser::SegmentType::Text => {
-                        if in_thinking {
-                            yield Ok::<_, Infallible>(Event::default().event("content_block_stop").data(format!(
-                                r#"{{"type":"content_block_stop","index":{}}}"#, block_index
-                            )));
-                            in_thinking = false;
-                        }
-                        let escaped = segment.content.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-                        yield Ok::<_, Infallible>(Event::default().event("content_block_delta").data(format!(
-                            r#"{{"type":"content_block_delta","index":0,"delta":{{"type":"text_delta","text":"{}"}}}}"#,
-                            escaped
-                        )));
-                    }
                 }
             }
 
@@ -974,47 +889,3 @@ async fn delete_memory(
     state.client.delete_user_memory(&account, &entry_id).await?;
     Ok(Json(serde_json::json!({"success": true})))
 }
-
-
-// ============ 日志 API ============
-
-/// 获取日志
-async fn admin_logs(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
-    verify_api_key(&headers, &state.config)?;
-    
-    let logs = logger::get_logs().await;
-    Ok(Json(serde_json::json!({
-        "logs": logs,
-        "total": logs.len()
-    })))
-}
-
-/// 清空日志
-async fn admin_clear_logs(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
-    verify_api_key(&headers, &state.config)?;
-    
-    logger::clear_logs().await;
-    Ok(Json(serde_json::json!({
-        "success": true,
-        "message": "日志已清空"
-    })))
-}
-/// 获取统计数据
-async fn admin_metrics(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
-    verify_api_key(&headers, &state.config)?;
-
-    let metrics_data = metrics::METRICS.get_metrics();
-    Ok(Json(serde_json::to_value(metrics_data).unwrap()))
-}
-
-
-

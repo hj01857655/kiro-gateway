@@ -1,0 +1,18 @@
+// 在 main.rs 开头的模块声明部分添加：
+mod metrics;
+
+// 在路由部分添加（在 .route("/admin/logs/clear", post(admin_clear_logs)) 之后）：
+        .route("/admin/metrics", get(admin_metrics))
+
+// 在文件末尾添加 Metrics API 处理函数：
+
+/// 获取统计数据
+async fn admin_metrics(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    verify_api_key(&headers, &state.config)?;
+
+    let metrics_data = metrics::METRICS.get_metrics();
+    Ok(Json(serde_json::to_value(metrics_data).unwrap()))
+}
