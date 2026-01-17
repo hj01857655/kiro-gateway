@@ -36,6 +36,11 @@ export default function Accounts() {
     try {
       const data = await fetchAccounts()
       setAccounts(data.accounts)
+      
+      // 自动查询所有账号的配额（静默模式）
+      for (const account of data.accounts) {
+        handleCheckQuota(account.id, true)
+      }
     } catch (error) {
       console.error('加载账号失败:', error)
     } finally {
@@ -67,7 +72,7 @@ export default function Accounts() {
     }
   }
 
-  const handleCheckQuota = async (id: string) => {
+  const handleCheckQuota = async (id: string, silent = false) => {
     setLoadingQuotas(prev => ({ ...prev, [id]: true }))
     try {
       const rawQuota = await fetchQuota(id)
@@ -75,7 +80,7 @@ export default function Accounts() {
       // 解析 Kiro API 返回的配额数据（驼峰格式）
       const breakdown = rawQuota.usageBreakdownList?.[0]
       if (!breakdown) {
-        alert('配额数据格式错误')
+        if (!silent) alert('配额数据格式错误')
         return
       }
       
@@ -93,7 +98,8 @@ export default function Accounts() {
       
       setQuotas(prev => ({ ...prev, [id]: { usage, limit, percentage } }))
     } catch (error) {
-      alert('查询配额失败: ' + error)
+      if (!silent) alert('查询配额失败: ' + error)
+      console.error(`账号 ${id} 配额查询失败:`, error)
     } finally {
       setLoadingQuotas(prev => ({ ...prev, [id]: false }))
     }
