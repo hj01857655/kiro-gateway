@@ -48,7 +48,7 @@ pub fn get_stream_timeout(model: &str) -> Duration {
 }
 
 pub struct KiroClient {
-    client: Client,
+    pub client: Client,
     config: AppConfig,
 }
 

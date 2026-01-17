@@ -112,7 +112,7 @@ impl ThinkingParser {
             }
             ParseState::InThinking => {
                 if !self.buffer.is_empty() {
-                    log::warn!("[ThinkingParser] Thinking block not properly closed, flushing {} chars as thinking", self.buffer.len());
+                    tracing::warn!("[ThinkingParser] Thinking block not properly closed, flushing {} chars as thinking", self.buffer.len());
                     segments.push(TextSegment {
                         segment_type: SegmentType::Thinking,
                         content: self.buffer.clone(),
@@ -162,7 +162,7 @@ impl ThinkingParser {
         if stripped.starts_with(Self::OPEN_TAG) {
             self.buffer = stripped[Self::OPEN_TAG.len()..].to_string();
             self.state = ParseState::InThinking;
-            log::debug!("[ThinkingParser] Detected <thinking> tag at start, entering thinking mode");
+            tracing::debug!("[ThinkingParser] Detected <thinking> tag at start, entering thinking mode");
             return Some(true);
         } else {
             self.state = ParseState::Passthrough;
@@ -195,7 +195,7 @@ impl ThinkingParser {
         self.state = ParseState::AfterThinking;
         self.thinking_extracted = true;
 
-        log::debug!("[ThinkingParser] Extracted thinking block: {} chars", thinking_content.len());
+        tracing::debug!("[ThinkingParser] Extracted thinking block: {} chars", thinking_content.len());
         Some(TextSegment {
             segment_type: SegmentType::Thinking,
             content: thinking_content,

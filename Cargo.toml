@@ -1,5 +1,5 @@
 [package]
-name = "kiro-gate"
+name = "kiro-gateway"
 version = "0.1.0"
 edition = "2021"
 

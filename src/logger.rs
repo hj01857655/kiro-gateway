@@ -1,13 +1,13 @@
-// KiroGateway 日志发送模块
-// 用于将日志事件发送到前端
+// KiroGate 日志模块
+// 独立版本 - 使用内存存储和 tracing
 
 use serde::Serialize;
+use std::collections::VecDeque;
 use std::sync::OnceLock;
-use tauri::{AppHandle, Emitter};
 use tokio::sync::RwLock;
 
-// 全局 AppHandle 存储
-static APP_HANDLE: OnceLock<RwLock<Option<AppHandle>>> = OnceLock::new();
+// 全局日志存储（最多保留 1000 条）
+static LOGS: OnceLock<RwLock<VecDeque<LogEntry>>> = OnceLock::new();
 
 /// 日志条目
 #[derive(Debug, Clone, Serialize)]
@@ -18,13 +18,9 @@ pub struct LogEntry {
     pub message: String,
 }
 
-/// 初始化日志发送器（在 main.rs setup 中调用）
-pub fn init_logger(app_handle: AppHandle) {
-    let lock = APP_HANDLE.get_or_init(|| RwLock::new(None));
-    // 使用 blocking 方式设置，因为这在 setup 中同步调用
-    if let Ok(mut guard) = lock.try_write() {
-        *guard = Some(app_handle);
-    }
+/// 初始化日志存储
+pub fn init_logger() {
+    LOGS.get_or_init(|| RwLock::new(VecDeque::with_capacity(1000)));
 }
 
 /// 同步发送日志（用于非异步上下文）
@@ -36,12 +32,39 @@ pub fn emit_log_sync(level: &str, target: &str, message: &str) {
         message: message.to_string(),
     };
     
-    if let Some(lock) = APP_HANDLE.get() {
-        if let Ok(guard) = lock.try_read() {
-            if let Some(app) = guard.as_ref() {
-                let _ = app.emit("kirogate-log", entry);
+    // 同时输出到 tracing
+    match level {
+        "INFO" => tracing::info!(target: target, "{}", message),
+        "DEBUG" => tracing::debug!(target: target, "{}", message),
+        "WARN" => tracing::warn!(target: target, "{}", message),
+        "ERROR" => tracing::error!(target: target, "{}", message),
+        _ => {}
+    }
+    
+    // 存储到内存（用于 /admin/logs API）
+    if let Some(logs) = LOGS.get() {
+        if let Ok(mut guard) = logs.try_write() {
+            guard.push_back(entry);
+            if guard.len() > 1000 {
+                guard.pop_front();
             }
         }
+    }
+}
+
+/// 获取所有日志
+pub async fn get_logs() -> Vec<LogEntry> {
+    if let Some(logs) = LOGS.get() {
+        logs.read().await.iter().cloned().collect()
+    } else {
+        Vec::new()
+    }
+}
+
+/// 清空日志
+pub async fn clear_logs() {
+    if let Some(logs) = LOGS.get() {
+        logs.write().await.clear();
     }
 }
 
@@ -51,8 +74,7 @@ macro_rules! kirogate_info {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            log::info!("[KiroGate] {}", msg);
-            $crate::kiro_gate::logger::emit_log_sync("INFO", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("INFO", "kiro_gate", &msg);
         }
     };
 }
@@ -63,8 +85,7 @@ macro_rules! kirogate_debug {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            log::debug!("[KiroGate] {}", msg);
-            $crate::kiro_gate::logger::emit_log_sync("DEBUG", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("DEBUG", "kiro_gate", &msg);
         }
     };
 }
@@ -75,8 +96,7 @@ macro_rules! kirogate_warn {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            log::warn!("[KiroGate] {}", msg);
-            $crate::kiro_gate::logger::emit_log_sync("WARN", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("WARN", "kiro_gate", &msg);
         }
     };
 }
@@ -87,8 +107,7 @@ macro_rules! kirogate_error {
     ($($arg:tt)*) => {
         {
             let msg = format!($($arg)*);
-            log::error!("[KiroGate] {}", msg);
-            $crate::kiro_gate::logger::emit_log_sync("ERROR", "kiro_gate", &msg);
+            $crate::logger::emit_log_sync("ERROR", "kiro_gate", &msg);
         }
     };
 }

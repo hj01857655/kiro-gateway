@@ -11,10 +11,10 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-use crate::kiro_gate::auth::TokenConfig;
-use crate::kiro_gate::logger::emit_log_sync;
-use crate::kiro_gate::models::*;
-use crate::kiro_gate::server::ServerState;
+use crate::auth::TokenConfig;
+use crate::logger::emit_log_sync;
+use crate::models::*;
+use crate::server::ServerState;
 
 /// 检查请求是否为纯 WebSearch 请求
 pub fn is_web_search_request(request: &AnthropicMessagesRequest) -> bool {
@@ -523,3 +523,4 @@ fn anthropic_error_response(status: StatusCode, error_type: &str, message: &str)
     }));
     (status, body).into_response()
 }
+
