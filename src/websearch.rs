@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::auth::TokenConfig;
 use crate::logger::emit_log_sync;
 use crate::models::*;
-use crate::server::ServerState;
+use crate::AppState;
 
 /// 检查请求是否为纯 WebSearch 请求
 pub fn is_web_search_request(request: &AnthropicMessagesRequest) -> bool {
@@ -114,7 +114,7 @@ fn create_mcp_request(query: &str) -> (String, serde_json::Value) {
 
 /// 调用 Kiro MCP API
 async fn call_mcp_api(
-    state: &ServerState,
+    state: &AppState,
     access_token: &str,
     region: &str,
     mcp_request: &serde_json::Value,
@@ -221,7 +221,7 @@ fn estimate_tokens(text: &str) -> i32 {
 
 /// 处理 WebSearch 请求
 pub async fn handle_web_search_request(
-    state: Arc<ServerState>,
+    state: Arc<AppState>,
     _headers: HeaderMap,
     request: AnthropicMessagesRequest,
     verify_result: super::server::VerifyResult,

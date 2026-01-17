@@ -162,10 +162,11 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 - 解析 Kiro API 返回的 thinking block
 - 与 Kiro IDE 实现完全一致
 
-### ⚠️ WebSearch（已复制但未集成）
+### ✅ WebSearch（已适配但未启用）
 - 文件: `src/websearch.rs`
-- 需要适配独立服务架构
-- 需要移除对 Tauri 相关结构的依赖
+- 已适配独立服务架构（使用 axum）
+- 已移除 Tauri 依赖
+- 在 `main.rs` 中被注释：`// mod websearch;`
 
 ## 待完成功能
 
@@ -222,3 +223,5 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 - 迁移报告：`E:\VSCodeSpace\Kiro\kiro-gateway\MIGRATION_REPORT.md`
 - Kiro IDE 源码位置：`C:\Users\12925\.kiro\steering\kiro-ide-source.md`
 - KiroGate 参考规范：`.kiro/steering/kirogate.md`
+
+
