@@ -67,3 +67,7 @@ export async function fetchLogs() {
 export async function clearLogs() {
   return request(`${API_BASE}/admin/logs/clear`, { method: 'POST' })
 }
+
+export async function fetchQuota(accountId: string) {
+  return request(`${API_BASE}/admin/quota/${accountId}`)
+}

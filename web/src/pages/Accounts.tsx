@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAccounts, deleteAccount, refreshAccount, enableAccount, disableAccount, importKiroAccount, addAccount } from '../api/accounts'
+import { fetchAccounts, deleteAccount, refreshAccount, enableAccount, disableAccount, importKiroAccount, addAccount, fetchQuota } from '../api/accounts'
 
 interface Account {
   id: string
@@ -12,10 +12,18 @@ interface Account {
   isThrottled: boolean
 }
 
+interface QuotaInfo {
+  usage: number
+  limit: number
+  percentage: number
+}
+
 export default function Accounts() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [quotas, setQuotas] = useState<Record<string, QuotaInfo>>({})
+  const [loadingQuotas, setLoadingQuotas] = useState<Record<string, boolean>>({})
   const [newAccount, setNewAccount] = useState({
     refreshToken: '',
     authMethod: 'social',
@@ -56,6 +64,18 @@ export default function Accounts() {
       alert('刷新成功')
     } catch (error) {
       alert('刷新失败: ' + error)
+    }
+  }
+
+  const handleCheckQuota = async (id: string) => {
+    setLoadingQuotas(prev => ({ ...prev, [id]: true }))
+    try {
+      const quota = await fetchQuota(id)
+      setQuotas(prev => ({ ...prev, [id]: quota }))
+    } catch (error) {
+      alert('查询配额失败: ' + error)
+    } finally {
+      setLoadingQuotas(prev => ({ ...prev, [id]: false }))
     }
   }
 
@@ -171,8 +191,32 @@ export default function Accounts() {
                   <p className="text-sm text-gray-600">
                     Provider: {account.provider} | ID: {account.id}
                   </p>
+                  {quotas[account.id] && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-gray-600">配额: </span>
+                      <span className="font-medium">
+                        {quotas[account.id].usage?.toFixed(2) || '?'} / {quotas[account.id].limit?.toFixed(2) || '?'}
+                      </span>
+                      {quotas[account.id].percentage !== undefined && (
+                        <span className={`ml-2 ${
+                          quotas[account.id].percentage! > 80 ? 'text-red-500' : 
+                          quotas[account.id].percentage! > 50 ? 'text-yellow-500' : 
+                          'text-green-500'
+                        }`}>
+                          ({quotas[account.id].percentage!.toFixed(1)}%)
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCheckQuota(account.id)}
+                    disabled={loadingQuotas[account.id]}
+                    className="px-3 py-1 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50"
+                  >
+                    {loadingQuotas[account.id] ? '查询中...' : '查配额'}
+                  </button>
                   <button
                     onClick={() => handleRefresh(account.id)}
                     className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
