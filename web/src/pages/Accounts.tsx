@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchAccounts, deleteAccount, refreshAccount, enableAccount, disableAccount, importKiroAccount, addAccount, fetchQuota } from '../api/accounts'
+import { isTauri, checkCredentialsExists, onCredentialsChanged } from '../utils/tauri'
 
 interface Account {
   id: string
@@ -24,6 +25,7 @@ export default function Accounts() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [quotas, setQuotas] = useState<Record<string, QuotaInfo>>({})
   const [loadingQuotas, setLoadingQuotas] = useState<Record<string, boolean>>({})
+  const [credentialsAvailable, setCredentialsAvailable] = useState(false)
   const [newAccount, setNewAccount] = useState({
     refreshToken: '',
     authMethod: 'social',
@@ -50,6 +52,23 @@ export default function Accounts() {
 
   useEffect(() => {
     loadAccounts()
+    
+    // 检查 Kiro 凭证文件是否存在（仅桌面版）
+    if (isTauri()) {
+      checkCredentialsExists().then(exists => {
+        setCredentialsAvailable(exists)
+      }).catch(err => {
+        console.error('检查凭证文件失败:', err)
+      })
+      
+      // 监听凭证文件变更
+      onCredentialsChanged(() => {
+        console.log('凭证文件已更新，重新加载账号')
+        handleImportKiro()
+      }).catch(err => {
+        console.error('监听凭证文件失败:', err)
+      })
+    }
   }, [])
 
   const handleDelete = async (id: string) => {

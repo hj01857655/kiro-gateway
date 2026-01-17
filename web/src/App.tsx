@@ -6,6 +6,7 @@ import Settings from './pages/Settings'
 import Metrics from './pages/Metrics'
 import Logs from './pages/Logs'
 import TauriStatus from './components/TauriStatus'
+import BackendStatus from './components/BackendStatus'
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -103,7 +104,8 @@ function App() {
         </Routes>
       </main>
 
-      {/* Tauri 状态指示器 */}
+      {/* 状态指示器 */}
+      <BackendStatus />
       <TauriStatus />
     </div>
   )

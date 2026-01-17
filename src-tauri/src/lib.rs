@@ -1,10 +1,31 @@
 use tauri::Manager;
 
+mod backend;
+mod credentials;
+
+use backend::BackendServer;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            // 初始化后端服务器
+            let backend = BackendServer::new();
+            app.manage(backend);
+            
+            // 启动后端服务器
+            let app_handle = app.handle().clone();
+            let backend_state = app.state::<BackendServer>();
+            if let Err(e) = backend_state.start(app_handle.clone()) {
+                tracing::error!("Failed to start backend server: {}", e);
+            }
+            
+            // 启动凭证文件监控
+            if let Err(e) = credentials::start_credentials_watcher(app_handle.clone()) {
+                tracing::warn!("Failed to start credentials watcher: {}", e);
+            }
+            
             #[cfg(debug_assertions)]
             {
                 let window = app.get_webview_window("main").unwrap();
@@ -16,6 +37,9 @@ pub fn run() {
             get_backend_url,
             start_backend_server,
             stop_backend_server,
+            check_backend_status,
+            credentials::read_kiro_credentials,
+            credentials::check_credentials_exists,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -29,14 +53,25 @@ fn get_backend_url() -> String {
 
 // Tauri 命令：启动后端服务器
 #[tauri::command]
-async fn start_backend_server() -> Result<String, String> {
-    // TODO: 启动嵌入的 kiro-gateway 后端服务
-    Ok("Backend server started".to_string())
+async fn start_backend_server(
+    backend: tauri::State<'_, BackendServer>,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    backend.start(app)
 }
 
 // Tauri 命令：停止后端服务器
 #[tauri::command]
-async fn stop_backend_server() -> Result<String, String> {
-    // TODO: 停止后端服务器
-    Ok("Backend server stopped".to_string())
+async fn stop_backend_server(
+    backend: tauri::State<'_, BackendServer>,
+) -> Result<String, String> {
+    backend.stop()
+}
+
+// Tauri 命令：检查后端服务器状态
+#[tauri::command]
+async fn check_backend_status(
+    backend: tauri::State<'_, BackendServer>,
+) -> Result<bool, String> {
+    Ok(backend.is_running())
 }
