@@ -20,6 +20,7 @@
 - [x] 删除账号
 - [x] Token 手动刷新
 - [x] 从 Kiro IDE 导入账号
+- [x] 配额查询显示（usage/limit/percentage）
 
 **状态监控** ✅
 - [x] 账号状态实时显示（active/expired/throttled/error）

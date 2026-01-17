@@ -70,8 +70,28 @@ export default function Accounts() {
   const handleCheckQuota = async (id: string) => {
     setLoadingQuotas(prev => ({ ...prev, [id]: true }))
     try {
-      const quota = await fetchQuota(id)
-      setQuotas(prev => ({ ...prev, [id]: quota }))
+      const rawQuota = await fetchQuota(id)
+      
+      // 解析 Kiro API 返回的配额数据（驼峰格式）
+      const breakdown = rawQuota.usageBreakdownList?.[0]
+      if (!breakdown) {
+        alert('配额数据格式错误')
+        return
+      }
+      
+      // 优先使用免费试用配额
+      let usage: number, limit: number
+      if (breakdown.freeTrialInfo?.freeTrialStatus === 'ACTIVE') {
+        usage = breakdown.freeTrialInfo.currentUsageWithPrecision ?? 0
+        limit = breakdown.freeTrialInfo.usageLimitWithPrecision ?? 0
+      } else {
+        usage = breakdown.currentUsageWithPrecision ?? 0
+        limit = breakdown.usageLimitWithPrecision ?? 0
+      }
+      
+      const percentage = limit > 0 ? (usage / limit) * 100 : 0
+      
+      setQuotas(prev => ({ ...prev, [id]: { usage, limit, percentage } }))
     } catch (error) {
       alert('查询配额失败: ' + error)
     } finally {
