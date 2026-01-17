@@ -16,6 +16,17 @@ use crate::logger::emit_log_sync;
 use crate::models::*;
 use crate::AppState;
 
+/// 账号验证结果
+#[derive(Debug, Clone)]
+pub struct VerifyResult {
+    pub refresh_token: String,
+    pub auth_method: String,
+    pub profile_arn: Option<String>,
+    pub client_id: Option<String>,
+    pub client_secret: Option<String>,
+    pub region: Option<String>,
+}
+
 /// 检查请求是否为纯 WebSearch 请求
 pub fn is_web_search_request(request: &AnthropicMessagesRequest) -> bool {
     if request.tools.is_none() {
@@ -224,7 +235,7 @@ pub async fn handle_web_search_request(
     state: Arc<AppState>,
     _headers: HeaderMap,
     request: AnthropicMessagesRequest,
-    verify_result: super::server::VerifyResult,
+    verify_result: VerifyResult,
 ) -> Response {
     let _start_time = std::time::Instant::now();
     let model = request.model.clone();

@@ -14,27 +14,31 @@ use tower_http::cors::CorsLayer;
 use tracing::info;
 
 mod account;
+mod auth;
 mod converter;
 mod config;
 mod error;
 mod kiro_client;
 mod models;
 mod thinking_parser;
-// mod websearch; // TODO: 需要适配独立服务架构
+mod websearch;
 mod logger;
 mod metrics;
 
 use account::AccountManager;
 use config::AppConfig;
-use converter::{openai_to_kiro, anthropic_to_kiro, kiro_to_openai, kiro_to_anthropic, create_openai_end_with_reason, is_stream_request_openai, is_stream_request_anthropic};
+use converter::{build_kiro_payload, anthropic_to_openai, is_stream_request_openai, is_stream_request_anthropic, kiro_to_openai, kiro_to_anthropic, create_openai_end_with_reason};
 use error::AppError;
 use kiro_client::KiroClient;
 use models::{OpenAIRequest, AnthropicRequest, Usage};
+// use websearch::{VerifyResult};
 
-struct AppState {
-    config: AppConfig,
-    client: KiroClient,
-    accounts: AccountManager,
+pub struct AppState {
+    pub config: AppConfig,
+    pub client: KiroClient,
+    pub accounts: AccountManager,
+    pub http_client: reqwest::Client,
+    pub auth_cache: crate::auth::AuthCache,
 }
 
 #[tokio::main]
@@ -46,6 +50,8 @@ async fn main() {
     let config = AppConfig::from_env();
     let client = KiroClient::new(config.clone());
     let accounts = AccountManager::new();
+    let http_client = reqwest::Client::new();
+    let auth_cache = crate::auth::AuthCache::new();
 
     if let Some(ref json) = config.accounts_json {
         if let Err(e) = accounts.load_from_json(json) {
@@ -66,7 +72,13 @@ async fn main() {
         accounts.set_accounts_file(file);
     }
 
-    let state = Arc::new(AppState { config: config.clone(), client, accounts });
+    let state = Arc::new(AppState { 
+        config: config.clone(), 
+        client, 
+        accounts,
+        http_client,
+        auth_cache,
+    });
 
     let app = Router::new()
         // 核心 API
@@ -129,7 +141,7 @@ async fn chat_completions(
     
     // 获取账号信息
     let account = state.accounts.get_account().await?;
-    let kiro_request = openai_to_kiro(&request, &account.profile_arn, &account.auth_method);
+    let kiro_request = build_kiro_payload(&request, Some(account.profile_arn.clone())).map_err(|e| AppError::BadRequest(e))?;
     
     let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, model).await?;
     let request_id = uuid::Uuid::new_v4().to_string();
@@ -284,12 +296,32 @@ async fn messages(
 ) -> Result<Response, AppError> {
     verify_api_key(&headers, &state.config)?;
 
+    // 检查是否为 WebSearch 请求
+    if websearch::is_web_search_request(&request) {
+        tracing::info!("检测到 WebSearch 请求，转发到 WebSearch 处理器");
+        
+        // 构建 VerifyResult（从账号获取）
+        let account = state.accounts.get_account().await?;
+        let verify_result = websearch::VerifyResult {
+            refresh_token: account.refresh_token.clone(),
+            auth_method: account.auth_method.clone(),
+            profile_arn: Some(account.profile_arn.clone()),
+            client_id: account.client_id.clone(),
+            client_secret: account.client_secret.clone(),
+            region: account.region.clone(),
+        };
+        
+        return Ok(websearch::handle_web_search_request(state, headers, request, verify_result).await);
+    }
+
     let is_stream = is_stream_request_anthropic(&request);
     let model = request.model.as_str();
     
     // 获取账号信息
     let account = state.accounts.get_account().await?;
-    let kiro_request = anthropic_to_kiro(&request, &account.profile_arn, &account.auth_method);
+    // 先转换为 OpenAI 格式，再使用 build_kiro_payload
+    let openai_request = anthropic_to_openai(&request);
+    let kiro_request = build_kiro_payload(&openai_request, Some(account.profile_arn.clone())).map_err(|e| AppError::BadRequest(e))?;
     
     let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, model).await?;
     let request_id = uuid::Uuid::new_v4().to_string();

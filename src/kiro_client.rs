@@ -11,7 +11,7 @@ use tracing::{debug, error, warn, info};
 use crate::account::AccountManager;
 use crate::config::AppConfig;
 use crate::error::AppError;
-use crate::models::{KiroEvent, KiroRequest};
+use crate::models::{KiroEvent, KiroPayload};
 use crate::account::Account;
 
 const THROTTLING_ERRORS: &[&str] = &[
@@ -72,7 +72,7 @@ impl KiroClient {
     /// 带 Token 刷新和超时控制的请求
     pub async fn generate_with_refresh(
         &self,
-        request: KiroRequest,
+        request: KiroPayload,
         accounts: &AccountManager,
         model: &str,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<KiroEvent, AppError>> + Send>>, AppError> {
@@ -98,7 +98,7 @@ impl KiroClient {
 
     async fn generate_with_timeout(
         &self,
-        request: KiroRequest,
+        request: KiroPayload,
         account: &Account,
         accounts: &AccountManager,
         first_token_timeout: Duration,
@@ -119,7 +119,7 @@ impl KiroClient {
 
     async fn generate_assistant_response(
         &self,
-        request: KiroRequest,
+        request: KiroPayload,
         account: &Account,
         accounts: &AccountManager,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<KiroEvent, AppError>> + Send>>, AppError> {
@@ -164,7 +164,7 @@ impl KiroClient {
 
     async fn do_request(
         &self,
-        request: &KiroRequest,
+        request: &KiroPayload,
         account: &Account,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<KiroEvent, AppError>> + Send>>, AppError> {
         let url = format!("{}/generateAssistantResponse", self.config.kiro_endpoint);
