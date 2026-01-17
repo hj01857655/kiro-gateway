@@ -40,7 +40,7 @@ struct AppState {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "kiro_gate=info".to_string()))
+        .with_env_filter(std::env::var("RUST_LOG.*kiro_gateway=info".to_string()))
         .init();
 
     let config = AppConfig::from_env();

@@ -272,4 +272,3 @@ impl Default for Metrics {
 // 全局 Metrics 实例
 use once_cell::sync::Lazy;
 pub static METRICS: Lazy<Metrics> = Lazy::new(Metrics::new);
-

@@ -1,13 +1,15 @@
-// KiroGate 日志系统
-// 不依赖 Tauri，使用 once_cell + tokio 实现
+// KiroGateway 日志发送模块
+// 用于将日志事件发送到前端
 
-use once_cell::sync::Lazy;
-use parking_lot::Mutex;
 use serde::Serialize;
-use std::collections::VecDeque;
+use std::sync::OnceLock;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::RwLock;
 
-const MAX_LOGS: usize = 1000;
+// 全局 AppHandle 存储
+static APP_HANDLE: OnceLock<RwLock<Option<AppHandle>>> = OnceLock::new();
 
+/// 日志条目
 #[derive(Debug, Clone, Serialize)]
 pub struct LogEntry {
     pub timestamp: String,
@@ -16,95 +18,77 @@ pub struct LogEntry {
     pub message: String,
 }
 
-static LOGS: Lazy<Mutex<VecDeque<LogEntry>>> = Lazy::new(|| Mutex::new(VecDeque::with_capacity(MAX_LOGS)));
-
-/// 异步记录日志
-pub async fn emit_log(level: &str, target: &str, message: &str) {
-    let log = LogEntry {
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        level: level.to_string(),
-        target: target.to_string(),
-        message: message.to_string(),
-    };
-
-    let mut logs = LOGS.lock();
-    logs.push_back(log);
-    if logs.len() > MAX_LOGS {
-        logs.pop_front();
-    }
-    drop(logs);
-
-    // 输出到 tracing
-    match level {
-        "ERROR" => tracing::error!(target: "kiro_gate", "[{}] {}", target, message),
-        "WARN" => tracing::warn!(target: "kiro_gate", "[{}] {}", target, message),
-        "INFO" => tracing::info!(target: "kiro_gate", "[{}] {}", target, message),
-        "DEBUG" => tracing::debug!(target: "kiro_gate", "[{}] {}", target, message),
-        _ => tracing::info!(target: "kiro_gate", "[{}] {}", target, message),
+/// 初始化日志发送器（在 main.rs setup 中调用）
+pub fn init_logger(app_handle: AppHandle) {
+    let lock = APP_HANDLE.get_or_init(|| RwLock::new(None));
+    // 使用 blocking 方式设置，因为这在 setup 中同步调用
+    if let Ok(mut guard) = lock.try_write() {
+        *guard = Some(app_handle);
     }
 }
 
-/// 同步记录日志
+/// 同步发送日志（用于非异步上下文）
 pub fn emit_log_sync(level: &str, target: &str, message: &str) {
-    let log = LogEntry {
+    let entry = LogEntry {
         timestamp: chrono::Utc::now().to_rfc3339(),
         level: level.to_string(),
         target: target.to_string(),
         message: message.to_string(),
     };
-
-    let mut logs = LOGS.lock();
-    logs.push_back(log);
-    if logs.len() > MAX_LOGS {
-        logs.pop_front();
-    }
-    drop(logs);
-
-    // 输出到 tracing
-    match level {
-        "ERROR" => tracing::error!(target: "kiro_gate", "[{}] {}", target, message),
-        "WARN" => tracing::warn!(target: "kiro_gate", "[{}] {}", target, message),
-        "INFO" => tracing::info!(target: "kiro_gate", "[{}] {}", target, message),
-        "DEBUG" => tracing::debug!(target: "kiro_gate", "[{}] {}", target, message),
-        _ => tracing::info!(target: "kiro_gate", "[{}] {}", target, message),
+    
+    if let Some(lock) = APP_HANDLE.get() {
+        if let Ok(guard) = lock.try_read() {
+            if let Some(app) = guard.as_ref() {
+                let _ = app.emit("kirogate-log", entry);
+            }
+        }
     }
 }
 
-/// 获取所有日志
-pub async fn get_logs() -> Vec<LogEntry> {
-    LOGS.lock().iter().cloned().collect()
-}
-
-/// 清空日志
-pub async fn clear_logs() {
-    LOGS.lock().clear();
-}
-
-/// 便捷宏
+/// 便捷宏：发送 INFO 日志
 #[macro_export]
 macro_rules! kirogate_info {
-    ($target:expr, $($arg:tt)*) => {
-        $crate::logger::emit_log_sync("INFO", $target, &format!($($arg)*))
+    ($($arg:tt)*) => {
+        {
+            let msg = format!($($arg)*);
+            log::info!("[KiroGate] {}", msg);
+            $crate::kiro_gate::logger::emit_log_sync("INFO", "kiro_gate", &msg);
+        }
     };
 }
 
+/// 便捷宏：发送 DEBUG 日志
 #[macro_export]
 macro_rules! kirogate_debug {
-    ($target:expr, $($arg:tt)*) => {
-        $crate::logger::emit_log_sync("DEBUG", $target, &format!($($arg)*))
+    ($($arg:tt)*) => {
+        {
+            let msg = format!($($arg)*);
+            log::debug!("[KiroGate] {}", msg);
+            $crate::kiro_gate::logger::emit_log_sync("DEBUG", "kiro_gate", &msg);
+        }
     };
 }
 
+/// 便捷宏：发送 WARN 日志
 #[macro_export]
 macro_rules! kirogate_warn {
-    ($target:expr, $($arg:tt)*) => {
-        $crate::logger::emit_log_sync("WARN", $target, &format!($($arg)*))
+    ($($arg:tt)*) => {
+        {
+            let msg = format!($($arg)*);
+            log::warn!("[KiroGate] {}", msg);
+            $crate::kiro_gate::logger::emit_log_sync("WARN", "kiro_gate", &msg);
+        }
     };
 }
 
+/// 便捷宏：发送 ERROR 日志
 #[macro_export]
 macro_rules! kirogate_error {
-    ($target:expr, $($arg:tt)*) => {
-        $crate::logger::emit_log_sync("ERROR", $target, &format!($($arg)*))
+    ($($arg:tt)*) => {
+        {
+            let msg = format!($($arg)*);
+            log::error!("[KiroGate] {}", msg);
+            $crate::kiro_gate::logger::emit_log_sync("ERROR", "kiro_gate", &msg);
+        }
     };
 }

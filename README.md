@@ -1,4 +1,4 @@
-# KiroGate
+# KiroGateway
 
 Kiro API 网关，提供 OpenAI/Anthropic 兼容接口。
 
@@ -39,8 +39,8 @@ Kiro API 网关，提供 OpenAI/Anthropic 兼容接口。
 cargo build --release
 
 # 运行
-./target/release/kiro-gate
-# 或 Windows: .\target\release\kiro-gate.exe
+./target/release/kiro-gateway
+# 或 Windows: .\target\release\kiro-gateway.exe
 ```
 
 默认监听 `http://127.0.0.1:8080`
