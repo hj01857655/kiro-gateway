@@ -18,7 +18,8 @@ export const useAccountStore = create<AccountStore>((set) => ({
     set((state) => ({
       accounts: state.accounts.map((acc) => (acc.id === id ? { ...acc, ...updates } : acc)),
     })),
-  deleteAccount: (id) => set((state) => ({ accounts: state.accounts.filter((acc) => acc.id !== id) })),
+  deleteAccount: (id) =>
+    set((state) => ({ accounts: state.accounts.filter((acc) => acc.id !== id) })),
   toggleAccount: (id) =>
     set((state) => ({
       accounts: state.accounts.map((acc) =>

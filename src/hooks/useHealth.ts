@@ -15,7 +15,7 @@ export function useHealth() {
 // 手动触发健康检查
 export function useCheckHealth() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: checkHealth,
     onSuccess: () => {

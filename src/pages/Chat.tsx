@@ -18,7 +18,9 @@ export default function Chat() {
         <MessageSquare size={24} color="#228be6" />
         <div>
           <Title order={2}>聊天测试</Title>
-          <Text size="sm" c="dimmed">测试 Kiro API 网关的聊天功能</Text>
+          <Text size="sm" c="dimmed">
+            测试 Kiro API 网关的聊天功能
+          </Text>
         </div>
       </Group>
 
@@ -39,9 +41,10 @@ export default function Chat() {
                   radius="md"
                   style={{
                     maxWidth: '70%',
-                    background: msg.role === 'user' 
-                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      : '#f1f3f5',
+                    background:
+                      msg.role === 'user'
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : '#f1f3f5',
                   }}
                 >
                   <Text
@@ -69,11 +72,7 @@ export default function Chat() {
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             style={{ flex: 1 }}
           />
-          <Button
-            leftSection={<Send size={16} />}
-            onClick={handleSend}
-            disabled={!message.trim()}
-          >
+          <Button leftSection={<Send size={16} />} onClick={handleSend} disabled={!message.trim()}>
             发送
           </Button>
         </Group>

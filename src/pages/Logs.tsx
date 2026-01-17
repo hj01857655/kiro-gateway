@@ -1,5 +1,17 @@
 import { useLogs } from '@/hooks/useLogs'
-import { Button, Card, Group, Text, Stack, Title, Loader, Center, TextInput, Select, Badge } from '@mantine/core'
+import {
+  Button,
+  Card,
+  Group,
+  Text,
+  Stack,
+  Title,
+  Loader,
+  Center,
+  TextInput,
+  Select,
+  Badge,
+} from '@mantine/core'
 import { Trash2, Search } from 'lucide-react'
 import { format } from 'date-fns'
 import { useState } from 'react'
@@ -86,7 +98,9 @@ export default function Logs() {
                     <Text size="sm" c="dimmed">
                       {format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss')}
                     </Text>
-                    <Text size="sm" c="dimmed">•</Text>
+                    <Text size="sm" c="dimmed">
+                      •
+                    </Text>
                     <Text size="sm" c="dimmed" style={{ fontFamily: 'monospace' }}>
                       {log.target}
                     </Text>
@@ -101,9 +115,13 @@ export default function Logs() {
 
       <Card shadow="sm" padding="sm" radius="md" withBorder>
         <Group justify="space-between">
-          <Text size="sm" c="dimmed">共 {filteredLogs.length} 条日志</Text>
+          <Text size="sm" c="dimmed">
+            共 {filteredLogs.length} 条日志
+          </Text>
           {(searchTerm || levelFilter !== 'all') && (
-            <Text size="sm" c="dimmed">（从 {logs.length} 条中筛选）</Text>
+            <Text size="sm" c="dimmed">
+              （从 {logs.length} 条中筛选）
+            </Text>
           )}
         </Group>
       </Card>

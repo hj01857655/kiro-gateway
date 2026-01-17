@@ -24,18 +24,29 @@ import {
   Tooltip,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import { Plus, RefreshCw, Trash2, Power, PowerOff, Upload, FileJson, ChevronDown, Activity } from 'lucide-react'
+import {
+  Plus,
+  RefreshCw,
+  Trash2,
+  Power,
+  PowerOff,
+  Upload,
+  FileJson,
+  ChevronDown,
+  Activity,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import type { Account } from '@/types'
 
 export default function Accounts() {
-  const { accounts, isLoading, addAccount, updateAccount, deleteAccount, refreshAccount } = useAccounts()
+  const { accounts, isLoading, addAccount, updateAccount, deleteAccount, refreshAccount } =
+    useAccounts()
   const { data: healthData } = useHealth()
   const checkHealthMutation = useCheckHealth()
   const [showAddModal, setShowAddModal] = useState(false)
   const [activeTab, setActiveTab] = useState<string | null>('form')
   const resetRef = useRef<() => void>(null)
-  
+
   const [formData, setFormData] = useState({
     name: '',
     authMethod: 'social',
@@ -45,7 +56,7 @@ export default function Accounts() {
     clientId: '',
     clientSecret: '',
   })
-  
+
   const [jsonInput, setJsonInput] = useState(`{
   "id": "account-1",
   "name": "我的账号",
@@ -55,7 +66,7 @@ export default function Accounts() {
   "region": "us-east-1",
   "enabled": true
 }`)
-  
+
   const [batchJsonInput, setBatchJsonInput] = useState(`[
   {
     "id": "account-1",
@@ -149,13 +160,13 @@ export default function Accounts() {
 
   const handleFileImport = (file: File | null) => {
     if (!file) return
-    
+
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string
         const data = JSON.parse(content)
-        
+
         if (Array.isArray(data)) {
           data.forEach((account) => addAccount(account))
           notifications.show({
@@ -212,7 +223,7 @@ export default function Accounts() {
 
   // 获取账号的健康信息
   const getAccountHealth = (accountId: string) => {
-    return healthData?.accounts.find(h => h.id === accountId)
+    return healthData?.accounts.find((h) => h.id === accountId)
   }
 
   // 手动触发健康检查
@@ -255,21 +266,38 @@ export default function Accounts() {
           </Group>
           <Group grow>
             <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">总账号数</Text>
-              <Text size="xl" fw={700}>{healthData.total}</Text>
-            </Card>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">可用账号</Text>
-              <Text size="xl" fw={700} c="green">{healthData.available}</Text>
-            </Card>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">不可用账号</Text>
-              <Text size="xl" fw={700} c="red">{healthData.total - healthData.available}</Text>
-            </Card>
-            <Card withBorder p="sm">
-              <Text size="xs" c="dimmed">可用率</Text>
+              <Text size="xs" c="dimmed">
+                总账号数
+              </Text>
               <Text size="xl" fw={700}>
-                {healthData.total > 0 ? Math.round((healthData.available / healthData.total) * 100) : 0}%
+                {healthData.total}
+              </Text>
+            </Card>
+            <Card withBorder p="sm">
+              <Text size="xs" c="dimmed">
+                可用账号
+              </Text>
+              <Text size="xl" fw={700} c="green">
+                {healthData.available}
+              </Text>
+            </Card>
+            <Card withBorder p="sm">
+              <Text size="xs" c="dimmed">
+                不可用账号
+              </Text>
+              <Text size="xl" fw={700} c="red">
+                {healthData.total - healthData.available}
+              </Text>
+            </Card>
+            <Card withBorder p="sm">
+              <Text size="xs" c="dimmed">
+                可用率
+              </Text>
+              <Text size="xl" fw={700}>
+                {healthData.total > 0
+                  ? Math.round((healthData.available / healthData.total) * 100)
+                  : 0}
+                %
               </Text>
               <Progress
                 value={healthData.total > 0 ? (healthData.available / healthData.total) * 100 : 0}
@@ -362,16 +390,17 @@ export default function Accounts() {
                       </Badge>
                       {health && (
                         <Tooltip label={`成功率: ${(health.success_rate * 100).toFixed(1)}%`}>
-                          <Badge
-                            color={health.is_available ? 'green' : 'red'}
-                            variant="dot"
-                          >
+                          <Badge color={health.is_available ? 'green' : 'red'} variant="dot">
                             {health.is_available ? '可用' : '不可用'}
                           </Badge>
                         </Tooltip>
                       )}
                     </Group>
-                    <Text size="sm" c="dimmed" style={{ fontFamily: 'monospace', fontSize: '0.8em' }}>
+                    <Text
+                      size="sm"
+                      c="dimmed"
+                      style={{ fontFamily: 'monospace', fontSize: '0.8em' }}
+                    >
                       ID: {account.id}
                     </Text>
                     {health && (
@@ -559,7 +588,7 @@ export default function Accounts() {
                 选择 JSON 文件导入账号（支持单个对象或数组）
               </Text>
               <Code block>
-{`// 单个账号
+                {`// 单个账号
 {
   "id": "account-1",
   "name": "我的账号",
