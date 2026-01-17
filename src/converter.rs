@@ -13,6 +13,7 @@ pub const TOOL_DESCRIPTION_MAX_LENGTH: usize = 1024;
 
 /// 从 data URL 或文件扩展名检测图片格式
 /// 参考 Kiro IDE 的 formatFromImageUrl 实现
+#[allow(dead_code)]
 fn detect_image_format(url: &str) -> String {
   // 优先从 data URL 的 media_type 提取
   if url.starts_with("data:") {
@@ -40,6 +41,7 @@ fn detect_image_format(url: &str) -> String {
 /// 参考实现:
 /// - Kiro IDE: extension.js 的 extractImages 函数
 /// - KiroGate: converters.py 的 extract_images_from_content 函数
+#[allow(dead_code)]
 pub fn extract_images_from_content(content: &Option<serde_json::Value>) -> (Vec<KiroImage>, usize) {
   let content = match content {
     Some(c) => c,
@@ -86,10 +88,10 @@ pub fn extract_images_from_content(content: &Option<serde_json::Value>) -> (Vec<
             },
           });
           
-          tracing::debug!("[KiroGate] 提取 OpenAI 图片: format={}", format);
+          tracing::debug!("[kiro-gateway] 提取 OpenAI 图片: format={}", format);
         }
       } else {
-        tracing::warn!("[KiroGate] 不支持外部图片 URL: {}...", &url[..url.len().min(50)]);
+        tracing::warn!("[kiro-gateway] 不支持外部图片 URL: {}...", &url[..url.len().min(50)]);
       }
     }
     // Anthropic 格式: {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "..."}}
@@ -116,11 +118,11 @@ pub fn extract_images_from_content(content: &Option<serde_json::Value>) -> (Vec<
               },
             });
             
-            tracing::debug!("[KiroGate] 提取 Anthropic 图片: format={}", media_type);
+            tracing::debug!("[kiro-gateway] 提取 Anthropic 图片: format={}", media_type);
           }
         } else if source_type == "url" {
           let url = source.get("url").and_then(|v| v.as_str()).unwrap_or("");
-          tracing::warn!("[KiroGate] 不支持图片 URL: {}...", &url[..url.len().min(50)]);
+          tracing::warn!("[kiro-gateway] 不支持图片 URL: {}...", &url[..url.len().min(50)]);
         }
       }
     }
@@ -135,6 +137,7 @@ pub fn extract_images_from_content(content: &Option<serde_json::Value>) -> (Vec<
 // ============================================================
 
 // 模型映射
+#[allow(dead_code)]
 pub fn get_internal_model_id(external_model: &str) -> Result<String, String> {
   let model_id = match external_model {
     // Claude Opus 4.5
@@ -158,6 +161,7 @@ pub fn get_internal_model_id(external_model: &str) -> Result<String, String> {
 }
 
 // 可用模型列表
+#[allow(dead_code)]
 pub fn get_available_models() -> Vec<ModelInfo> {
   let models = vec![
     // Claude Code 常用名称
@@ -472,7 +476,7 @@ pub fn build_kiro_payload(
   profile_arn: Option<String>,
 ) -> Result<KiroPayload, String> {
   // 调试日志：打印消息数量
-  tracing::debug!("[KiroGate] build_kiro_payload: 收到 {} 条消息", request.messages.len());
+  tracing::debug!("[kiro-gateway] build_kiro_payload: 收到 {} 条消息", request.messages.len());
   
   let model_id = get_internal_model_id(&request.model)?;
   let conversation_id = Uuid::new_v4().to_string();
@@ -521,7 +525,7 @@ pub fn build_kiro_payload(
             } else { 
               format!("{}{}", content, placeholder) 
             };
-            tracing::debug!("[KiroGate] 历史消息中替换 {} 张图片为占位符", image_count);
+            tracing::debug!("[kiro-gateway] 历史消息中替换 {} 张图片为占位符", image_count);
           }
           
           // 将 system prompt 添加到第一个 user 消息
@@ -629,7 +633,7 @@ pub fn build_kiro_payload(
     }
     // 有历史时，文档已经在第一个 user 消息中了（通过 system_prompt）
     // 这里需要特殊处理，但为了简化，暂时只处理无历史的情况
-    tracing::debug!("[KiroGate] 长 description 工具文档已添加到消息中");
+    tracing::debug!("[kiro-gateway] 长 description 工具文档已添加到消息中");
   }
   
   let context = if tools.is_some() || !tool_results.is_empty() {
@@ -650,7 +654,7 @@ pub fn build_kiro_payload(
   
   // 如果有图片，记录日志
   if image_count > 0 {
-    tracing::info!("[KiroGate] 添加 {} 张图片到当前消息", image_count);
+    tracing::info!("[kiro-gateway] 添加 {} 张图片到当前消息", image_count);
   }
   
   Ok(KiroPayload {
@@ -850,23 +854,31 @@ pub fn kiro_to_anthropic(event: &KiroEvent) -> Option<String> {
     None
 }
 
-/// 创建 OpenAI 结束事件
+/// 创建 OpenAI 流式结束事件
 pub fn create_openai_end_with_reason(
     request_id: &str,
-    _has_tool: bool,
-    _context_exceeded: bool,
-    _usage: Option<Usage>,
-) -> ChatCompletionChunk {
-    ChatCompletionChunk {
-        id: format!("chatcmpl-{}", request_id),
-        object: "chat.completion.chunk".to_string(),
-        created: chrono::Utc::now().timestamp(),
-        model: "kiro".to_string(),
-        choices: vec![ChunkChoice {
-            index: 0,
-            delta: Delta {
-                role: None,
-                content: None,
-                tool_calls: None,
-            },
-            finish_reason: Some("stop".to_string())
+    has_tool: bool,
+    context_exceeded: bool,
+    usage: Option<Usage>,
+) -> serde_json::Value {
+    let finish_reason = if has_tool {
+        "tool_calls"
+    } else if context_exceeded {
+        "length"
+    } else {
+        "stop"
+    };
+
+    serde_json::json!({
+        "id": format!("chatcmpl-{}", request_id),
+        "object": "chat.completion.chunk",
+        "created": chrono::Utc::now().timestamp(),
+        "model": "kiro",
+        "choices": [{
+            "index": 0,
+            "delta": {},
+            "finish_reason": finish_reason
+        }],
+        "usage": usage
+    })
+}

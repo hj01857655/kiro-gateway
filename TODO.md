@@ -1,29 +1,39 @@
-# KiroGate 待办列表
+# kiro-gateway 待办列表
 
-> 最后更新：2026-01-11
+> 最后更新：2026-01-17
 
 ---
 
 ## 📋 前端待办
 
 ### 技术栈
-- React + Vite + TypeScript
-- TailwindCSS + shadcn/ui
+- React + Vite + TypeScript ✅
+- TailwindCSS ✅
 - 部署：Vercel
 
 ### 功能模块
 
-**账号管理**
-- [ ] 账号列表展示（状态、名称、类型）
-- [ ] 添加账号（Social/IDC）
-- [ ] 编辑账号（启用/禁用）
-- [ ] 删除账号
-- [ ] Token 手动刷新
+**账号管理** ✅
+- [x] 账号列表展示（状态、名称、类型）
+- [x] 添加账号（Social/IDC）
+- [x] 编辑账号（启用/禁用）
+- [x] 删除账号
+- [x] Token 手动刷新
+- [x] 从 Kiro IDE 导入账号
 
-**状态监控**
-- [ ] 账号状态实时显示（active/expired/throttled/error）
-- [ ] 请求统计（今日/总计）
-- [ ] 配额使用情况
+**状态监控** ✅
+- [x] 账号状态实时显示（active/expired/throttled/error）
+- [x] 请求统计（Metrics）
+- [x] 延迟分布（P50/P95/P99）
+- [x] 端点/状态码/模型统计
+- [x] 最近请求记录
+
+**日志查看** ✅
+- [x] 日志列表展示
+- [x] 日志级别过滤
+- [x] 日志搜索
+- [x] 清空日志
+- [x] 自动刷新
 
 **聊天界面**
 - [ ] 基础聊天 UI
@@ -31,22 +41,26 @@
 - [ ] 流式响应显示
 - [ ] 历史记录
 
-**系统设置**
-- [ ] API 地址配置
-- [ ] API Key 配置
-- [ ] 主题切换（深色/浅色）
+**系统设置** ✅
+- [x] API 地址配置说明
+- [x] 主题切换（深色/浅色）
 
 ### 项目结构
 ```
 web/
 ├── src/
-│   ├── components/    # 组件
-│   ├── pages/         # 页面
-│   ├── hooks/         # 自定义 hooks
-│   ├── lib/           # 工具函数
-│   └── api/           # API 调用
+│   ├── api/           # API 调用 ✅
+│   ├── pages/         # 页面 ✅
+│   │   ├── Accounts.tsx   # 账号管理 ✅
+│   │   ├── Metrics.tsx    # 统计监控 ✅
+│   │   ├── Logs.tsx       # 日志查看 ✅
+│   │   ├── Chat.tsx       # 聊天测试
+│   │   └── Settings.tsx   # 设置 ✅
+│   ├── App.tsx        # 主应用 ✅
+│   ├── main.tsx       # 入口 ✅
+│   └── index.css      # 样式 ✅
 ├── public/
-└── package.json
+└── package.json       # 依赖 ✅
 ```
 
 ---
@@ -101,6 +115,9 @@ web/
 - [x] 健康检查 dryRun - `/admin/health`
 - [x] 用户记忆 API - `/v1/memory` (GET/POST/DELETE)
 - [x] 管理 API - `/admin/accounts`, `/admin/stats`
+- [x] WebSearch 集成
+- [x] Logger 日志系统
+- [x] Metrics 统计系统
 
 ### 其他
 - [x] API Key 验证
@@ -113,12 +130,19 @@ web/
 
 ## 📋 待办
 
-暂无
+### 前端
+- [ ] 聊天测试界面（可选）
+
+### 后端（可选）
+- [ ] API Key 系统（生成用户 API Key）
+- [ ] Metrics 持久化（SQLite）
+- [ ] Token 计数 API (`/v1/messages/count_tokens`)
 
 ---
 
 ## 工程师进度
 
+**后端**：
 - **main.rs** - ✅ 100%
 - **converter.rs** - ✅ 100%
 - **kiro_client.rs** - ✅ 100%
@@ -126,5 +150,19 @@ web/
 - **config.rs** - ✅ 100%
 - **models.rs** - ✅ 100%
 - **error.rs** - ✅ 100%
+- **websearch.rs** - ✅ 100%
+- **logger.rs** - ✅ 100%
+- **metrics.rs** - ✅ 100%
+- **thinking_parser.rs** - ✅ 100%
+- **auth.rs** - ✅ 100%
 
-**整体完成度：100%** 🎉
+**前端**：
+- **App.tsx** - ✅ 100%
+- **pages/Accounts.tsx** - ✅ 100%
+- **pages/Metrics.tsx** - ✅ 100%
+- **pages/Logs.tsx** - ✅ 100%
+- **pages/Chat.tsx** - ⚠️ 50% (占位页面)
+- **pages/Settings.tsx** - ✅ 100%
+- **api/accounts.ts** - ✅ 100%
+
+**整体完成度：95%** 🎉

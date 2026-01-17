@@ -1,4 +1,4 @@
-// KiroGate 统计模块
+// kiro-gateway 统计模块
 
 use serde::Serialize;
 use std::collections::HashMap;
@@ -7,7 +7,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // 延迟直方图桶边界（秒）
 const LATENCY_BUCKETS: [f64; 11] = [0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, f64::INFINITY];
+#[allow(dead_code)]
 const MAX_RECENT_REQUESTS: usize = 50;
+#[allow(dead_code)]
 const MAX_RESPONSE_TIMES: usize = 100;
 
 #[derive(Debug, Clone, Serialize)]
@@ -63,6 +65,7 @@ struct MetricsInner {
   hourly_requests: HashMap<u64, u64>,
   // 延迟直方图
   latency_buckets: Vec<u64>,
+  #[allow(dead_code)]
   latency_sum: f64,
   latency_count: u64,
   // 启动时间戳
@@ -99,6 +102,7 @@ impl Metrics {
 
 
   /// 记录请求
+  #[allow(dead_code)]
   pub fn record_request(
     &self,
     endpoint: &str,

@@ -43,6 +43,9 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+    // 初始化 Logger
+    logger::init_logger();
+    
     tracing_subscriber::fmt()
         .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "kiro_gateway=info".to_string()))
         .init();
@@ -107,7 +110,7 @@ async fn main() {
         .layer(CorsLayer::permissive());
 
     let addr = format!("{}:{}", config.host, config.port);
-    info!("KiroGate 启动: http://{}", addr);
+    info!("kiro-gateway 启动: http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
@@ -134,8 +137,7 @@ async fn chat_completions(
 ) -> Result<Response, AppError> {
     verify_api_key(&headers, &state.config)?;
 
-    // 日志记录
-
+    let start_time = std::time::Instant::now();
     let is_stream = is_stream_request_openai(&request);
     let model = request.model.as_str();
     
@@ -202,6 +204,11 @@ async fn chat_completions(
             yield Ok::<_, Infallible>(Event::default().data(serde_json::to_string(&end).unwrap_or_default()));
             yield Ok::<_, Infallible>(Event::default().data("[DONE]".to_string()));
         };
+        
+        // 记录 Metrics
+        let duration = start_time.elapsed().as_millis() as f64;
+        metrics::METRICS.record_request("/v1/chat/completions", 200, duration, model, true, "openai");
+        
         Ok(Sse::new(openai_stream).into_response())
     } else {
         // 非流式响应：收集所有内容
@@ -284,6 +291,10 @@ async fn chat_completions(
             "usage": usage
         });
 
+        // 记录 Metrics
+        let duration = start_time.elapsed().as_millis() as f64;
+        metrics::METRICS.record_request("/v1/chat/completions", 200, duration, model, false, "openai");
+
         Ok(Json(response).into_response())
     }
 }
@@ -295,6 +306,8 @@ async fn messages(
     Json(request): Json<AnthropicRequest>,
 ) -> Result<Response, AppError> {
     verify_api_key(&headers, &state.config)?;
+
+    let start_time = std::time::Instant::now();
 
     // 检查是否为 WebSearch 请求
     if websearch::is_web_search_request(&request) {
@@ -505,6 +518,11 @@ async fn messages(
             // message_stop
             yield Ok::<_, Infallible>(Event::default().event("message_stop").data(r#"{"type":"message_stop"}"#.to_string()));
         };
+        
+        // 记录 Metrics
+        let duration = start_time.elapsed().as_millis() as f64;
+        metrics::METRICS.record_request("/v1/messages", 200, duration, model, true, "anthropic");
+        
         Ok(Sse::new(anthropic_stream).into_response())
     } else {
         // 非流式响应：收集所有内容
@@ -604,6 +622,10 @@ async fn messages(
                 "output_tokens": output_tokens.unwrap_or(0)
             }
         });
+
+        // 记录 Metrics
+        let duration = start_time.elapsed().as_millis() as f64;
+        metrics::METRICS.record_request("/v1/messages", 200, duration, model, false, "anthropic");
 
         Ok(Json(response).into_response())
     }

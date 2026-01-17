@@ -1,323 +1,280 @@
 import { useState, useEffect } from 'react'
-import { api, type Account } from '../api/client'
+import { fetchAccounts, deleteAccount, refreshAccount, enableAccount, disableAccount, importKiroAccount, addAccount } from '../api/accounts'
 
-const statusColors: Record<string, string> = {
-  active: 'bg-green-500',
-  expired: 'bg-red-500',
-  throttled: 'bg-yellow-500',
-  error: 'bg-red-500',
-  disabled: 'bg-gray-500',
-}
-
-const statusLabels: Record<string, string> = {
-  active: '正常',
-  expired: '已过期',
-  throttled: '限流中',
-  error: '错误',
-  disabled: '已禁用',
-}
-
-const exampleJson = `// Social 账号（Google/GitHub）
-{
-  "provider": "Google",
-  "authMethod": "social",
-  "refreshToken": "aorAAAAA..."
-}
-
-// IdC 账号（BuilderId/Enterprise）
-{
-  "provider": "BuilderId",
-  "authMethod": "idc",
-  "refreshToken": "aorAAAAA...",
-  "clientId": "MkAG97...",
-  "clientSecret": "eyJraWQ..."
-}
-
-// 批量导入（数组）
-[
-  { "provider": "Google", "authMethod": "social", "refreshToken": "..." },
-  { "provider": "BuilderId", "authMethod": "idc", "refreshToken": "...", "clientId": "...", "clientSecret": "..." }
-]`
-
-interface QuotaInfo {
-  email?: string
-  userId?: string
-  used: number
-  limit: number
-  usagePercent: number
-  subscriptionType?: string
-  subscriptionTypeCode?: string
-  upgradeCapability?: string
-  freeTrialStatus?: string
-  freeTrialExpiry?: number
-  nextReset?: number
-  daysUntilReset?: number
-  currency?: string
-  unit?: string
-  displayName?: string
-  overageRate?: number
+interface Account {
+  id: string
+  name: string
+  provider: string
+  authMethod: string
+  enabled: boolean
+  status: string
+  isExpired: boolean
+  isThrottled: boolean
 }
 
 export default function Accounts() {
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [quotas, setQuotas] = useState<Record<string, QuotaInfo | null>>({})
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showModal, setShowModal] = useState(false)
-  const [jsonInput, setJsonInput] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newAccount, setNewAccount] = useState({
+    refreshToken: '',
+    authMethod: 'social',
+    clientId: '',
+    clientSecret: '',
+    provider: 'Google',
+  })
 
-  const parseQuotaResponse = (response: any): QuotaInfo | null => {
+  const loadAccounts = async () => {
     try {
-      const breakdown = response.usageBreakdownList?.[0]
-      if (!breakdown) return null
-
-      const freeTrialInfo = breakdown.freeTrialInfo
-      const isFreeTrialActive = freeTrialInfo?.freeTrialStatus === 'ACTIVE'
-
-      const used = isFreeTrialActive 
-        ? (freeTrialInfo.currentUsageWithPrecision ?? 0)
-        : (breakdown.currentUsageWithPrecision ?? 0)
-      
-      const limit = isFreeTrialActive
-        ? (freeTrialInfo.usageLimitWithPrecision ?? 0)
-        : (breakdown.usageLimitWithPrecision ?? 0)
-
-      return {
-        email: response.userInfo?.email,
-        userId: response.userInfo?.userId,
-        used,
-        limit,
-        usagePercent: limit > 0 ? Math.round((used / limit) * 100) : 0,
-        subscriptionType: response.subscriptionInfo?.subscriptionTitle,
-        subscriptionTypeCode: response.subscriptionInfo?.type,
-        upgradeCapability: response.subscriptionInfo?.upgradeCapability,
-        freeTrialStatus: freeTrialInfo?.freeTrialStatus,
-        freeTrialExpiry: freeTrialInfo?.freeTrialExpiry,
-        nextReset: response.nextDateReset || breakdown.nextDateReset,
-        daysUntilReset: response.daysUntilReset,
-        currency: breakdown.currency,
-        unit: breakdown.unit,
-        displayName: breakdown.displayName,
-        overageRate: breakdown.overageRate,
-      }
-    } catch (e) {
-      console.error('解析配额响应失败:', e)
-      return null
-    }
-  }
-
-  const fetchAccounts = async () => {
-    try {
-      setLoading(true)
-      const data = await api.getAccounts()
-      setAccounts(data)
-      setError(null)
-      // 获取每个账号的配额
-      const quotaPromises = data.map(async (acc) => {
-        try {
-          const response = await api.getQuota(acc.id)
-          const quota = parseQuotaResponse(response)
-          return { id: acc.id, quota }
-        } catch (e) {
-          console.error(`获取账号 ${acc.id} 配额失败:`, e)
-          return { id: acc.id, quota: null }
-        }
-      })
-      const results = await Promise.all(quotaPromises)
-      const quotaMap: Record<string, QuotaInfo | null> = {}
-      results.forEach(r => { quotaMap[r.id] = r.quota })
-      setQuotas(quotaMap)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '获取账号失败')
+      const data = await fetchAccounts()
+      setAccounts(data.accounts)
+    } catch (error) {
+      console.error('加载账号失败:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { fetchAccounts() }, [])
+  useEffect(() => {
+    loadAccounts()
+  }, [])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定删除此账号？')) return
+    try {
+      await deleteAccount(id)
+      await loadAccounts()
+    } catch (error) {
+      alert('删除失败: ' + error)
+    }
+  }
 
   const handleRefresh = async (id: string) => {
     try {
-      await api.refreshAccount(id)
-      await fetchAccounts()
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '刷新失败')
+      await refreshAccount(id)
+      await loadAccounts()
+      alert('刷新成功')
+    } catch (error) {
+      alert('刷新失败: ' + error)
     }
   }
 
   const handleToggle = async (id: string, enabled: boolean) => {
     try {
-      await api.toggleAccount(id, enabled)
-      await fetchAccounts()
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '操作失败')
+      if (enabled) {
+        await disableAccount(id)
+      } else {
+        await enableAccount(id)
+      }
+      await loadAccounts()
+    } catch (error) {
+      alert('操作失败: ' + error)
     }
   }
 
   const handleImportKiro = async () => {
     try {
-      const result = await api.importFromKiro()
-      alert(`导入成功: ${result.accountId}`)
-      await fetchAccounts()
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '导入失败')
+      await importKiroAccount()
+      await loadAccounts()
+      alert('导入成功')
+    } catch (error) {
+      alert('导入失败: ' + error)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定删除该账号？')) return
+  const handleAddAccount = async () => {
     try {
-      await api.deleteAccount(id)
-      await fetchAccounts()
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '删除失败')
+      await addAccount(newAccount)
+      await loadAccounts()
+      setShowAddModal(false)
+      setNewAccount({
+        refreshToken: '',
+        authMethod: 'social',
+        clientId: '',
+        clientSecret: '',
+        provider: 'Google',
+      })
+      alert('添加成功')
+    } catch (error) {
+      alert('添加失败: ' + error)
     }
   }
 
-  const handleImportJson = async () => {
-    try {
-      const data = JSON.parse(jsonInput)
-      const arr = Array.isArray(data) ? data : [data]
-      for (const acc of arr) { await api.addAccount(acc) }
-      alert(`导入成功: ${arr.length} 个账号`)
-      setJsonInput('')
-      setShowModal(false)
-      await fetchAccounts()
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '导入失败')
-    }
+  const getStatusColor = (account: Account) => {
+    if (!account.enabled) return 'text-gray-500'
+    if (account.isExpired) return 'text-red-500'
+    if (account.isThrottled) return 'text-yellow-500'
+    if (account.status === 'active') return 'text-green-500'
+    return 'text-gray-500'
   }
 
-  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const text = await file.text()
-      const data = JSON.parse(text)
-      const arr = Array.isArray(data) ? data : [data]
-      for (const acc of arr) { await api.addAccount(acc) }
-      alert(`导入成功: ${arr.length} 个账号`)
-      await fetchAccounts()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '导入失败')
-    }
-    e.target.value = ''
+  const getStatusText = (account: Account) => {
+    if (!account.enabled) return '已禁用'
+    if (account.isExpired) return '已过期'
+    if (account.isThrottled) return '限流中'
+    if (account.status === 'active') return '正常'
+    return account.status
   }
 
-  if (loading) return <div className="text-center py-8">加载中...</div>
-  if (error) return (
-    <div className="text-center py-8">
-      <p className="text-red-500 mb-4">{error}</p>
-      <button onClick={fetchAccounts} className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-md">重试</button>
-    </div>
-  )
+  if (loading) {
+    return <div className="text-center py-8">加载中...</div>
+  }
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">账号管理</h2>
-        <div className="flex gap-2">
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-md hover:opacity-80">➕ 添加账号</button>
-          <label className="px-4 py-2 bg-[hsl(var(--secondary))] rounded-md hover:opacity-80 cursor-pointer">
-            📁 导入文件
-            <input type="file" accept=".json" onChange={handleFileImport} className="hidden" />
-          </label>
-          <button onClick={handleImportKiro} className="px-4 py-2 bg-[hsl(var(--secondary))] rounded-md hover:opacity-80">📥 从 Kiro 导入</button>
-          <button onClick={fetchAccounts} className="px-4 py-2 bg-[hsl(var(--secondary))] rounded-md hover:opacity-80">🔄 刷新</button>
+        <div className="space-x-2">
+          <button
+            onClick={handleImportKiro}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            从 Kiro IDE 导入
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+          >
+            添加账号
+          </button>
         </div>
       </div>
 
       {accounts.length === 0 ? (
-        <p className="text-[hsl(var(--muted-foreground))]">暂无账号</p>
+        <div className="text-center py-12 text-gray-500">
+          <p className="mb-4">暂无账号</p>
+          <button
+            onClick={handleImportKiro}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            从 Kiro IDE 导入
+          </button>
+        </div>
       ) : (
-        <div className="space-y-4">
-          {accounts.map((account) => {
-            const quota = quotas[account.id]
-            const usagePercent = quota?.usagePercent ?? 0
-            
-            return (
-            <div key={account.id} className="p-4 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <span className={`w-3 h-3 rounded-full ${statusColors[account.status] || 'bg-gray-500'}`} />
-                  <div>
-                    <p className="font-medium">{quota?.email || account.name || account.id}</p>
-                    <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs mr-2 ${account.authMethod === 'idc' ? 'bg-blue-600' : 'bg-purple-600'}`}>
-                        {account.authMethod === 'idc' ? 'IdC' : 'Social'}
-                      </span>
-                      {account.provider && <span className="mr-2">{account.provider}</span>}
-                      {statusLabels[account.status] || account.status}
-                      {quota?.subscriptionType && <span className="ml-2 text-xs">· {quota.subscriptionType}</span>}
-                    </p>
+        <div className="grid gap-4">
+          {accounts.map((account) => (
+            <div
+              key={account.id}
+              className="p-4 border border-[hsl(var(--border))] rounded-lg bg-[hsl(var(--card))]"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold">{account.name}</h3>
+                    <span className={`text-sm font-medium ${getStatusColor(account)}`}>
+                      {getStatusText(account)}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {account.authMethod === 'social' ? 'Social' : 'IDC'}
+                    </span>
                   </div>
+                  <p className="text-sm text-gray-600">
+                    Provider: {account.provider} | ID: {account.id}
+                  </p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleRefresh(account.id)} className="px-3 py-1 text-sm bg-[hsl(var(--secondary))] rounded-md hover:opacity-80">刷新</button>
-                  <button onClick={() => handleToggle(account.id, account.status === 'disabled')} className={`px-3 py-1 text-sm rounded-md ${account.status === 'disabled' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'}`}>{account.status === 'disabled' ? '启用' : '禁用'}</button>
-                  <button onClick={() => handleDelete(account.id)} className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:opacity-80">删除</button>
+                  <button
+                    onClick={() => handleRefresh(account.id)}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    刷新
+                  </button>
+                  <button
+                    onClick={() => handleToggle(account.id, account.enabled)}
+                    className={`px-3 py-1 text-sm rounded ${
+                      account.enabled
+                        ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
+                  >
+                    {account.enabled ? '禁用' : '启用'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(account.id)}
+                    className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    删除
+                  </button>
                 </div>
               </div>
-              
-              {quota && quota.limit > 0 && (
-                <div className="space-y-2">
-                  {/* 配额进度条 */}
-                  <div>
-                    <div className="flex justify-between text-xs text-[hsl(var(--muted-foreground))] mb-1">
-                      <span>
-                        配额使用
-                        {quota.freeTrialStatus === 'ACTIVE' && <span className="ml-1 text-green-500">🎁 试用中</span>}
-                      </span>
-                      <span>{quota.used.toFixed(2)} / {quota.limit} ({usagePercent}%)</span>
-                    </div>
-                    <div className="h-2 bg-[hsl(var(--secondary))] rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${usagePercent > 80 ? 'bg-red-500' : usagePercent > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                        style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* 详细信息 */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(var(--muted-foreground))]">
-                    {quota.userId && (
-                      <span title="用户 ID">ID: {quota.userId.split('.')[1]?.substring(0, 8)}...</span>
-                    )}
-                    {quota.subscriptionTypeCode && (
-                      <span title="订阅类型代码">{quota.subscriptionTypeCode}</span>
-                    )}
-                    {quota.upgradeCapability === 'UPGRADE_CAPABLE' && (
-                      <span className="text-blue-500">可升级</span>
-                    )}
-                    {quota.freeTrialExpiry && (
-                      <span>试用到期: {new Date(quota.freeTrialExpiry * 1000).toLocaleDateString()}</span>
-                    )}
-                    {quota.nextReset && (
-                      <span>配额重置: {new Date(quota.nextReset * 1000).toLocaleDateString()}</span>
-                    )}
-                    {quota.daysUntilReset !== undefined && quota.daysUntilReset > 0 && (
-                      <span>{quota.daysUntilReset} 天后重置</span>
-                    )}
-                    {quota.overageRate && quota.currency && (
-                      <span>超额: {quota.overageRate} {quota.currency}/{quota.unit || '次'}</span>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-          )})}
+          ))}
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-          <div className="bg-[hsl(var(--card))] rounded-lg p-6 w-[600px] max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+      {/* 添加账号模态框 */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[hsl(var(--card))] p-6 rounded-lg w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">添加账号</h3>
-            <p className="text-sm text-[hsl(var(--muted-foreground))] mb-3">输入 JSON 对象或数组</p>
-            <textarea value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} placeholder={exampleJson} className="w-full h-64 px-3 py-2 bg-[hsl(var(--secondary))] rounded-md font-mono text-sm" />
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-[hsl(var(--secondary))] rounded-md">取消</button>
-              <button onClick={handleImportJson} disabled={!jsonInput.trim()} className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-md disabled:opacity-50">导入</button>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">认证方式</label>
+                <select
+                  value={newAccount.authMethod}
+                  onChange={(e) => setNewAccount({ ...newAccount, authMethod: e.target.value })}
+                  className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-md bg-[hsl(var(--background))]"
+                >
+                  <option value="social">Social (Google/GitHub)</option>
+                  <option value="idc">IDC (Builder ID)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Provider</label>
+                <input
+                  type="text"
+                  value={newAccount.provider}
+                  onChange={(e) => setNewAccount({ ...newAccount, provider: e.target.value })}
+                  className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-md bg-[hsl(var(--background))]"
+                  placeholder="Google / GitHub / BuilderId"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Refresh Token</label>
+                <textarea
+                  value={newAccount.refreshToken}
+                  onChange={(e) => setNewAccount({ ...newAccount, refreshToken: e.target.value })}
+                  className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-md bg-[hsl(var(--background))] font-mono text-sm"
+                  rows={3}
+                  placeholder="粘贴 Refresh Token"
+                />
+              </div>
+              {newAccount.authMethod === 'idc' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Client ID</label>
+                    <input
+                      type="text"
+                      value={newAccount.clientId}
+                      onChange={(e) => setNewAccount({ ...newAccount, clientId: e.target.value })}
+                      className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-md bg-[hsl(var(--background))] font-mono text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Client Secret</label>
+                    <input
+                      type="password"
+                      value={newAccount.clientSecret}
+                      onChange={(e) => setNewAccount({ ...newAccount, clientSecret: e.target.value })}
+                      className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-md bg-[hsl(var(--background))] font-mono text-sm"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleAddAccount}
+                className="flex-1 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+              >
+                添加
+              </button>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+              >
+                取消
+              </button>
             </div>
           </div>
         </div>

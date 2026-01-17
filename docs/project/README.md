@@ -1,6 +1,6 @@
-# KiroGate 项目文档
+# kiro-gateway 项目文档
 
-KiroGate 是一个将 Kiro API 转换为 OpenAI/Anthropic 兼容接口的网关服务。
+kiro-gateway 是一个将 Kiro API 转换为 OpenAI/Anthropic 兼容接口的网关服务。
 
 ## 📚 文档目录
 

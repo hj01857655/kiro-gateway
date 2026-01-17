@@ -62,6 +62,7 @@ pub struct ToolCallFunction {
 // ============================================================
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ChatCompletionResponse {
   pub id: String,
   pub object: String,
@@ -72,6 +73,7 @@ pub struct ChatCompletionResponse {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct Choice {
   pub index: i32,
   pub message: ResponseMessage,
@@ -79,6 +81,7 @@ pub struct Choice {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ResponseMessage {
   pub role: String,
   pub content: Option<String>,
@@ -97,6 +100,7 @@ pub struct Usage {
 // ============================================================
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ChatCompletionChunk {
   pub id: String,
   pub object: String,
@@ -106,6 +110,7 @@ pub struct ChatCompletionChunk {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ChunkChoice {
   pub index: i32,
   pub delta: Delta,
@@ -113,12 +118,14 @@ pub struct ChunkChoice {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct Delta {
   pub role: Option<String>,
   pub content: Option<String>,
   pub tool_calls: Option<Vec<DeltaToolCall>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct DeltaToolCall {
   pub index: i32,
@@ -128,6 +135,7 @@ pub struct DeltaToolCall {
   pub function: Option<DeltaToolCallFunction>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct DeltaToolCallFunction {
   pub name: Option<String>,
@@ -139,12 +147,14 @@ pub struct DeltaToolCallFunction {
 // ============================================================
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ModelsResponse {
   pub object: String,
   pub data: Vec<ModelInfo>,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct ModelInfo {
   pub id: String,
   pub object: String,
@@ -164,6 +174,7 @@ pub struct KiroPayload {
   pub profile_arn: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationState {
@@ -174,12 +185,14 @@ pub struct ConversationState {
   pub history: Option<Vec<HistoryItem>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrentMessage {
   pub user_input_message: UserInputMessage,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInputMessage {
@@ -193,6 +206,7 @@ pub struct UserInputMessage {
   pub inference_config: Option<InferenceConfig>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InferenceConfig {
@@ -206,6 +220,7 @@ pub struct InferenceConfig {
   pub stop_sequences: Option<Vec<String>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInputMessageContext {
@@ -215,12 +230,14 @@ pub struct UserInputMessageContext {
   pub tool_results: Option<Vec<KiroToolResult>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KiroTool {
   pub tool_specification: KiroToolSpec,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KiroToolSpec {
@@ -289,12 +306,14 @@ pub struct KiroToolUse {
 // ============================================================
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct KiroImage {
   pub format: String,
   pub source: KiroImageSource,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct KiroImageSource {
   pub bytes: String,
 }
@@ -303,11 +322,13 @@ pub struct KiroImageSource {
 // 错误响应
 // ============================================================
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ErrorResponse {
   pub error: ErrorDetail,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ErrorDetail {
   pub message: String,
@@ -358,6 +379,7 @@ pub struct AnthropicTool {
 // Anthropic Messages API 响应
 // ============================================================
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct AnthropicMessagesResponse {
   pub id: String,
@@ -371,6 +393,7 @@ pub struct AnthropicMessagesResponse {
   pub usage: AnthropicUsage,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct AnthropicContentBlock {
   #[serde(rename = "type")]
@@ -385,6 +408,7 @@ pub struct AnthropicContentBlock {
   pub input: Option<serde_json::Value>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct AnthropicUsage {
   pub input_tokens: i32,
@@ -424,6 +448,7 @@ pub struct KiroEvent {
     pub context_usage_percentage: Option<f64>,
 }
 
+#[allow(dead_code)]
 pub struct KiroHistoryUserMessage {
     pub content: String,
     pub model_id: String,

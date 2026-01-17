@@ -1,4 +1,4 @@
-// KiroGate 日志模块
+// kiro-gateway 日志模块
 // 独立版本 - 使用内存存储和 tracing
 
 use serde::Serialize;
@@ -19,11 +19,13 @@ pub struct LogEntry {
 }
 
 /// 初始化日志存储
+#[allow(dead_code)]
 pub fn init_logger() {
     LOGS.get_or_init(|| RwLock::new(VecDeque::with_capacity(1000)));
 }
 
 /// 同步发送日志（用于非异步上下文）
+#[allow(dead_code)]
 pub fn emit_log_sync(level: &str, target: &str, message: &str) {
     let entry = LogEntry {
         timestamp: chrono::Utc::now().to_rfc3339(),

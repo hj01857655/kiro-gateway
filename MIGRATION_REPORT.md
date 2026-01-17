@@ -1,4 +1,4 @@
-# KiroGate → KiroGateway 功能移植完成
+# KiroGate → kiro-gateway 功能移植完成
 
 ## 📅 移植时间
 2025-01-17

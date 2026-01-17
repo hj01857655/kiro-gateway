@@ -1,4 +1,4 @@
-# KiroGate 文档
+# kiro-gateway 文档
 
 ## 目录
 

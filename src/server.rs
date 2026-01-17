@@ -1,4 +1,4 @@
-// KiroGate HTTP 服务器
+// kiro-gateway HTTP 服务器
 
 use axum::{
   extract::{Json, State},
@@ -164,7 +164,7 @@ pub async fn get_server_status() -> ServerStatus {
 async fn health_handler() -> impl IntoResponse {
   Json(serde_json::json!({
     "status": "ok",
-    "message": "KiroGate is running",
+    "message": "kiro-gateway is running",
     "version": "1.0.0"
   }))
 }
@@ -861,14 +861,14 @@ fn parse_kiro_event_full(json_str: &str) -> Option<KiroEvent> {
       .unwrap_or(0) as i32;
     
     if input_tokens > 0 || output_tokens > 0 {
-      log::debug!("[KiroGate] Usage: input={}, output={}", input_tokens, output_tokens);
+      log::debug!("[kiro-gateway] Usage: input={}, output={}", input_tokens, output_tokens);
       return Some(KiroEvent::Usage { input_tokens, output_tokens });
     }
   }
   
   // 检查是否是 contextUsagePercentage 事件
   if let Some(percentage) = value.get("contextUsagePercentage").and_then(|v| v.as_f64()) {
-    log::debug!("[KiroGate] Context usage: {}%", percentage);
+    log::debug!("[kiro-gateway] Context usage: {}%", percentage);
     return Some(KiroEvent::ContextUsage { percentage: percentage as f32 });
   }
   
@@ -881,7 +881,7 @@ fn parse_kiro_event_full(json_str: &str) -> Option<KiroEvent> {
     // 优先级：stop > input > start
     // 1. 检查是否是结束事件（有 stop: true）
     if has_stop {
-      log::info!("[KiroGate] 工具调用结束: name={}, id={}", name, tool_use_id);
+      log::info!("[kiro-gateway] 工具调用结束: name={}, id={}", name, tool_use_id);
       return Some(KiroEvent::ToolUseStop { id: tool_use_id.to_string() });
     }
     
@@ -897,7 +897,7 @@ fn parse_kiro_event_full(json_str: &str) -> Option<KiroEvent> {
       };
       
       if !input_str.is_empty() {
-        log::debug!("[KiroGate] 工具调用 input 分片: name={}, id={}, delta_len={}", name, tool_use_id, input_str.len());
+        log::debug!("[kiro-gateway] 工具调用 input 分片: name={}, id={}, delta_len={}", name, tool_use_id, input_str.len());
         return Some(KiroEvent::ToolUseInputDelta { 
           id: tool_use_id.to_string(), 
           input_delta: input_str 
@@ -907,7 +907,7 @@ fn parse_kiro_event_full(json_str: &str) -> Option<KiroEvent> {
     
     // 3. 工具调用开始（只有 name 和 toolUseId，没有 input 和 stop）
     if !name.is_empty() {
-      log::info!("[KiroGate] 工具调用开始: name={}, id={}", name, tool_use_id);
+      log::info!("[kiro-gateway] 工具调用开始: name={}, id={}", name, tool_use_id);
       return Some(KiroEvent::ToolUseStart { 
         id: tool_use_id.to_string(), 
         name 
@@ -924,7 +924,7 @@ fn parse_kiro_event_full(json_str: &str) -> Option<KiroEvent> {
       let id = tool.get("toolUseId").and_then(|v| v.as_str()).unwrap_or("").to_string();
       let name = tool.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
       if !name.is_empty() {
-        log::info!("[KiroGate] 检测到完整工具调用: name={}, id={}", name, id);
+        log::info!("[kiro-gateway] 检测到完整工具调用: name={}, id={}", name, id);
         return Some(KiroEvent::ToolUseStart { id, name });
       }
     }
@@ -1152,7 +1152,7 @@ fn deduplicate_tool_calls(tool_calls: Vec<(String, String, String)>) -> Vec<(Str
     .collect();
   
   if original_count != unique.len() {
-    log::info!("[KiroGate] 工具调用去重: {} -> {}", original_count, unique.len());
+    log::info!("[kiro-gateway] 工具调用去重: {} -> {}", original_count, unique.len());
   }
   
   unique
@@ -1207,7 +1207,7 @@ async fn anthropic_non_stream_response(resp: reqwest::Response, model: &str) -> 
           }
           KiroEvent::ContextUsage { percentage } => {
             // 非流式响应中记录 context usage
-            log::debug!("[KiroGate] Context usage: {:.2}%", percentage);
+            log::debug!("[kiro-gateway] Context usage: {:.2}%", percentage);
           }
         }
       }
@@ -1429,7 +1429,7 @@ async fn anthropic_stream_response(resp: reqwest::Response, model: &str) -> Resp
                     if let Some((name, input_str)) = tool_accumulators.remove(&tool_id) {
                       // 安全截取 UTF-8 字符串（避免在多字节字符中间截断）
                       let preview: String = input_str.chars().take(100).collect();
-                      log::info!("[KiroGate] 工具调用完成: name={}, input={}", name, preview);
+                      log::info!("[kiro-gateway] 工具调用完成: name={}, input={}", name, preview);
                       completed_tools.push((tool_id, name, input_str));
                     }
                   }

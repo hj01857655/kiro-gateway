@@ -148,7 +148,7 @@ shouldRefresh = currentTime >= (expiresAt - 5 * 60 * 1000)
 2. **请求失败处理**: 如果收到 401 错误，刷新后重试
 3. **刷新失败**: 标记账号为 `expired` 状态，提示用户重新登录
 
-## KiroGate 实现
+## kiro-gateway 实现
 
 ### 后端接口
 

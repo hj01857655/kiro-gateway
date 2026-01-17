@@ -520,7 +520,7 @@ impl KiroClient {
         let url = format!("{}/ListUserMemoryEntries", self.config.kiro_endpoint);
         
         let body = serde_json::json!({
-            "origin": "KIROGATE",
+            "origin": "KIRO_GATEWAY",
             "profileArn": &account.profile_arn
         });
 
@@ -549,7 +549,7 @@ impl KiroClient {
         
         let body = serde_json::json!({
             "memoryEntryString": content,
-            "origin": "KIROGATE",
+            "origin": "KIRO_GATEWAY",
             "profileArn": &account.profile_arn
         });
 

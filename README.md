@@ -1,4 +1,4 @@
-# KiroGateway
+# kiro-gateway
 
 Kiro API 网关，提供 OpenAI/Anthropic 兼容接口。
 
@@ -65,7 +65,7 @@ curl http://localhost:8080/v1/messages \
 - `PORT` - 监听端口（默认 8080）
 - `API_KEY` - 访问密钥（可选）
 - `ACCOUNTS_FILE` - 账号文件路径（默认 data/accounts.json）
-- `RUST_LOG` - 日志级别（默认 kiro_gate=info）
+- `RUST_LOG` - 日志级别（默认 kiro_gateway=info）
 
 ## 模型映射
 

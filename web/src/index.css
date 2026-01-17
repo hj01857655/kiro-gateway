@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: 59 130 246;
+  --color-primary-foreground: 255 255 255;
+  --color-card: 255 255 255;
+  --color-background: 249 250 251;
+  --color-muted: 243 244 246;
+  --color-border: 229 231 235;
+}
+
+.dark {
+  --color-primary: 59 130 246;
+  --color-primary-foreground: 255 255 255;
+  --color-card: 31 41 55;
+  --color-background: 17 24 39;
+  --color-muted: 55 65 81;
+  --color-border: 75 85 99;
+}
+
+body {
+  background-color: hsl(var(--color-background));
+  color: hsl(0 0% 20%);
+}
+
+.dark body {
+  color: hsl(0 0% 90%);
+}
+
 :root {
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
