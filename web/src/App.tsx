@@ -5,6 +5,7 @@ import Chat from './pages/Chat'
 import Settings from './pages/Settings'
 import Metrics from './pages/Metrics'
 import Logs from './pages/Logs'
+import TauriStatus from './components/TauriStatus'
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -101,6 +102,9 @@ function App() {
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
+
+      {/* Tauri 状态指示器 */}
+      <TauriStatus />
     </div>
   )
 }

@@ -1,4 +1,6 @@
-const API_BASE = ''
+import { getApiBaseUrl } from '../utils/tauri'
+
+const API_BASE = getApiBaseUrl()
 
 async function request(url: string, options?: RequestInit) {
   const response = await fetch(url, {

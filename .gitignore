@@ -1,8 +1,29 @@
+# Rust
 /target
+Cargo.lock
 
-# 前端
-web/node_modules/
-web/dist/
+# Tauri
+/src-tauri/target
 
-# 账号数据
-data/
+# Web
+/web/node_modules
+/web/dist
+/web/tsconfig.tsbuildinfo
+
+# Data
+/data/*.json
+!/data/accounts.json.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

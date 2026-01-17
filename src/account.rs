@@ -1,6 +1,10 @@
 use chrono::Utc;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 
 use crate::error::AppError;
@@ -102,6 +106,9 @@ pub struct AccountManager {
     current_index: RwLock<usize>,
     http_client: reqwest::Client,
     accounts_file: RwLock<Option<String>>,
+    // 防抖保存相关
+    pending_saves: Arc<Mutex<HashSet<String>>>,
+    save_task_running: Arc<Mutex<bool>>,
 }
 
 impl AccountManager {
@@ -111,6 +118,8 @@ impl AccountManager {
             current_index: RwLock::new(0),
             http_client: reqwest::Client::new(),
             accounts_file: RwLock::new(None),
+            pending_saves: Arc::new(Mutex::new(HashSet::new())),
+            save_task_running: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -213,27 +222,88 @@ impl AccountManager {
         if let Some(acc) = accounts.iter_mut().find(|a| a.id == account_id) {
             acc.status = status;
         }
+        drop(accounts); // 释放锁
+        // 防抖保存到文件
+        self.schedule_save(account_id.to_string());
     }
 
     /// 设置账号启用/禁用
     pub fn set_account_enabled(&self, account_id: &str, enabled: bool) -> Result<(), AppError> {
-        let mut accounts = self.accounts.write();
-        if let Some(acc) = accounts.iter_mut().find(|a| a.id == account_id) {
-            acc.enabled = enabled;
-            acc.status = if enabled { AccountStatus::Active } else { AccountStatus::Disabled };
-            info!("账号 {} 已{}", account_id, if enabled { "启用" } else { "禁用" });
-            Ok(())
-        } else {
-            Err(AppError::BadRequest(format!("账号 {} 不存在", account_id)))
+        let result = {
+            let mut accounts = self.accounts.write();
+            if let Some(acc) = accounts.iter_mut().find(|a| a.id == account_id) {
+                acc.enabled = enabled;
+                acc.status = if enabled { AccountStatus::Active } else { AccountStatus::Disabled };
+                info!("账号 {} 已{}", account_id, if enabled { "启用" } else { "禁用" });
+                Ok(())
+            } else {
+                Err(AppError::BadRequest(format!("账号 {} 不存在", account_id)))
+            }
+        };
+        
+        if result.is_ok() {
+            // 防抖保存到文件
+            self.schedule_save(account_id.to_string());
         }
+        
+        result
     }
 
-    /// 更新账号文件中指定账号的 token
-    fn update_account_in_file(&self, account: &Account) {
-        let file_path = self.accounts_file.read();
-        if let Some(ref path) = *file_path {
+    /// 更新账号文件中指定账号的 token（防抖保存）
+    fn schedule_save(&self, account_id: String) {
+        let pending_saves = Arc::clone(&self.pending_saves);
+        let save_task_running = Arc::clone(&self.save_task_running);
+        let accounts = Arc::new(self.accounts.read().clone());
+        let accounts_file = self.accounts_file.read().clone();
+        
+        tokio::spawn(async move {
+            // 添加到待保存队列
+            {
+                let mut pending = pending_saves.lock().await;
+                pending.insert(account_id);
+            }
+            
+            // 检查是否已有保存任务在运行
+            {
+                let mut running = save_task_running.lock().await;
+                if *running {
+                    // 已有任务在运行，直接返回
+                    return;
+                }
+                *running = true;
+            }
+            
+            // 等待 1 秒（防抖延迟）
+            sleep(Duration::from_secs(1)).await;
+            
+            // 批量保存所有待保存的账号
+            let account_ids: Vec<String> = {
+                let mut pending = pending_saves.lock().await;
+                let ids: Vec<String> = pending.drain().collect();
+                ids
+            };
+            
+            if !account_ids.is_empty() {
+                Self::flush_saves_to_file(accounts, accounts_file, &account_ids).await;
+            }
+            
+            // 标记任务完成
+            {
+                let mut running = save_task_running.lock().await;
+                *running = false;
+            }
+        });
+    }
+    
+    /// 批量保存账号到文件
+    async fn flush_saves_to_file(
+        accounts: Arc<Vec<Account>>,
+        accounts_file: Option<String>,
+        account_ids: &[String],
+    ) {
+        if let Some(ref path) = accounts_file {
             // 读取原文件
-            let content = match std::fs::read_to_string(path) {
+            let content = match tokio::fs::read_to_string(path).await {
                 Ok(c) => c,
                 Err(e) => {
                     warn!("读取账号文件失败: {}", e);
@@ -241,7 +311,7 @@ impl AccountManager {
                 }
             };
             
-            // 解析为 JSON（支持数组或对象格式）
+            // 解析为 JSON
             let mut json: serde_json::Value = match serde_json::from_str(&content) {
                 Ok(j) => j,
                 Err(e) => {
@@ -250,31 +320,37 @@ impl AccountManager {
                 }
             };
             
-            // 找到并更新对应账号（支持数组格式和对象格式）
-            let accounts = if json.is_array() {
+            // 找到并更新对应账号
+            let accounts_array = if json.is_array() {
                 json.as_array_mut()
             } else {
                 json.get_mut("accounts").and_then(|a| a.as_array_mut())
             };
             
-            if let Some(accounts) = accounts {
-                for acc in accounts.iter_mut() {
-                    if acc.get("id").and_then(|v| v.as_str()) == Some(&account.id) {
-                        acc["accessToken"] = serde_json::Value::String(account.access_token.clone());
-                        acc["refreshToken"] = serde_json::Value::String(account.refresh_token.clone());
-                        if let Some(expires_at) = account.expires_at {
-                            acc["expiresAt"] = serde_json::Value::Number(expires_at.into());
+            if let Some(accounts_array) = accounts_array {
+                for account_id in account_ids {
+                    // 从内存中找到账号
+                    if let Some(account) = accounts.iter().find(|a| &a.id == account_id) {
+                        // 在 JSON 中找到并更新
+                        for acc in accounts_array.iter_mut() {
+                            if acc.get("id").and_then(|v| v.as_str()) == Some(&account.id) {
+                                acc["accessToken"] = serde_json::Value::String(account.access_token.clone());
+                                acc["refreshToken"] = serde_json::Value::String(account.refresh_token.clone());
+                                if let Some(expires_at) = account.expires_at {
+                                    acc["expiresAt"] = serde_json::Value::Number(expires_at.into());
+                                }
+                                break;
+                            }
                         }
-                        break;
                     }
                 }
             }
             
             // 写回文件
-            if let Err(e) = std::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()) {
+            if let Err(e) = tokio::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()).await {
                 warn!("更新账号文件失败: {}", e);
             } else {
-                info!("账号 {} 的 token 已更新到文件", account.id);
+                info!("批量更新 {} 个账号到文件", account_ids.len());
             }
         }
     }
@@ -298,8 +374,8 @@ impl AccountManager {
                         stored.throttled_until = None;
                     }
                 }
-                // 更新文件中的 token
-                self.update_account_in_file(&account);
+                // 防抖保存到文件
+                self.schedule_save(account.id.clone());
                 Ok(account)
             }
             Err(e) => {
