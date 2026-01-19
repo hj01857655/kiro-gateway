@@ -321,6 +321,36 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 - **公开仓库** (`kiro-gateway`): 仅用于发布 Release
 - 发布时在公开仓库打 tag 触发 Actions 构建
 
+### 公开仓库文档同步
+
+当更新项目文档（README、FEATURE_COMPARISON、RELEASE 等）时，需要同步到公开仓库：
+
+**使用 gh api 命令更新**（推荐）：
+```powershell
+# 1. 获取文件当前 SHA
+$sha = gh api repos/hj01857655/kiro-gateway/contents/README.md --jq '.sha'
+
+# 2. 读取文件内容并 Base64 编码
+$content = Get-Content "README.md" -Raw -Encoding UTF8
+$base64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($content))
+
+# 3. 构建 JSON 并更新
+$json = @{
+    message = "docs: 更新 README"
+    content = $base64
+    sha = $sha
+    branch = "main"
+} | ConvertTo-Json -Depth 10
+
+$json | gh api -X PUT repos/hj01857655/kiro-gateway/contents/README.md --input -
+```
+
+**注意事项**：
+- ✅ 只更新文档文件（README.md、FEATURE_COMPARISON.md、RELEASE.md 等）
+- ❌ 不要推送源码到公开仓库
+- ❌ 不要在文档中暴露私有仓库地址
+- ✅ 使用 gh api 命令而不是 git push
+
 ## 相关文档
 
 - 迁移报告：`E:\VSCodeSpace\Kiro\kiro-gateway\MIGRATION_REPORT.md`

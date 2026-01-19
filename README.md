@@ -273,6 +273,10 @@ MIT License
 
 欢迎提交 Issue 和 Pull Request！
 
+## 作者
+
+Made with ❤️ by [hj01857655](https://github.com/hj01857655)
+
 ## 联系方式
 
 - GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
