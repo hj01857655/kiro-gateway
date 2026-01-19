@@ -164,37 +164,6 @@ export default function Settings() {
     }
   }
 
-  // 应用配置到 Claude Desktop
-  const handleApplyConfig = async () => {
-    if (!configPackage) return
-    
-    setConfigLoading(true)
-    try {
-      // 从 claude_desktop_json 中提取 apiKey
-      const config = JSON.parse(configPackage.claude_desktop_json)
-      const res = await fetch('/admin/config/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: config.apiKey }),
-      })
-      if (!res.ok) throw new Error('应用配置失败')
-      const data = await res.json()
-      notifications.show({
-        title: '成功',
-        message: data.message || 'Claude Desktop 配置已应用',
-        color: 'green',
-      })
-    } catch (error) {
-      notifications.show({
-        title: '应用失败',
-        message: error instanceof Error ? error.message : '未知错误',
-        color: 'red',
-      })
-    } finally {
-      setConfigLoading(false)
-    }
-  }
-
   // 保存服务器配置
   const handleSaveServerConfig = async () => {
     // 验证端口范围
@@ -556,14 +525,13 @@ export default function Settings() {
           </Button>
         </Group>
         <Text size="sm" c="dimmed" mb="md">
-          自动生成 Claude Desktop、Claude CLI 和 OpenAI 兼容工具的配置文件
+          自动生成 Claude CLI 和 OpenAI 兼容工具的配置脚本
         </Text>
         <Alert icon={<AlertCircle size={16} />} color="blue" variant="light">
           点击"生成配置"后，可以选择：
           <ul style={{ marginTop: 8, marginBottom: 0 }}>
-            <li>一键应用到 Claude Desktop（自动写入配置文件）</li>
             <li>复制配置脚本手动配置 Claude CLI</li>
-            <li>复制 OpenAI 兼容配置供其他工具使用</li>
+            <li>复制 OpenAI 兼容配置供其他工具使用（Continue、Cursor 等）</li>
           </ul>
         </Alert>
       </Card>
@@ -576,52 +544,11 @@ export default function Settings() {
         size="lg"
       >
         {configPackage && (
-          <Tabs defaultValue="desktop">
+          <Tabs defaultValue="cli">
             <Tabs.List>
-              <Tabs.Tab value="desktop">Claude Desktop</Tabs.Tab>
               <Tabs.Tab value="cli">Claude CLI</Tabs.Tab>
               <Tabs.Tab value="openai">OpenAI 兼容</Tabs.Tab>
             </Tabs.List>
-
-            <Tabs.Panel value="desktop" pt="md">
-              <Stack gap="md">
-                <Text size="sm" c="dimmed">
-                  配置文件路径: {configPackage.claude_desktop_path || '未知'}
-                </Text>
-                <Textarea
-                  label="配置内容"
-                  value={configPackage.claude_desktop_json}
-                  readOnly
-                  minRows={15}
-                  autosize
-                  styles={{ input: { fontFamily: 'monospace', fontSize: '0.85em' } }}
-                />
-                <Group justify="space-between">
-                  <CopyButton value={configPackage.claude_desktop_json}>
-                    {({ copied, copy }) => (
-                      <Button
-                        leftSection={copied ? <Check size={16} /> : <Copy size={16} />}
-                        onClick={copy}
-                        variant="light"
-                        color={copied ? 'teal' : 'blue'}
-                      >
-                        {copied ? '已复制' : '复制配置'}
-                      </Button>
-                    )}
-                  </CopyButton>
-                  <Button
-                    leftSection={<Wand2 size={16} />}
-                    onClick={handleApplyConfig}
-                    loading={configLoading}
-                  >
-                    一键应用
-                  </Button>
-                </Group>
-                <Alert icon={<AlertCircle size={16} />} color="blue" variant="light" title="说明">
-                  点击"一键应用"将自动写入 Claude Desktop 配置文件，重启 Claude Desktop 后生效
-                </Alert>
-              </Stack>
-            </Tabs.Panel>
 
             <Tabs.Panel value="cli" pt="md">
               <Stack gap="md">

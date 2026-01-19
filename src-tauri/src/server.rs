@@ -153,7 +153,6 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
                 .route("/api-keys", get(admin_list_api_keys).post(admin_generate_api_key))
                 .route("/api-keys/:id", axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key))
                 .route("/config/generate", post(admin_generate_config))
-                .route("/config/apply", post(admin_apply_config))
                 .route("/config/server", get(admin_get_server_config).post(admin_update_server_config))
                 .layer(middleware::from_fn_with_state(Arc::clone(&state), admin_auth_middleware))
         )
@@ -948,30 +947,6 @@ async fn admin_generate_config(
         .map_err(AppError::BadRequest)?;
     
     Ok(Json(serde_json::to_value(config_package).unwrap_or_default()))
-}
-
-// 应用配置到 Claude Desktop
-async fn admin_apply_config(
-    State(state): State<Arc<AppState>>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    // 获取 API Key
-    let api_key = payload.get("apiKey")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::BadRequest("缺少 apiKey 字段".into()))?;
-    
-    // 获取基础 URL
-    let base_url = format!("http://{}:{}", state.config.host, state.config.port);
-    
-    // 写入 Claude Desktop 配置
-    let config_path = config_generator::write_claude_desktop_config(&base_url, api_key).await
-        .map_err(AppError::BadRequest)?;
-    
-    Ok(Json(serde_json::json!({
-        "success": true,
-        "configPath": config_path,
-        "message": "Claude Desktop 配置已成功写入"
-    })))
 }
 
 // 获取服务器配置
