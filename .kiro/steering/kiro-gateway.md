@@ -323,7 +323,15 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 
 ### 公开仓库文档同步
 
-当更新项目文档（README、FEATURE_COMPARISON、RELEASE 等）时，需要同步到公开仓库：
+当更新项目文档时，**只有以下文件**需要同步到公开仓库：
+
+**允许同步的文件**：
+- ✅ `README.md` - 项目说明
+- ✅ `LICENSE` - 许可证
+- ❌ `FEATURE_COMPARISON.md` - 内部开发文档，不公开
+- ❌ `RELEASE.md` - 发布流程文档，不公开
+- ❌ `SECURITY_CHECKLIST.md` - 安全检查清单，不公开
+- ❌ 其他 `.md` 文件 - 默认不公开
 
 **使用 gh api 命令更新**（推荐）：
 ```powershell
@@ -345,10 +353,19 @@ $json = @{
 $json | gh api -X PUT repos/hj01857655/kiro-gateway/contents/README.md --input -
 ```
 
+**删除文件**：
+```powershell
+# 获取 SHA 并删除
+$sha = gh api repos/hj01857655/kiro-gateway/contents/文件名 --jq '.sha'
+$json = @{ message = "docs: 移除文件"; sha = $sha; branch = "main" } | ConvertTo-Json
+$json | gh api -X DELETE repos/hj01857655/kiro-gateway/contents/文件名 --input -
+```
+
 **注意事项**：
-- ✅ 只更新文档文件（README.md、FEATURE_COMPARISON.md、RELEASE.md 等）
+- ✅ 只更新 README.md 和 LICENSE
 - ❌ 不要推送源码到公开仓库
 - ❌ 不要在文档中暴露私有仓库地址
+- ❌ 不要推送内部开发文档（FEATURE_COMPARISON、RELEASE、SECURITY_CHECKLIST 等）
 - ✅ 使用 gh api 命令而不是 git push
 
 ## 相关文档
