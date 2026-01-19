@@ -34,24 +34,24 @@ impl AppConfig {
             api_key: env::var("API_KEY").ok(),
             accounts_file,
             accounts_json: env::var("ACCOUNTS_JSON").ok(),
-            machine_id: env::var("MACHINE_ID").ok().or_else(|| Some(generate_machine_id())),
+            machine_id: env::var("MACHINE_ID")
+                .ok()
+                .or_else(|| Some(generate_machine_id())),
         }
     }
 }
 
 /// 生成机器 ID（SHA256 哈希，64 字符）
 fn generate_machine_id() -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
 
     let mut hasher = Sha256::new();
 
     // 使用主机名和用户名生成唯一标识
-    if let Ok(hostname) = std::env::var("COMPUTERNAME")
-        .or_else(|_| std::env::var("HOSTNAME")) {
+    if let Ok(hostname) = std::env::var("COMPUTERNAME").or_else(|_| std::env::var("HOSTNAME")) {
         hasher.update(hostname.as_bytes());
     }
-    if let Ok(user) = std::env::var("USERNAME")
-        .or_else(|_| std::env::var("USER")) {
+    if let Ok(user) = std::env::var("USERNAME").or_else(|_| std::env::var("USER")) {
         hasher.update(user.as_bytes());
     }
 

@@ -6,13 +6,13 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout, Instant};
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, warn, info};
+use tracing::{debug, error, info, warn};
 
+use crate::account::Account;
 use crate::account::AccountManager;
 use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::{KiroEvent, KiroPayload};
-use crate::account::Account;
 
 const THROTTLING_ERRORS: &[&str] = &[
     "ThrottlingException",
@@ -79,13 +79,29 @@ impl KiroClient {
         let account = accounts.get_account().await?;
         let first_token_timeout = get_first_token_timeout(model);
         let stream_timeout = get_stream_timeout(model);
-        
-        match self.generate_with_timeout(request.clone(), &account, accounts, first_token_timeout, stream_timeout).await {
+
+        match self
+            .generate_with_timeout(
+                request.clone(),
+                &account,
+                accounts,
+                first_token_timeout,
+                stream_timeout,
+            )
+            .await
+        {
             Ok(stream) => Ok(stream),
             Err(AppError::TokenExpired) => {
                 info!("Token 过期，刷新后重试...");
                 let refreshed = accounts.refresh_account(&account.id).await?;
-                self.generate_with_timeout(request, &refreshed, accounts, first_token_timeout, stream_timeout).await
+                self.generate_with_timeout(
+                    request,
+                    &refreshed,
+                    accounts,
+                    first_token_timeout,
+                    stream_timeout,
+                )
+                .await
             }
             Err(AppError::RateLimited) => {
                 // 限流时标记账号
@@ -105,7 +121,12 @@ impl KiroClient {
         stream_timeout: Duration,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<KiroEvent, AppError>> + Send>>, AppError> {
         // 首 Token 超时控制
-        match timeout(first_token_timeout, self.generate_assistant_response(request, account, accounts)).await {
+        match timeout(
+            first_token_timeout,
+            self.generate_assistant_response(request, account, accounts),
+        )
+        .await
+        {
             Ok(result) => {
                 // 包装流，添加流读取超时
                 result.map(|stream| wrap_stream_with_timeout(stream, stream_timeout))
@@ -124,13 +145,13 @@ impl KiroClient {
         accounts: &AccountManager,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<KiroEvent, AppError>> + Send>>, AppError> {
         let mut last_error = AppError::NetworkError("未知错误".to_string());
-        
+
         for attempt in 0..MAX_RETRIES {
             match self.do_request(&request, account).await {
                 Ok(stream) => return Ok(stream),
                 Err(e) => {
                     last_error = e.clone();
-                    
+
                     let (should_retry, delay) = match &e {
                         AppError::RateLimited => {
                             // 限流时标记账号
@@ -139,9 +160,7 @@ impl KiroClient {
                             warn!("限流，{}ms 后重试 (attempt {})", delay, attempt + 1);
                             (true, delay)
                         }
-                        AppError::TokenExpired => {
-                            (false, 0)
-                        }
+                        AppError::TokenExpired => (false, 0),
                         AppError::NetworkError(_) => {
                             let delay = calculate_backoff(attempt, NORMAL_BASE_DELAY_MS);
                             warn!("网络错误，{}ms 后重试 (attempt {})", delay, attempt + 1);
@@ -149,16 +168,16 @@ impl KiroClient {
                         }
                         _ => (false, 0),
                     };
-                    
+
                     if !should_retry || attempt >= MAX_RETRIES - 1 {
                         break;
                     }
-                    
+
                     sleep(Duration::from_millis(delay)).await;
                 }
             }
         }
-        
+
         Err(last_error)
     }
 
@@ -171,13 +190,19 @@ impl KiroClient {
         let invocation_id = uuid::Uuid::new_v4().to_string();
 
         // 调试：打印完整请求体
-        debug!("调用 Kiro API，conversationId: {}", 
-            request.conversation_state.conversation_id);
-        debug!("完整请求体: {}", serde_json::to_string_pretty(&request).unwrap_or_default());
+        debug!(
+            "调用 Kiro API，conversationId: {}",
+            request.conversation_state.conversation_id
+        );
+        debug!(
+            "完整请求体: {}",
+            serde_json::to_string_pretty(&request).unwrap_or_default()
+        );
 
         debug!("调用 Kiro API: {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("Content-Type", "application/json")
@@ -197,7 +222,8 @@ impl KiroClient {
             error!("Kiro API 错误: {} - {}", status, error_text);
 
             if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&error_text) {
-                let error_type = error_json.get("__type")
+                let error_type = error_json
+                    .get("__type")
                     .or_else(|| error_json.get("name"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
@@ -220,7 +246,10 @@ impl KiroClient {
                 return Err(AppError::RateLimited);
             }
 
-            return Err(AppError::KiroApiError(format!("{}: {}", status, error_text)));
+            return Err(AppError::KiroApiError(format!(
+                "{}: {}",
+                status, error_text
+            )));
         }
 
         let (tx, rx) = mpsc::channel::<Result<KiroEvent, AppError>>(100);
@@ -242,7 +271,7 @@ fn wrap_stream_with_timeout(
     let wrapped = async_stream::stream! {
         tokio::pin!(stream);
         let mut last_event_time = Instant::now();
-        
+
         loop {
             let remaining = stream_timeout.saturating_sub(last_event_time.elapsed());
             if remaining.is_zero() {
@@ -250,7 +279,7 @@ fn wrap_stream_with_timeout(
                 yield Err(AppError::NetworkError("流读取超时".to_string()));
                 break;
             }
-            
+
             match timeout(remaining, stream.next()).await {
                 Ok(Some(event)) => {
                     last_event_time = Instant::now();
@@ -344,23 +373,21 @@ where
                     };
 
                     let json_str = &buffer[json_start..json_end];
-                    
+
                     // 调试：记录收到事件（不打印完整内容）
                     debug!("📥 收到 JSON 事件 #{}", event_count + 1);
-                    
+
                     // 尝试解析 JSON
                     match serde_json::from_str::<KiroEvent>(json_str) {
                         Ok(event) => {
                             event_count += 1;
-                            
+
                             // 记录事件类型（不打印内容）
-                            debug!("✅ 解析事件 #{}: tool_use_id={:?}, language={:?}, usage={:?}", 
-                                event_count,
-                                event.tool_use_id,
-                                event.language,
-                                event.usage
+                            debug!(
+                                "✅ 解析事件 #{}: tool_use_id={:?}, language={:?}, usage={:?}",
+                                event_count, event.tool_use_id, event.language, event.usage
                             );
-                            
+
                             if let Some(ref reason) = event.reason {
                                 let msg = event.message.clone().unwrap_or_else(|| reason.clone());
                                 let _ = tx.send(Err(AppError::KiroApiError(msg))).await;
@@ -372,7 +399,11 @@ where
                             }
                         }
                         Err(e) => {
-                            debug!("解析 JSON 失败: {} - {}", e, &json_str[..json_str.len().min(200)]);
+                            debug!(
+                                "解析 JSON 失败: {} - {}",
+                                e,
+                                &json_str[..json_str.len().min(200)]
+                            );
                         }
                     }
 
@@ -408,7 +439,7 @@ where
             }
         }
     }
-    
+
     info!("流结束，共处理 {} 个事件", event_count);
 }
 
@@ -419,19 +450,21 @@ impl KiroClient {
     /// 返回: Ok(json) 正常, Err(TokenExpired) token过期, Err(AccountBanned) 封禁
     pub async fn get_usage_limits(&self, account: &Account) -> Result<serde_json::Value, AppError> {
         // 配额查询使用固定的 app.kiro.dev endpoint，使用 CBOR 格式
-        let url = "https://app.kiro.dev/service/KiroWebPortalService/operation/GetUserUsageAndLimits";
-        
+        let url =
+            "https://app.kiro.dev/service/KiroWebPortalService/operation/GetUserUsageAndLimits";
+
         // 请求体（CBOR 格式）
         let body = serde_json::json!({
             "isEmailRequired": true,
             "origin": "KIRO_IDE"
         });
-        
+
         // 序列化为 CBOR
         let cbor_body = serde_cbor::to_vec(&body)
             .map_err(|e| AppError::ParseError(format!("CBOR 序列化失败: {}", e)))?;
-        
-        let resp = self.client
+
+        let resp = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("Content-Type", "application/cbor")
@@ -440,17 +473,22 @@ impl KiroClient {
             .header("x-amz-user-agent", self.get_user_agent())
             .header("amz-sdk-invocation-id", uuid::Uuid::new_v4().to_string())
             .header("amz-sdk-request", "attempt=1; max=1")
-            .header("Cookie", format!("Idp=BuilderId; AccessToken={}", account.access_token))
+            .header(
+                "Cookie",
+                format!("Idp=BuilderId; AccessToken={}", account.access_token),
+            )
             .body(cbor_body)
             .send()
             .await
             .map_err(|e| AppError::NetworkError(e.to_string()))?;
 
         let status = resp.status().as_u16();
-        
+
         if resp.status().is_success() {
             // 解析 CBOR 响应
-            let bytes = resp.bytes().await
+            let bytes = resp
+                .bytes()
+                .await
                 .map_err(|e| AppError::NetworkError(e.to_string()))?;
             let value: serde_json::Value = serde_cbor::from_slice(&bytes)
                 .map_err(|e| AppError::ParseError(format!("CBOR 解析失败: {}", e)))?;
@@ -460,37 +498,40 @@ impl KiroClient {
         // 尝试解析 CBOR 错误响应
         let bytes = resp.bytes().await.unwrap_or_default();
         let text = if let Ok(value) = serde_cbor::from_slice::<serde_json::Value>(&bytes) {
-            serde_json::to_string(&value).unwrap_or_else(|_| String::from_utf8_lossy(&bytes).to_string())
+            serde_json::to_string(&value)
+                .unwrap_or_else(|_| String::from_utf8_lossy(&bytes).to_string())
         } else {
             String::from_utf8_lossy(&bytes).to_string()
         };
         let msg_lower = text.to_lowercase();
-        
+
         // 记录错误响应用于调试
         warn!("配额查询失败 ({}): {}", status, text);
-        
+
         match status {
             // 401 → token 过期
             401 => Err(AppError::TokenExpired),
-            
+
             // 403/423 → 检查是 token 无效还是封禁
             403 | 423 => {
                 // 尝试解析 JSON 响应
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
                     // 检查是否是 Token 相关错误
                     if let Some(error_type) = json.get("__type").and_then(|v| v.as_str()) {
-                        if error_type.contains("UnauthorizedException") 
-                            || error_type.contains("InvalidToken") 
-                            || error_type.contains("ExpiredToken") {
+                        if error_type.contains("UnauthorizedException")
+                            || error_type.contains("InvalidToken")
+                            || error_type.contains("ExpiredToken")
+                        {
                             return Err(AppError::TokenExpired);
                         }
                         // 检查是否是账号封禁
-                        if error_type.contains("AccountSuspendedException") 
-                            || error_type.contains("Suspended") {
+                        if error_type.contains("AccountSuspendedException")
+                            || error_type.contains("Suspended")
+                        {
                             return Err(AppError::AccountBanned(text));
                         }
                     }
-                    
+
                     // 检查 reason 字段
                     if let Some(reason) = json.get("reason").and_then(|v| v.as_str()) {
                         if reason == "TEMPORARILY_SUSPENDED" {
@@ -498,24 +539,26 @@ impl KiroClient {
                         }
                     }
                 }
-                
+
                 // 回退到文本匹配
-                if msg_lower.contains("invalid") 
+                if msg_lower.contains("invalid")
                     || msg_lower.contains("expired")
-                    || msg_lower.contains("unauthorized") {
+                    || msg_lower.contains("unauthorized")
+                {
                     return Err(AppError::TokenExpired);
                 }
-                
-                if msg_lower.contains("suspend") 
-                    || msg_lower.contains("banned") 
-                    || msg_lower.contains("locked") {
+
+                if msg_lower.contains("suspend")
+                    || msg_lower.contains("banned")
+                    || msg_lower.contains("locked")
+                {
                     return Err(AppError::AccountBanned(text));
                 }
-                
+
                 // 默认当作 Token 过期处理（更安全）
                 Err(AppError::TokenExpired)
             }
-            
+
             _ => Err(AppError::KiroApiError(format!("{}: {}", status, text))),
         }
     }
@@ -523,7 +566,7 @@ impl KiroClient {
     /// 健康检查（使用 dryRun）
     pub async fn health_check(&self, account: &Account) -> bool {
         let url = format!("{}/SendMessageStreaming", self.config.kiro_endpoint);
-        
+
         let body = serde_json::json!({
             "conversationState": {
                 "conversationId": uuid::Uuid::new_v4().to_string(),
@@ -539,7 +582,8 @@ impl KiroClient {
             "source": "AGENT"
         });
 
-        let result = self.client
+        let result = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("Content-Type", "application/json")
@@ -557,13 +601,14 @@ impl KiroClient {
     /// 列出用户记忆
     pub async fn list_user_memory(&self, account: &Account) -> Result<serde_json::Value, AppError> {
         let url = format!("{}/ListUserMemoryEntries", self.config.kiro_endpoint);
-        
+
         let body = serde_json::json!({
             "origin": "KIRO_GATEWAY",
             "profileArn": &account.profile_arn
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("Content-Type", "application/json")
@@ -579,20 +624,27 @@ impl KiroClient {
             return Err(AppError::KiroApiError(format!("{}: {}", status, text)));
         }
 
-        resp.json().await.map_err(|e| AppError::ParseError(e.to_string()))
+        resp.json()
+            .await
+            .map_err(|e| AppError::ParseError(e.to_string()))
     }
 
     /// 创建用户记忆
-    pub async fn create_user_memory(&self, account: &Account, content: &str) -> Result<serde_json::Value, AppError> {
+    pub async fn create_user_memory(
+        &self,
+        account: &Account,
+        content: &str,
+    ) -> Result<serde_json::Value, AppError> {
         let url = format!("{}/CreateUserMemoryEntry", self.config.kiro_endpoint);
-        
+
         let body = serde_json::json!({
             "memoryEntryString": content,
             "origin": "KIRO_GATEWAY",
             "profileArn": &account.profile_arn
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("Content-Type", "application/json")
@@ -608,14 +660,24 @@ impl KiroClient {
             return Err(AppError::KiroApiError(format!("{}: {}", status, text)));
         }
 
-        resp.json().await.map_err(|e| AppError::ParseError(e.to_string()))
+        resp.json()
+            .await
+            .map_err(|e| AppError::ParseError(e.to_string()))
     }
 
     /// 删除用户记忆
-    pub async fn delete_user_memory(&self, account: &Account, entry_id: &str) -> Result<(), AppError> {
-        let url = format!("{}/DeleteUserMemoryEntry/{}", self.config.kiro_endpoint, entry_id);
-        
-        let resp = self.client
+    pub async fn delete_user_memory(
+        &self,
+        account: &Account,
+        entry_id: &str,
+    ) -> Result<(), AppError> {
+        let url = format!(
+            "{}/DeleteUserMemoryEntry/{}",
+            self.config.kiro_endpoint, entry_id
+        );
+
+        let resp = self
+            .client
             .delete(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("x-amz-user-agent", self.get_user_agent())
@@ -634,10 +696,14 @@ impl KiroClient {
 
     /// 获取可用模型列表
     /// 调用 Kiro API 的 ListAvailableModels 接口
-    pub async fn list_available_models(&self, account: &Account) -> Result<Vec<serde_json::Value>, AppError> {
+    pub async fn list_available_models(
+        &self,
+        account: &Account,
+    ) -> Result<Vec<serde_json::Value>, AppError> {
         let url = format!("{}/ListAvailableModels", self.config.kiro_endpoint);
-        
-        let resp = self.client
+
+        let resp = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("x-amz-user-agent", self.get_user_agent())
@@ -651,25 +717,27 @@ impl KiroClient {
             .map_err(|e| AppError::NetworkError(e.to_string()))?;
 
         let status = resp.status();
-        
+
         if status == 401 || status == 403 {
             return Err(AppError::TokenExpired);
         }
-        
+
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(AppError::KiroApiError(format!("{}: {}", status, text)));
         }
-        
-        let data: serde_json::Value = resp.json().await
+
+        let data: serde_json::Value = resp
+            .json()
+            .await
             .map_err(|e| AppError::ParseError(e.to_string()))?;
-        
-        let models = data.get("models")
+
+        let models = data
+            .get("models")
             .and_then(|v| v.as_array())
             .map(|arr| arr.clone())
             .unwrap_or_default();
-        
+
         Ok(models)
     }
 }
-

@@ -108,8 +108,14 @@ fn create_mcp_request(query: &str) -> (String, serde_json::Value) {
         .as_millis();
     let random_8 = generate_random_id(8);
 
-    let request_id = format!("web_search_tooluse_{}_{}_{}", random_22, timestamp, random_8);
-    let tool_use_id = format!("srvtoolu_{}", &Uuid::new_v4().to_string().replace("-", "")[..32]);
+    let request_id = format!(
+        "web_search_tooluse_{}_{}_{}",
+        random_22, timestamp, random_8
+    );
+    let tool_use_id = format!(
+        "srvtoolu_{}",
+        &Uuid::new_v4().to_string().replace("-", "")[..32]
+    );
 
     let mcp_request = json!({
         "id": request_id,
@@ -134,10 +140,17 @@ async fn call_mcp_api(
     mcp_request: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let mcp_url = format!("https://q.{}.amazonaws.com/mcp", region);
-    
+
     // 调试日志：打印请求
     emit_log_sync("INFO", "websearch", &format!("MCP URL: {}", mcp_url));
-    emit_log_sync("INFO", "websearch", &format!("MCP 请求: {}", serde_json::to_string_pretty(mcp_request).unwrap_or_default()));
+    emit_log_sync(
+        "INFO",
+        "websearch",
+        &format!(
+            "MCP 请求: {}",
+            serde_json::to_string_pretty(mcp_request).unwrap_or_default()
+        ),
+    );
 
     let resp = state
         .http_client
@@ -152,7 +165,7 @@ async fn call_mcp_api(
 
     let status = resp.status();
     emit_log_sync("INFO", "websearch", &format!("MCP 响应状态: {}", status));
-    
+
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
         emit_log_sync("ERROR", "websearch", &format!("MCP API 错误响应: {}", text));
@@ -163,16 +176,30 @@ async fn call_mcp_api(
         .json()
         .await
         .map_err(|e| format!("解析 MCP 响应失败: {}", e))?;
-    
+
     // 调试日志：打印响应
-    emit_log_sync("INFO", "websearch", &format!("MCP 响应: {}", serde_json::to_string_pretty(&result).unwrap_or_default()));
+    emit_log_sync(
+        "INFO",
+        "websearch",
+        &format!(
+            "MCP 响应: {}",
+            serde_json::to_string_pretty(&result).unwrap_or_default()
+        ),
+    );
 
     // 检查错误：只有当 error 字段存在且不为 null 时才认为是错误
     if let Some(error) = result.get("error") {
         if !error.is_null() {
             let code = error.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
-            let message = error.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error");
-            emit_log_sync("ERROR", "websearch", &format!("MCP 返回错误: code={}, message={}", code, message));
+            let message = error
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown error");
+            emit_log_sync(
+                "ERROR",
+                "websearch",
+                &format!("MCP 返回错误: code={}, message={}", code, message),
+            );
             return Err(format!("MCP 错误: {} - {}", code, message));
         }
     }
@@ -224,13 +251,13 @@ fn generate_search_summary(query: &str, results: &[SearchResult]) -> String {
     } else {
         for (i, result) in results.iter().enumerate() {
             summary.push_str(&format!("{}. **{}**\n", i + 1, result.title));
-            
+
             let snippet = if result.snippet.len() > 200 {
                 format!("{}...", &result.snippet[..200])
             } else {
                 result.snippet.clone()
             };
-            
+
             if !snippet.is_empty() {
                 summary.push_str(&format!("   {}\n", snippet));
             }
@@ -257,7 +284,11 @@ pub async fn handle_web_search_request(
     let _start_time = std::time::Instant::now();
     let model = request.model.clone();
 
-    emit_log_sync("INFO", "websearch", &format!("收到 WebSearch 请求: model={}", model));
+    emit_log_sync(
+        "INFO",
+        "websearch",
+        &format!("收到 WebSearch 请求: model={}", model),
+    );
 
     // 1. 提取搜索查询
     let query = match extract_search_query(&request) {
@@ -285,18 +316,21 @@ pub async fn handle_web_search_request(
     };
 
     // 3. 获取 TokenManager
-    let token_manager = state.auth_cache.get_or_create(&verify_result.refresh_token, config).await;
+    let token_manager = state
+        .auth_cache
+        .get_or_create(&verify_result.refresh_token, config)
+        .await;
 
     // 4. 获取 access_token
     let access_token = match token_manager.get_access_token().await {
         Ok(token) => token,
         Err(e) => {
-            emit_log_sync("ERROR", "websearch", &format!("获取 access_token 失败: {}", e));
-            return anthropic_error_response(
-                StatusCode::UNAUTHORIZED,
-                "authentication_error",
-                &e,
+            emit_log_sync(
+                "ERROR",
+                "websearch",
+                &format!("获取 access_token 失败: {}", e),
             );
+            return anthropic_error_response(StatusCode::UNAUTHORIZED, "authentication_error", &e);
         }
     };
 
@@ -319,7 +353,11 @@ pub async fn handle_web_search_request(
 
     // 7. 解析搜索结果
     let search_results = parse_search_results(&mcp_response).unwrap_or_default();
-    emit_log_sync("INFO", "websearch", &format!("搜索结果数量: {}", search_results.len()));
+    emit_log_sync(
+        "INFO",
+        "websearch",
+        &format!("搜索结果数量: {}", search_results.len()),
+    );
 
     // 8. 生成摘要
     let summary = generate_search_summary(&query, &search_results);
@@ -330,9 +368,25 @@ pub async fn handle_web_search_request(
 
     // 10. 构建响应
     if request.stream {
-        generate_stream_response(model, query, tool_use_id, search_results, summary, input_tokens, output_tokens)
+        generate_stream_response(
+            model,
+            query,
+            tool_use_id,
+            search_results,
+            summary,
+            input_tokens,
+            output_tokens,
+        )
     } else {
-        generate_non_stream_response(model, query, tool_use_id, search_results, summary, input_tokens, output_tokens)
+        generate_non_stream_response(
+            model,
+            query,
+            tool_use_id,
+            search_results,
+            summary,
+            input_tokens,
+            output_tokens,
+        )
     }
 }
 
@@ -551,4 +605,3 @@ fn anthropic_error_response(status: StatusCode, error_type: &str, message: &str)
     }));
     (status, body).into_response()
 }
-

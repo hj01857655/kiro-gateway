@@ -1,10 +1,10 @@
 // kiro-gateway 账号健康检查器
 // 后台任务，定期检查所有账号的有效性
 
+use crate::account::{AccountManager, AccountStatus};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
-use tracing::{info, warn, error, debug};
-use crate::account::{AccountManager, AccountStatus};
+use tracing::{debug, error, info, warn};
 
 pub struct HealthChecker {
     accounts: Arc<AccountManager>,
@@ -33,7 +33,7 @@ impl HealthChecker {
 
         loop {
             ticker.tick().await;
-            
+
             match self.check_all_accounts().await {
                 Ok(summary) => {
                     info!(
@@ -51,7 +51,7 @@ impl HealthChecker {
     /// 检查所有账号
     pub async fn check_all_accounts(&self) -> Result<HealthCheckSummary, String> {
         let accounts = self.accounts.list_accounts();
-        
+
         if accounts.is_empty() {
             debug!("没有账号需要检查");
             return Ok(HealthCheckSummary {
@@ -79,13 +79,15 @@ impl HealthChecker {
                         valid_count += 1;
                         // 如果账号之前是 expired 状态，恢复为 active
                         if account.status == AccountStatus::Expired {
-                            self.accounts.mark_status(&account.id, AccountStatus::Active);
+                            self.accounts
+                                .mark_status(&account.id, AccountStatus::Active);
                             info!("账号 {} 已恢复为 active 状态", account.id);
                         }
                     } else {
                         invalid_count += 1;
                         // 标记为 expired
-                        self.accounts.mark_status(&account.id, AccountStatus::Expired);
+                        self.accounts
+                            .mark_status(&account.id, AccountStatus::Expired);
                         warn!("账号 {} 标记为 expired", account.id);
                     }
                 }
@@ -114,7 +116,7 @@ impl HealthChecker {
         // 获取账号信息
         let accounts = self.accounts.list_accounts();
         let account = accounts.iter().find(|a| a.id == account_id);
-        
+
         if let Some(acc) = account {
             // 检查 accessToken 是否过期
             if acc.is_expired() {

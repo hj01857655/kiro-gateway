@@ -16,10 +16,10 @@ pub struct TextSegment {
 
 #[derive(Debug, Clone, PartialEq)]
 enum ParseState {
-    Initial,        // 初始状态，等待检测是否以 <thinking> 开头
-    InThinking,     // 在 thinking 块内
-    AfterThinking,  // thinking 块结束后，处理普通文本
-    Passthrough,    // 直通模式（响应不以 <thinking> 开头）
+    Initial,       // 初始状态，等待检测是否以 <thinking> 开头
+    InThinking,    // 在 thinking 块内
+    AfterThinking, // thinking 块结束后，处理普通文本
+    Passthrough,   // 直通模式（响应不以 <thinking> 开头）
 }
 
 pub struct ThinkingParser {
@@ -31,7 +31,8 @@ pub struct ThinkingParser {
 impl ThinkingParser {
     const OPEN_TAG: &'static str = "<thinking>";
     const CLOSE_TAG: &'static str = "</thinking>";
-    const QUOTE_CHARS: &'static [char] = &['`', '"', '\'', '"', '"', '\'', '\'', '「', '」', '『', '』'];
+    const QUOTE_CHARS: &'static [char] =
+        &['`', '"', '\'', '"', '"', '\'', '\'', '「', '」', '『', '』'];
 
     pub fn new() -> Self {
         Self {
@@ -136,7 +137,10 @@ impl ThinkingParser {
 
     #[allow(dead_code)]
     pub fn is_thinking_mode(&self) -> bool {
-        matches!(self.state, ParseState::InThinking | ParseState::AfterThinking)
+        matches!(
+            self.state,
+            ParseState::InThinking | ParseState::AfterThinking
+        )
     }
 
     #[allow(dead_code)]
@@ -162,7 +166,9 @@ impl ThinkingParser {
         if let Some(after_tag) = stripped.strip_prefix(Self::OPEN_TAG) {
             self.buffer = after_tag.to_string();
             self.state = ParseState::InThinking;
-            tracing::debug!("[ThinkingParser] Detected <thinking> tag at start, entering thinking mode");
+            tracing::debug!(
+                "[ThinkingParser] Detected <thinking> tag at start, entering thinking mode"
+            );
             Some(true)
         } else {
             self.state = ParseState::Passthrough;
@@ -195,7 +201,10 @@ impl ThinkingParser {
             self.state = ParseState::AfterThinking;
             self.thinking_extracted = true;
 
-            tracing::debug!("[ThinkingParser] Extracted thinking block: {} chars", thinking_content.len());
+            tracing::debug!(
+                "[ThinkingParser] Extracted thinking block: {} chars",
+                thinking_content.len()
+            );
             Some(TextSegment {
                 segment_type: SegmentType::Thinking,
                 content: thinking_content,
@@ -203,8 +212,6 @@ impl ThinkingParser {
         } else {
             None
         }
-            content: thinking_content,
-        })
     }
 
     fn find_real_close_tag(&self) -> Option<usize> {
@@ -270,9 +277,10 @@ mod tests {
     #[test]
     fn test_simple_thinking() {
         let mut parser = ThinkingParser::new();
-        
-        let segments = parser.push_and_parse("<thinking>Let me think...</thinking>\nHere is the answer.");
-        
+
+        let segments =
+            parser.push_and_parse("<thinking>Let me think...</thinking>\nHere is the answer.");
+
         assert_eq!(segments.len(), 2);
         assert_eq!(segments[0].segment_type, SegmentType::Thinking);
         assert_eq!(segments[0].content, "Let me think...");
@@ -283,9 +291,9 @@ mod tests {
     #[test]
     fn test_no_thinking() {
         let mut parser = ThinkingParser::new();
-        
+
         let segments = parser.push_and_parse("Just a normal response.");
-        
+
         assert_eq!(segments.len(), 1);
         assert_eq!(segments[0].segment_type, SegmentType::Text);
         assert_eq!(segments[0].content, "Just a normal response.");
@@ -294,13 +302,13 @@ mod tests {
     #[test]
     fn test_incremental_parsing() {
         let mut parser = ThinkingParser::new();
-        
+
         let seg1 = parser.push_and_parse("<think");
         assert_eq!(seg1.len(), 0);
-        
+
         let seg2 = parser.push_and_parse("ing>Part 1");
         assert_eq!(seg2.len(), 0);
-        
+
         let seg3 = parser.push_and_parse(" Part 2</thinking>\nText");
         assert!(seg3.len() >= 1);
         assert_eq!(seg3[0].segment_type, SegmentType::Thinking);

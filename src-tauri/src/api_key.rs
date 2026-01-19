@@ -1,10 +1,10 @@
 // API Key 管理系统
+use chrono::Utc;
+use hex;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use chrono::Utc;
-use sha2::{Sha256, Digest};
-use hex;
 
 use crate::error::AppError;
 
@@ -46,15 +46,14 @@ impl ApiKeyManager {
     /// 从 JSON 加载 API Keys
     pub fn load_from_json(&self, json_str: &str) -> Result<(), AppError> {
         let keys: Vec<ApiKey> = if json_str.trim().starts_with('[') {
-            serde_json::from_str(json_str)
-                .map_err(|e| AppError::ParseError(e.to_string()))?
+            serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?
         } else {
             #[derive(Deserialize)]
             struct ApiKeysConfig {
                 keys: Vec<ApiKey>,
             }
-            let config: ApiKeysConfig = serde_json::from_str(json_str)
-                .map_err(|e| AppError::ParseError(e.to_string()))?;
+            let config: ApiKeysConfig =
+                serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?;
             config.keys
         };
 
@@ -80,7 +79,7 @@ impl ApiKeyManager {
             })
             .collect();
         let key = format!("sk-{}", random_str);
-        
+
         // 生成 ID（key 的 SHA256 前 16 位）
         let mut hasher = Sha256::new();
         hasher.update(key.as_bytes());
@@ -111,7 +110,7 @@ impl ApiKeyManager {
         // 生成 sk-{64位十六进制} 格式（256-bit 随机数）
         let random_bytes: [u8; 32] = rand::random();
         let key = format!("sk-{}", hex::encode(random_bytes));
-        
+
         // 生成 ID（key 的 SHA256 前 16 位）
         let mut hasher = Sha256::new();
         hasher.update(key.as_bytes());
@@ -140,16 +139,16 @@ impl ApiKeyManager {
     /// 验证 API Key
     pub fn verify_key(&self, key: &str) -> Result<(), AppError> {
         let mut keys = self.keys.write();
-        
+
         if let Some(api_key) = keys.get_mut(key) {
             if !api_key.enabled {
                 return Err(AppError::BadRequest("API Key 已禁用".into()));
             }
-            
+
             // 更新最后使用时间
             api_key.last_used = Some(Utc::now().timestamp_millis());
             drop(keys);
-            
+
             // 保存到文件
             let _ = self.save_to_file();
             Ok(())
@@ -166,12 +165,13 @@ impl ApiKeyManager {
     /// 删除 API Key
     pub fn delete_key(&self, id: &str) -> Result<(), AppError> {
         let mut keys = self.keys.write();
-        
+
         // 找到对应的 key
-        let key_to_remove = keys.iter()
+        let key_to_remove = keys
+            .iter()
             .find(|(_, v)| v.id == id)
             .map(|(k, _)| k.clone());
-        
+
         if let Some(key) = key_to_remove {
             keys.remove(&key);
             drop(keys);
@@ -185,11 +185,9 @@ impl ApiKeyManager {
     /// 启用/禁用 API Key
     pub fn set_key_enabled(&self, id: &str, enabled: bool) -> Result<(), AppError> {
         let mut keys = self.keys.write();
-        
-        let key = keys.iter_mut()
-            .find(|(_, v)| v.id == id)
-            .map(|(_, v)| v);
-        
+
+        let key = keys.iter_mut().find(|(_, v)| v.id == id).map(|(_, v)| v);
+
         if let Some(api_key) = key {
             api_key.enabled = enabled;
             drop(keys);
@@ -209,7 +207,7 @@ impl ApiKeyManager {
                 std::fs::create_dir_all(parent)
                     .map_err(|e| AppError::BadRequest(format!("创建目录失败: {}", e)))?;
             }
-            
+
             let keys: Vec<ApiKey> = self.keys.read().values().cloned().collect();
             let json = serde_json::json!({ "keys": keys });
             std::fs::write(path, serde_json::to_string_pretty(&json).unwrap())

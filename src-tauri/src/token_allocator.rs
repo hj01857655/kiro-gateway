@@ -35,7 +35,7 @@ impl TokenStats {
 }
 
 /// 智能 Token 分配器
-/// 
+///
 /// 基于成功率、新鲜度和负载均衡的智能分配算法
 pub struct SmartTokenAllocator {
     stats: RwLock<HashMap<String, TokenStats>>,
@@ -51,7 +51,7 @@ impl SmartTokenAllocator {
     }
 
     /// 计算 Token 评分 (0-100)
-    /// 
+    ///
     /// 评分基于：
     /// - 成功率 (权重 60%)
     /// - 新鲜度 (权重 20%)
@@ -100,9 +100,7 @@ impl SmartTokenAllocator {
         }
 
         // 过滤可用账号
-        let available: Vec<_> = accounts.iter()
-            .filter(|a| a.is_available())
-            .collect();
+        let available: Vec<_> = accounts.iter().filter(|a| a.is_available()).collect();
 
         if available.is_empty() {
             return Err(AppError::NoToken);
@@ -111,9 +109,11 @@ impl SmartTokenAllocator {
         let stats = self.stats.read();
 
         // 计算每个账号的评分
-        let mut scored: Vec<_> = available.iter()
+        let mut scored: Vec<_> = available
+            .iter()
             .map(|account| {
-                let account_stats = stats.get(&account.id)
+                let account_stats = stats
+                    .get(&account.id)
                     .cloned()
                     .unwrap_or_else(TokenStats::new);
                 let score = self.calculate_score(account, &account_stats);
@@ -125,7 +125,8 @@ impl SmartTokenAllocator {
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // 过滤掉低成功率的 Token
-        let good_tokens: Vec<_> = scored.iter()
+        let good_tokens: Vec<_> = scored
+            .iter()
             .filter(|(_, _, stats)| {
                 let total = stats.success_count + stats.fail_count;
                 stats.success_rate() >= self.min_success_rate || total < 10
@@ -153,7 +154,8 @@ impl SmartTokenAllocator {
     /// 记录 Token 使用结果
     pub fn record_usage(&self, account_id: &str, success: bool) {
         let mut stats = self.stats.write();
-        let entry = stats.entry(account_id.to_string())
+        let entry = stats
+            .entry(account_id.to_string())
             .or_insert_with(TokenStats::new);
 
         if success {

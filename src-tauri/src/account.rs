@@ -24,7 +24,6 @@ pub enum AccountStatus {
     Banned,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
@@ -59,7 +58,9 @@ pub struct Account {
     pub quota_cached_at: Option<i64>,
 }
 
-fn default_enabled() -> bool { true }
+fn default_enabled() -> bool {
+    true
+}
 
 impl Account {
     pub fn is_expired(&self) -> bool {
@@ -101,9 +102,7 @@ impl Account {
     }
 
     pub fn is_available(&self) -> bool {
-        self.enabled 
-            && self.status == AccountStatus::Active 
-            && !self.is_throttled()
+        self.enabled && self.status == AccountStatus::Active && !self.is_throttled()
     }
 
     /// 转换为 WebSearch 的 VerifyResult
@@ -127,7 +126,11 @@ impl Account {
             profile_arn: Some(self.profile_arn.clone()),
             client_id,
             client_secret,
-            region: Some(self.region.clone().unwrap_or_else(|| "us-east-1".to_string())),
+            region: Some(
+                self.region
+                    .clone()
+                    .unwrap_or_else(|| "us-east-1".to_string()),
+            ),
         }
     }
 
@@ -199,15 +202,14 @@ impl AccountManager {
     pub fn load_from_json(&self, json_str: &str) -> Result<(), AppError> {
         // 支持两种格式：数组 [] 或对象 { "accounts": [] }
         let accounts: Vec<Account> = if json_str.trim().starts_with('[') {
-            serde_json::from_str(json_str)
-                .map_err(|e| AppError::ParseError(e.to_string()))?
+            serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?
         } else {
             #[derive(Deserialize)]
             struct AccountsConfig {
                 accounts: Vec<Account>,
             }
-            let config: AccountsConfig = serde_json::from_str(json_str)
-                .map_err(|e| AppError::ParseError(e.to_string()))?;
+            let config: AccountsConfig =
+                serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?;
             config.accounts
         };
 
@@ -242,7 +244,8 @@ impl AccountManager {
         F: FnOnce(&mut Account),
     {
         let mut accounts = self.accounts.write();
-        let account = accounts.iter_mut()
+        let account = accounts
+            .iter_mut()
             .find(|a| a.id == id)
             .ok_or_else(|| AppError::BadRequest(format!("账号 {} 不存在", id)))?;
         update_fn(account);
@@ -252,7 +255,8 @@ impl AccountManager {
     /// 删除账号
     pub fn delete_account(&self, id: &str) -> Result<(), AppError> {
         let mut accounts = self.accounts.write();
-        let index = accounts.iter()
+        let index = accounts
+            .iter()
             .position(|a| a.id == id)
             .ok_or_else(|| AppError::BadRequest(format!("账号 {} 不存在", id)))?;
         accounts.remove(index);
@@ -272,10 +276,13 @@ impl AccountManager {
                 std::fs::create_dir_all(parent)
                     .map_err(|e| AppError::BadRequest(format!("创建目录失败: {}", e)))?;
             }
-            
+
             // 直接保存为数组格式，不包装在 {"accounts": ...} 中
-            std::fs::write(file_path, serde_json::to_string_pretty(&accounts).unwrap_or_default())
-                .map_err(|e| AppError::BadRequest(format!("保存账号文件失败: {}", e)))?;
+            std::fs::write(
+                file_path,
+                serde_json::to_string_pretty(&accounts).unwrap_or_default(),
+            )
+            .map_err(|e| AppError::BadRequest(format!("保存账号文件失败: {}", e)))?;
             info!("账号已保存到文件: {}", file_path);
         }
         Ok(())
@@ -298,7 +305,12 @@ impl AccountManager {
                     }
                     Err(e) => {
                         // 刷新失败，记录失败并尝试下一个账号
-                        warn!("账号 {} 刷新失败 (尝试 {}/3): {}", account.id, attempt + 1, e);
+                        warn!(
+                            "账号 {} 刷新失败 (尝试 {}/3): {}",
+                            account.id,
+                            attempt + 1,
+                            e
+                        );
                         self.allocator.record_usage(&account.id, false);
                         self.mark_status(&account.id, AccountStatus::Expired);
                         continue;
@@ -351,7 +363,7 @@ impl AccountManager {
             acc.status = status;
         }
         drop(accounts); // 释放锁
-        // 防抖保存到文件
+                        // 防抖保存到文件
         self.schedule_save(account_id.to_string());
     }
 
@@ -366,7 +378,8 @@ impl AccountManager {
     /// 获取账号配额缓存
     pub fn get_quota_cache(&self, account_id: &str) -> Option<serde_json::Value> {
         let accounts = self.accounts.read();
-        accounts.iter()
+        accounts
+            .iter()
             .find(|a| a.id == account_id)
             .and_then(|acc| acc.get_quota_cache().cloned())
     }
@@ -377,19 +390,27 @@ impl AccountManager {
             let mut accounts = self.accounts.write();
             if let Some(acc) = accounts.iter_mut().find(|a| a.id == account_id) {
                 acc.enabled = enabled;
-                acc.status = if enabled { AccountStatus::Active } else { AccountStatus::Disabled };
-                info!("账号 {} 已{}", account_id, if enabled { "启用" } else { "禁用" });
+                acc.status = if enabled {
+                    AccountStatus::Active
+                } else {
+                    AccountStatus::Disabled
+                };
+                info!(
+                    "账号 {} 已{}",
+                    account_id,
+                    if enabled { "启用" } else { "禁用" }
+                );
                 Ok(())
             } else {
                 Err(AppError::BadRequest(format!("账号 {} 不存在", account_id)))
             }
         };
-        
+
         if result.is_ok() {
             // 防抖保存到文件
             self.schedule_save(account_id.to_string());
         }
-        
+
         result
     }
 
@@ -399,14 +420,14 @@ impl AccountManager {
         let save_task_running = Arc::clone(&self.save_task_running);
         let accounts = Arc::new(self.accounts.read().clone());
         let accounts_file = self.accounts_file.read().clone();
-        
+
         tokio::spawn(async move {
             // 添加到待保存队列
             {
                 let mut pending = pending_saves.lock().await;
                 pending.insert(account_id);
             }
-            
+
             // 检查是否已有保存任务在运行
             {
                 let mut running = save_task_running.lock().await;
@@ -416,21 +437,21 @@ impl AccountManager {
                 }
                 *running = true;
             }
-            
+
             // 等待 1 秒（防抖延迟）
             sleep(Duration::from_secs(1)).await;
-            
+
             // 批量保存所有待保存的账号
             let account_ids: Vec<String> = {
                 let mut pending = pending_saves.lock().await;
                 let ids: Vec<String> = pending.drain().collect();
                 ids
             };
-            
+
             if !account_ids.is_empty() {
                 Self::flush_saves_to_file(accounts, accounts_file, &account_ids).await;
             }
-            
+
             // 标记任务完成
             {
                 let mut running = save_task_running.lock().await;
@@ -438,7 +459,7 @@ impl AccountManager {
             }
         });
     }
-    
+
     /// 批量保存账号到文件
     async fn flush_saves_to_file(
         accounts: Arc<Vec<Account>>,
@@ -454,7 +475,7 @@ impl AccountManager {
                     return;
                 }
             };
-            
+
             // 解析为 JSON
             let mut json: serde_json::Value = match serde_json::from_str(&content) {
                 Ok(j) => j,
@@ -463,16 +484,16 @@ impl AccountManager {
                     return;
                 }
             };
-            
+
             // 找到并更新对应账号
             let accounts_array = if json.is_array() {
                 json.as_array_mut()
             } else {
                 json.get_mut("accounts").and_then(|a| a.as_array_mut())
             };
-            
+
             let mut has_changes = false;
-            
+
             if let Some(accounts_array) = accounts_array {
                 for account_id in account_ids {
                     // 从内存中找到账号
@@ -481,20 +502,30 @@ impl AccountManager {
                         for acc in accounts_array.iter_mut() {
                             if acc.get("id").and_then(|v| v.as_str()) == Some(&account.id) {
                                 // 检查是否真的有变化
-                                let old_access_token = acc.get("accessToken").and_then(|v| v.as_str()).unwrap_or("");
-                                let old_refresh_token = acc.get("refreshToken").and_then(|v| v.as_str()).unwrap_or("");
+                                let old_access_token = acc
+                                    .get("accessToken")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                let old_refresh_token = acc
+                                    .get("refreshToken")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
                                 let old_expires_at = acc.get("expiresAt").and_then(|v| v.as_i64());
-                                
-                                if old_access_token != account.access_token 
-                                    || old_refresh_token != account.refresh_token 
-                                    || old_expires_at != account.expires_at 
+
+                                if old_access_token != account.access_token
+                                    || old_refresh_token != account.refresh_token
+                                    || old_expires_at != account.expires_at
                                 {
-                                    acc["accessToken"] = serde_json::Value::String(account.access_token.clone());
-                                    acc["refreshToken"] = serde_json::Value::String(account.refresh_token.clone());
+                                    acc["accessToken"] =
+                                        serde_json::Value::String(account.access_token.clone());
+                                    acc["refreshToken"] =
+                                        serde_json::Value::String(account.refresh_token.clone());
                                     if let Some(expires_at) = account.expires_at {
-                                        acc["expiresAt"] = serde_json::Value::Number(expires_at.into());
+                                        acc["expiresAt"] =
+                                            serde_json::Value::Number(expires_at.into());
                                     }
-                                    acc["status"] = serde_json::to_value(&account.status).unwrap_or(serde_json::json!("active"));
+                                    acc["status"] = serde_json::to_value(&account.status)
+                                        .unwrap_or(serde_json::json!("active"));
                                     has_changes = true;
                                 }
                                 break;
@@ -503,10 +534,15 @@ impl AccountManager {
                     }
                 }
             }
-            
+
             // 只有真正有变化时才写文件
             if has_changes {
-                if let Err(e) = tokio::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()).await {
+                if let Err(e) = tokio::fs::write(
+                    path,
+                    serde_json::to_string_pretty(&json).unwrap_or_default(),
+                )
+                .await
+                {
                     warn!("更新账号文件失败: {}", e);
                 } else {
                     info!("批量更新 {} 个账号到文件", account_ids.len());
@@ -550,7 +586,8 @@ impl AccountManager {
         let region = account.region.as_deref().unwrap_or("us-east-1");
         let url = format!("https://prod.{}.auth.desktop.kiro.dev/refreshToken", region);
 
-        let resp = self.http_client
+        let resp = self
+            .http_client
             .post(&url)
             .json(&serde_json::json!({ "refreshToken": account.refresh_token }))
             .send()
@@ -560,7 +597,10 @@ impl AccountManager {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
             warn!("Social Token 刷新失败: {} - {}", status, text);
-            return Err(AppError::TokenRefreshFailed(format!("{}: {}", status, text)));
+            return Err(AppError::TokenRefreshFailed(format!(
+                "{}: {}",
+                status, text
+            )));
         }
 
         // 先获取原始响应文本用于调试
@@ -575,29 +615,40 @@ impl AccountManager {
             expires_in: Option<i64>,
         }
 
-        let data: RefreshResponse = serde_json::from_str(&text)
-            .map_err(|e| AppError::ParseError(format!("解析刷新响应失败: {} - 响应: {}", e, &text[..text.len().min(200)])))?;
+        let data: RefreshResponse = serde_json::from_str(&text).map_err(|e| {
+            AppError::ParseError(format!(
+                "解析刷新响应失败: {} - 响应: {}",
+                e,
+                &text[..text.len().min(200)]
+            ))
+        })?;
         account.access_token = data.access_token;
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;
         }
-        account.expires_at = Some(Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000));
+        account.expires_at =
+            Some(Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000));
 
         info!("Social Token 刷新成功: {}", account.id);
         Ok(())
     }
 
     async fn refresh_idc_token(&self, account: &mut Account) -> Result<(), AppError> {
-        let client_id = account.client_id.as_ref()
+        let client_id = account
+            .client_id
+            .as_ref()
             .ok_or_else(|| AppError::TokenRefreshFailed("IDC 账号缺少 clientId".into()))?;
-        let client_secret = account.client_secret.as_ref()
+        let client_secret = account
+            .client_secret
+            .as_ref()
             .ok_or_else(|| AppError::TokenRefreshFailed("IDC 账号缺少 clientSecret".into()))?;
 
         let region = account.region.as_deref().unwrap_or("us-east-1");
         let url = format!("https://oidc.{}.amazonaws.com/token", region);
 
         // 按文档用 JSON + camelCase
-        let resp = self.http_client
+        let resp = self
+            .http_client
             .post(&url)
             .header("Content-Type", "application/json")
             .json(&serde_json::json!({
@@ -613,7 +664,10 @@ impl AccountManager {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
             warn!("IDC Token 刷新失败: {} - {}", status, text);
-            return Err(AppError::TokenRefreshFailed(format!("{}: {}", status, text)));
+            return Err(AppError::TokenRefreshFailed(format!(
+                "{}: {}",
+                status, text
+            )));
         }
 
         let text = resp.text().await.unwrap_or_default();
@@ -627,16 +681,21 @@ impl AccountManager {
             expires_in: Option<i64>,
         }
 
-        let data: IdcRefreshResponse = serde_json::from_str(&text)
-            .map_err(|e| AppError::ParseError(format!("解析 IDC 刷新响应失败: {} - 响应: {}", e, &text[..text.len().min(200)])))?;
+        let data: IdcRefreshResponse = serde_json::from_str(&text).map_err(|e| {
+            AppError::ParseError(format!(
+                "解析 IDC 刷新响应失败: {} - 响应: {}",
+                e,
+                &text[..text.len().min(200)]
+            ))
+        })?;
         account.access_token = data.access_token;
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;
         }
-        account.expires_at = Some(Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000));
+        account.expires_at =
+            Some(Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000));
 
         info!("IDC Token 刷新成功: {}", account.id);
         Ok(())
     }
 }
-

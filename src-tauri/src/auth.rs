@@ -1,10 +1,10 @@
 // Token 管理模块
 // 用于 WebSearch 的 Token 缓存和刷新
 
+use chrono::Utc;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::Utc;
 
 #[derive(Debug, Clone)]
 pub struct TokenConfig {
@@ -59,10 +59,16 @@ impl TokenManager {
             // IDC 刷新
             let region = self.config.region.as_deref().unwrap_or("us-east-1");
             let url = format!("https://oidc.{}.amazonaws.com/token", region);
-            
-            let client_id = self.config.client_id.as_ref()
+
+            let client_id = self
+                .config
+                .client_id
+                .as_ref()
                 .ok_or("IDC 账号缺少 clientId")?;
-            let client_secret = self.config.client_secret.as_ref()
+            let client_secret = self
+                .config
+                .client_secret
+                .as_ref()
                 .ok_or("IDC 账号缺少 clientSecret")?;
 
             let body = serde_json::json!({
@@ -146,7 +152,11 @@ impl AuthCache {
         }
     }
 
-    pub async fn get_or_create(&self, refresh_token: &str, config: TokenConfig) -> Arc<TokenManager> {
+    pub async fn get_or_create(
+        &self,
+        refresh_token: &str,
+        config: TokenConfig,
+    ) -> Arc<TokenManager> {
         // 先尝试读取
         {
             let cache = self.cache.read();
