@@ -39,6 +39,17 @@
         "language": "zh-CN"
       },
       "nsis": null
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/hj01857655/kiro-gateway/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": ""
     }
   }
 }

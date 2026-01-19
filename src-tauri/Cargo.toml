@@ -16,6 +16,7 @@ tauri-build = { version = "2.0", features = [] }
 # Tauri 依赖
 tauri = { version = "2.0", features = [] }
 tauri-plugin-shell = "2.0"
+tauri-plugin-updater = "2.0"
 notify = "6.1"
 
 # 后端 Axum 依赖
