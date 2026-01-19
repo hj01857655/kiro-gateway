@@ -834,14 +834,14 @@ async fn admin_get_quota(
             state.accounts.update_quota_cache(&id, quota.clone());
             Ok(Json(quota))
         }
-        Err(AppError::Throttled(msg)) => {
+        Err(AppError::RateLimited) => {
             // 限流错误，返回缓存（如果有）或错误
-            warn!("配额查询被限流: {}", msg);
+            warn!("配额查询被限流");
             if let Some(cached_quota) = state.accounts.get_quota_cache(&id) {
                 info!("限流时使用账号 {} 的旧缓存", id);
                 return Ok(Json(cached_quota));
             }
-            Err(AppError::Throttled(msg))
+            Err(AppError::RateLimited)
         }
         Err(AppError::AccountBanned(msg)) => {
             // 账号被封禁，标记状态
