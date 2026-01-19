@@ -13,15 +13,8 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_env() -> Self {
-        // 默认账号文件路径：data/accounts.json
-        let default_accounts_file = "data/accounts.json".to_string();
-        let accounts_file = env::var("ACCOUNTS_FILE").ok().or_else(|| {
-            if std::path::Path::new(&default_accounts_file).exists() {
-                Some(default_accounts_file)
-            } else {
-                None
-            }
-        });
+        // 不再使用默认的 data/accounts.json，统一从用户数据目录读取
+        let accounts_file = env::var("ACCOUNTS_FILE").ok();
 
         Self {
             host: env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
