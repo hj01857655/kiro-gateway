@@ -367,6 +367,44 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 - 日志 target：`kiro_gateway`
 - 二进制名称：`kiro-gateway`
 
+## 数据存储规范
+
+### 用户数据目录
+
+**所有配置文件统一存储在用户数据目录**：
+
+- **Windows**: `%APPDATA%\com.kiro.gateway\`
+  - 完整路径: `C:\Users\{用户名}\AppData\Roaming\com.kiro.gateway\`
+- **macOS**: `~/Library/Application Support/com.kiro.gateway/`
+- **Linux**: `~/.local/share/com.kiro.gateway/`
+
+### 配置文件
+
+- `accounts.json` - 账号配置
+- `api_keys.json` - API Key 配置
+- `metrics.json` - 统计数据
+
+### 实现方式
+
+使用 Tauri 的 `app_handle.path().app_data_dir()` 获取用户数据目录：
+
+```rust
+// src-tauri/src/server.rs
+fn get_app_data_dir(app_handle: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let data_dir = app_handle.path().app_data_dir()?;
+    std::fs::create_dir_all(&data_dir)?;
+    Ok(data_dir)
+}
+```
+
+### 注意事项
+
+- ❌ 不要从项目的 `data/` 目录读取配置
+- ❌ 不要使用相对路径 `data/accounts.json`
+- ✅ 统一使用用户数据目录
+- ✅ 开发模式和生产模式使用相同的数据目录
+- ✅ 自动创建目录（如果不存在）
+
 ## Git 仓库规则
 
 ### 仓库架构
