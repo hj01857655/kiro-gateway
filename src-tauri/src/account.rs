@@ -52,6 +52,11 @@ pub struct Account {
     pub status: AccountStatus,
     #[serde(default)]
     pub throttled_until: Option<i64>,
+    // 配额缓存
+    #[serde(skip)]
+    pub quota_cache: Option<serde_json::Value>,
+    #[serde(skip)]
+    pub quota_cached_at: Option<i64>,
 }
 
 fn default_enabled() -> bool { true }
@@ -123,6 +128,31 @@ impl Account {
             client_id,
             client_secret,
             region: Some(self.region.clone().unwrap_or_else(|| "us-east-1".to_string())),
+        }
+    }
+
+    /// 检查配额缓存是否有效（5 分钟内）
+    pub fn is_quota_cache_valid(&self) -> bool {
+        if let (Some(_), Some(cached_at)) = (&self.quota_cache, self.quota_cached_at) {
+            let now = Utc::now().timestamp_millis();
+            let cache_ttl = 5 * 60 * 1000; // 5 分钟
+            return now - cached_at < cache_ttl;
+        }
+        false
+    }
+
+    /// 设置配额缓存
+    pub fn set_quota_cache(&mut self, quota: serde_json::Value) {
+        self.quota_cache = Some(quota);
+        self.quota_cached_at = Some(Utc::now().timestamp_millis());
+    }
+
+    /// 获取配额缓存
+    pub fn get_quota_cache(&self) -> Option<&serde_json::Value> {
+        if self.is_quota_cache_valid() {
+            self.quota_cache.as_ref()
+        } else {
+            None
         }
     }
 }
@@ -317,6 +347,22 @@ impl AccountManager {
         drop(accounts); // 释放锁
         // 防抖保存到文件
         self.schedule_save(account_id.to_string());
+    }
+
+    /// 更新账号配额缓存
+    pub fn update_quota_cache(&self, account_id: &str, quota: serde_json::Value) {
+        let mut accounts = self.accounts.write();
+        if let Some(acc) = accounts.iter_mut().find(|a| a.id == account_id) {
+            acc.set_quota_cache(quota);
+        }
+    }
+
+    /// 获取账号配额缓存
+    pub fn get_quota_cache(&self, account_id: &str) -> Option<serde_json::Value> {
+        let accounts = self.accounts.read();
+        accounts.iter()
+            .find(|a| a.id == account_id)
+            .and_then(|acc| acc.get_quota_cache().cloned())
     }
 
     /// 设置账号启用/禁用

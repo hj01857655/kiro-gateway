@@ -798,15 +798,21 @@ async fn admin_get_quota(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    // 先检查缓存（5 分钟内有效）
+    if let Some(cached_quota) = state.accounts.get_quota_cache(&id) {
+        info!("使用账号 {} 的配额缓存", id);
+        return Ok(Json(cached_quota));
+    }
+
     // 获取账号
     let accounts = state.accounts.list_accounts();
     let account = accounts.iter()
         .find(|a| a.id == id)
         .ok_or_else(|| AppError::BadRequest(format!("账号 {} 不存在", id)))?;
     
-    // 如果 Token 过期，先刷新
+    // 如果 Token 即将过期（5 分钟内），先刷新
     let account = if account.is_expired() {
-        info!("账号 {} Token 过期，刷新后查询配额", id);
+        info!("账号 {} Token 即将过期，刷新后查询配额", id);
         state.accounts.refresh_account(&id).await?
     } else {
         account.clone()
@@ -814,13 +820,28 @@ async fn admin_get_quota(
     
     // 查询配额
     match state.client.get_usage_limits(&account).await {
-        Ok(quota) => Ok(Json(quota)),
+        Ok(quota) => {
+            // 缓存配额数据（5 分钟）
+            state.accounts.update_quota_cache(&id, quota.clone());
+            Ok(Json(quota))
+        }
         Err(AppError::TokenExpired) => {
             // Token 过期，刷新后重试
             info!("配额查询时 Token 过期，刷新后重试");
             let refreshed = state.accounts.refresh_account(&id).await?;
             let quota = state.client.get_usage_limits(&refreshed).await?;
+            // 缓存配额数据
+            state.accounts.update_quota_cache(&id, quota.clone());
             Ok(Json(quota))
+        }
+        Err(AppError::Throttled(msg)) => {
+            // 限流错误，返回缓存（如果有）或错误
+            warn!("配额查询被限流: {}", msg);
+            if let Some(cached_quota) = state.accounts.get_quota_cache(&id) {
+                info!("限流时使用账号 {} 的旧缓存", id);
+                return Ok(Json(cached_quota));
+            }
+            Err(AppError::Throttled(msg))
         }
         Err(AppError::AccountBanned(msg)) => {
             // 账号被封禁，标记状态
