@@ -1,7 +1,12 @@
 import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor } from '@mantine/core'
 import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
+import { open } from '@tauri-apps/plugin-shell'
 
 export default function About() {
+  const openGithub = () => {
+    open('https://github.com/hj01857655/kiro-gateway')
+  }
+
   return (
     <Stack gap="md" maw={1200} mx="auto" w="100%">
       <Group>
@@ -67,7 +72,7 @@ export default function About() {
             <Text size="sm" fw={500} w={100}>
               GitHub
             </Text>
-            <Anchor href="https://github.com/hj01857655/kiro-gateway" target="_blank" size="sm">
+            <Anchor component="button" onClick={openGithub} size="sm" style={{ cursor: 'pointer' }}>
               <Group gap={4}>
                 <Github size={16} />
                 <Text size="sm">hj01857655/kiro-gateway</Text>
