@@ -34,10 +34,27 @@ export default function Settings() {
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [configPackage, setConfigPackage] = useState<any>(null)
   const [configLoading, setConfigLoading] = useState(false)
+  
+  // 服务器配置
+  const [serverConfig, setServerConfig] = useState({ host: '127.0.0.1', port: 8080 })
+  const [editingServer, setEditingServer] = useState(false)
+  const [serverConfigDirty, setServerConfigDirty] = useState(false)
 
   useEffect(() => {
     loadApiKeys()
+    loadServerConfig()
   }, [])
+
+  const loadServerConfig = async () => {
+    try {
+      const res = await fetch('/admin/config/server')
+      if (!res.ok) throw new Error('加载配置失败')
+      const data = await res.json()
+      setServerConfig(data)
+    } catch (error) {
+      console.error('加载服务器配置失败:', error)
+    }
+  }
 
   const loadApiKeys = async () => {
     try {
@@ -178,6 +195,56 @@ export default function Settings() {
     }
   }
 
+  // 保存服务器配置
+  const handleSaveServerConfig = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/admin/config/server', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(serverConfig),
+      })
+      if (!res.ok) throw new Error('保存配置失败')
+      const data = await res.json()
+      
+      notifications.show({
+        title: '成功',
+        message: data.message,
+        color: 'green',
+      })
+      
+      setEditingServer(false)
+      setServerConfigDirty(false)
+      
+      // 询问是否重启
+      if (data.needRestart && confirm('配置已保存，是否立即重启应用使其生效？')) {
+        await handleRestartApp()
+      }
+    } catch (error) {
+      notifications.show({
+        title: '保存失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        color: 'red',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 重启应用
+  const handleRestartApp = async () => {
+    try {
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      await relaunch()
+    } catch (error) {
+      notifications.show({
+        title: '重启失败',
+        message: error instanceof Error ? error.message : '请手动重启应用',
+        color: 'red',
+      })
+    }
+  }
+
   return (
     <Stack gap="md" maw={1200} mx="auto">
       <Title order={2}>设置</Title>
@@ -203,17 +270,69 @@ export default function Settings() {
       </Card>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Group mb="md">
-          <Server size={20} color="#228be6" />
-          <Text size="lg" fw={600}>
-            服务器配置
-          </Text>
+        <Group justify="space-between" mb="md">
+          <Group>
+            <Server size={20} color="#228be6" />
+            <Text size="lg" fw={600}>
+              服务器配置
+            </Text>
+          </Group>
+          {!editingServer ? (
+            <Button
+              size="sm"
+              variant="light"
+              onClick={() => setEditingServer(true)}
+            >
+              编辑
+            </Button>
+          ) : (
+            <Group gap="xs">
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => {
+                  setEditingServer(false)
+                  loadServerConfig()
+                }}
+              >
+                取消
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveServerConfig}
+                loading={loading}
+                disabled={!serverConfigDirty}
+              >
+                保存
+              </Button>
+            </Group>
+          )}
         </Group>
         <Stack gap="md">
-          <TextInput label="监听地址" value="127.0.0.1" disabled />
-          <TextInput label="监听端口" value="8080" disabled />
+          <TextInput 
+            label="监听地址" 
+            value={serverConfig.host}
+            onChange={(e) => {
+              setServerConfig({ ...serverConfig, host: e.target.value })
+              setServerConfigDirty(true)
+            }}
+            disabled={!editingServer}
+          />
+          <TextInput 
+            label="监听端口" 
+            value={serverConfig.port.toString()}
+            onChange={(e) => {
+              const port = parseInt(e.target.value) || 8080
+              setServerConfig({ ...serverConfig, port })
+              setServerConfigDirty(true)
+            }}
+            disabled={!editingServer}
+            type="number"
+            min={1024}
+            max={65535}
+          />
           <Text size="sm" c="dimmed">
-            服务器配置需要通过环境变量设置，重启后生效
+            {editingServer ? '修改后需要保存并重启应用才能生效' : '点击"编辑"按钮修改服务器配置'}
           </Text>
         </Stack>
       </Card>

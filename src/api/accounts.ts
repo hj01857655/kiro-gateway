@@ -1,48 +1,43 @@
 import type { Account } from '../types'
+import { fetchWithTimeout } from './utils'
 
 const API_BASE = '/admin'
 
 export const accountsApi = {
   getAll: async (): Promise<Account[]> => {
-    const res = await fetch(`${API_BASE}/accounts`)
-    if (!res.ok) throw new Error('获取账号列表失败')
+    const res = await fetchWithTimeout(`${API_BASE}/accounts`)
     const data = await res.json()
     return data.accounts || []
   },
 
   add: async (account: Partial<Account>): Promise<Account> => {
-    const res = await fetch(`${API_BASE}/accounts`, {
+    const res = await fetchWithTimeout(`${API_BASE}/accounts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(account),
     })
-    if (!res.ok) throw new Error('添加账号失败')
     const data = await res.json()
     return data.account
   },
 
   update: async (id: string, updates: Partial<Account>): Promise<void> => {
-    const res = await fetch(`${API_BASE}/accounts/${id}`, {
+    await fetchWithTimeout(`${API_BASE}/accounts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, updates }),
     })
-    if (!res.ok) throw new Error('更新账号失败')
   },
 
   delete: async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/accounts/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('删除账号失败')
+    await fetchWithTimeout(`${API_BASE}/accounts/${id}`, { method: 'DELETE' })
   },
 
   refresh: async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/accounts/${id}/refresh`, { method: 'POST' })
-    if (!res.ok) throw new Error('刷新 Token 失败')
+    await fetchWithTimeout(`${API_BASE}/accounts/${id}/refresh`, { method: 'POST' })
   },
 
   getQuota: async (id: string): Promise<import('../types').QuotaInfo> => {
-    const res = await fetch(`${API_BASE}/accounts/${id}/quota`)
-    if (!res.ok) throw new Error('获取配额失败')
+    const res = await fetchWithTimeout(`${API_BASE}/accounts/${id}/quota`)
     return await res.json()
   },
 }

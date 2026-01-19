@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
-import { AppShell, NavLink, Group, Text, Badge, rem, Divider, Transition, Loader, Center } from '@mantine/core'
+import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center } from '@mantine/core'
 import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import { useThemeStore } from './stores/themeStore'
 

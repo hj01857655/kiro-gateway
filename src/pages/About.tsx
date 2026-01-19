@@ -26,7 +26,7 @@ export default function About() {
             <Text size="sm" fw={500} w={100}>
               项目名称
             </Text>
-            <Text size="sm">kiro-gateway</Text>
+            <Text size="sm">Kiro Gateway</Text>
           </Group>
           <Group>
             <Text size="sm" fw={500} w={100}>
@@ -70,7 +70,7 @@ export default function About() {
             <Anchor href="https://github.com/hj01857655/kiro-gateway" target="_blank" rel="noopener noreferrer" size="sm">
               <Group gap={4}>
                 <Github size={16} />
-                <Text size="sm">hj01857655/kiro-gateway</Text>
+                <Text size="sm">Kiro Gateway</Text>
               </Group>
             </Anchor>
           </Group>
@@ -176,19 +176,19 @@ export default function About() {
           </Text>
           <List spacing="xs" size="sm">
             <List.Item>
-              <strong>aliom-v/KiroGate</strong> - Python + FastAPI 实现
+              <Anchor href="https://github.com/aliom-v/KiroGate" target="_blank" rel="noopener noreferrer" fw={600}>aliom-v/KiroGate</Anchor> - Python + FastAPI 实现
             </List.Item>
             <List.Item>
-              <strong>Jwadow/kiro-openai-gateway</strong> - KiroGate 上游项目
+              <Anchor href="https://github.com/Jwadow/kiro-openai-gateway" target="_blank" rel="noopener noreferrer" fw={600}>Jwadow/kiro-openai-gateway</Anchor> - KiroGate 上游项目
             </List.Item>
             <List.Item>
-              <strong>justlovemaki/AIClient-2-API</strong> - 多 Provider 架构参考
+              <Anchor href="https://github.com/justlovemaki/AIClient-2-API" target="_blank" rel="noopener noreferrer" fw={600}>justlovemaki/AIClient-2-API</Anchor> - 多 Provider 架构参考
             </List.Item>
             <List.Item>
-              <strong>aiclientproxy/proxycast</strong> - Tauri 桌面应用参考
+              <Anchor href="https://github.com/aiclientproxy/proxycast" target="_blank" rel="noopener noreferrer" fw={600}>aiclientproxy/proxycast</Anchor> - Tauri 桌面应用参考
             </List.Item>
             <List.Item>
-              <strong>hank9999/kiro.rs</strong> - Rust + React 前端参考
+              <Anchor href="https://github.com/hank9999/kiro.rs" target="_blank" rel="noopener noreferrer" fw={600}>hank9999/kiro.rs</Anchor> - Rust + React 前端参考
             </List.Item>
           </List>
         </Stack>

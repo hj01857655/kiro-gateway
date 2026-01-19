@@ -151,6 +151,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
                 .route("/api-keys/:id", axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key))
                 .route("/config/generate", post(admin_generate_config))
                 .route("/config/apply", post(admin_apply_config))
+                .route("/config/server", get(admin_get_server_config).post(admin_update_server_config))
                 .layer(middleware::from_fn_with_state(Arc::clone(&state), admin_auth_middleware))
         )
         .with_state(state)
@@ -854,5 +855,92 @@ async fn admin_apply_config(
         "success": true,
         "configPath": config_path,
         "message": "Claude Desktop 配置已成功写入"
+    })))
+}
+
+// 获取服务器配置
+async fn admin_get_server_config(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "host": state.config.host,
+        "port": state.config.port,
+    }))
+}
+
+// 更新服务器配置
+async fn admin_update_server_config(
+    State(_state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let host = payload.get("host")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::BadRequest("缺少 host 参数".into()))?;
+    
+    let port = payload.get("port")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| AppError::BadRequest("缺少 port 参数".into()))? as u16;
+    
+    // 验证端口范围
+    if port < 1024 {
+        return Err(AppError::BadRequest("端口必须大于等于 1024".into()));
+    }
+    
+    // 读取或创建 .env 文件
+    let env_path = "src-tauri/.env";
+    let mut env_content = std::fs::read_to_string(env_path).unwrap_or_default();
+    
+    // 更新或添加 HOST 和 PORT
+    let host_line = format!("HOST={}", host);
+    let port_line = format!("PORT={}", port);
+    
+    if env_content.contains("HOST=") {
+        // 替换现有的 HOST
+        let lines: Vec<String> = env_content.lines()
+            .map(|line| {
+                if line.starts_with("HOST=") {
+                    host_line.clone()
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect();
+        env_content = lines.join("\n");
+    } else {
+        // 添加新的 HOST
+        if !env_content.is_empty() && !env_content.ends_with('\n') {
+            env_content.push('\n');
+        }
+        env_content.push_str(&host_line);
+        env_content.push('\n');
+    }
+    
+    if env_content.contains("PORT=") {
+        // 替换现有的 PORT
+        let lines: Vec<String> = env_content.lines()
+            .map(|line| {
+                if line.starts_with("PORT=") {
+                    port_line.clone()
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect();
+        env_content = lines.join("\n");
+    } else {
+        // 添加新的 PORT
+        if !env_content.is_empty() && !env_content.ends_with('\n') {
+            env_content.push('\n');
+        }
+        env_content.push_str(&port_line);
+        env_content.push('\n');
+    }
+    
+    // 写入文件
+    std::fs::write(env_path, env_content)
+        .map_err(|e| AppError::BadRequest(format!("写入配置文件失败: {}", e)))?;
+    
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "配置已保存，请重启应用使其生效",
+        "needRestart": true
     })))
 }

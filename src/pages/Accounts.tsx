@@ -19,10 +19,11 @@ import {
   Title,
   Tabs,
   FileButton,
-  Code,
   Menu,
   Progress,
   Tooltip,
+  PasswordInput,
+  rem,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import {
@@ -32,7 +33,6 @@ import {
   Power,
   PowerOff,
   Upload,
-  FileJson,
   ChevronDown,
   Activity,
   CreditCard,
@@ -92,14 +92,18 @@ export default function Accounts() {
   }
 ]`)
 
-  // 页面加载时自动获取所有账号的配额
+  // 页面加载时自动获取所有账号的配额（只在账号 ID 列表变化时触发）
   useEffect(() => {
     if (accounts && accounts.length > 0) {
       accounts.forEach((account) => {
-        fetchQuota(account.id)
+        // 只获取未加载过的配额
+        if (!quotaCache[account.id] && !loadingQuotas[account.id]) {
+          fetchQuota(account.id)
+        }
       })
     }
-  }, [accounts?.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts?.map(a => a.id).join(',')])
 
   // 获取配额（静默失败，使用缓存）
   const fetchQuota = async (accountId: string) => {
@@ -168,7 +172,16 @@ export default function Accounts() {
   const handleJsonSubmit = () => {
     try {
       const data = JSON.parse(jsonInput)
-      
+
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        notifications.show({
+          title: '错误',
+          message: '导入数据不能为空',
+          color: 'red',
+        })
+        return
+      }
+
       // 自动检测是单个对象还是数组
       if (Array.isArray(data)) {
         // 批量导入
@@ -206,6 +219,15 @@ export default function Accounts() {
       try {
         const content = e.target?.result as string
         const data = JSON.parse(content)
+
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+          notifications.show({
+            title: '错误',
+            message: '导入数据不能为空',
+            color: 'red',
+          })
+          return
+        }
 
         if (Array.isArray(data)) {
           data.forEach((account) => addAccount(account))
@@ -416,25 +438,16 @@ export default function Accounts() {
                 setShowAddModal(true)
               }}
             >
-              表单添加
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<FileJson size={16} />}
-              onClick={() => {
-                setActiveTab('json')
-                setShowAddModal(true)
-              }}
-            >
-              JSON 导入
+              手动添加
             </Menu.Item>
             <Menu.Item
               leftSection={<Upload size={16} />}
               onClick={() => {
-                setActiveTab('file')
+                setActiveTab('import')
                 setShowAddModal(true)
               }}
             >
-              文件导入
+              批量导入
             </Menu.Item>
             <Menu.Item
               leftSection={<Upload size={16} />}
@@ -544,20 +557,20 @@ export default function Accounts() {
                   <Group gap="xs">
                     <ActionIcon
                       variant="light"
+                      color={account.status !== 'disabled' ? 'orange' : 'green'}
+                      size="lg"
+                      onClick={() => handleToggle(account)}
+                    >
+                      {account.status !== 'disabled' ? <PowerOff size={18} /> : <Power size={18} />}
+                    </ActionIcon>
+                    <ActionIcon
+                      variant="light"
                       color="blue"
                       size="lg"
                       onClick={() => handleRefresh(account.id)}
                       loading={isLoadingQuota}
                     >
                       <RefreshCw size={18} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="light"
-                      color={account.status !== 'disabled' ? 'orange' : 'green'}
-                      size="lg"
-                      onClick={() => handleToggle(account)}
-                    >
-                      {account.status !== 'disabled' ? <PowerOff size={18} /> : <Power size={18} />}
                     </ActionIcon>
                     <ActionIcon
                       variant="light"
@@ -580,28 +593,22 @@ export default function Accounts() {
         onClose={() => setShowAddModal(false)}
         title="添加账号"
         size="lg"
+        radius="md"
         styles={{
-          body: {
-            minHeight: '500px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-          },
+          title: { fontSize: rem(18), fontWeight: 600 },
         }}
       >
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List>
+        <Tabs value={activeTab} onChange={setActiveTab} variant="pills">
+          <Tabs.List grow mb="lg">
             <Tabs.Tab value="form" leftSection={<Plus size={16} />}>
-              表单
+              手动添加
             </Tabs.Tab>
-            <Tabs.Tab value="json" leftSection={<FileJson size={16} />}>
-              JSON
-            </Tabs.Tab>
-            <Tabs.Tab value="file" leftSection={<Upload size={16} />}>
-              文件
+            <Tabs.Tab value="import" leftSection={<Upload size={16} />}>
+              批量导入
             </Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value="form" pt="md">
+          <Tabs.Panel value="form">
             <Stack gap="md">
               <TextInput
                 label="账号名称"
@@ -620,40 +627,42 @@ export default function Accounts() {
                 ]}
                 required
               />
-              <Textarea
+              <PasswordInput
                 label="Refresh Token"
                 placeholder="粘贴 Refresh Token"
                 value={formData.refreshToken}
                 onChange={(e) => setFormData({ ...formData, refreshToken: e.target.value })}
-                minRows={4}
-                autosize
-                maxRows={8}
                 required
               />
               {formData.authMethod === 'idc' && (
                 <>
-                  <TextInput
-                    label="Profile ARN"
-                    placeholder="arn:aws:..."
-                    value={formData.profileArn}
-                    onChange={(e) => setFormData({ ...formData, profileArn: e.target.value })}
-                  />
-                  <TextInput
+                  <Select
                     label="Region"
-                    placeholder="us-east-1"
+                    placeholder="选择区域"
                     value={formData.region}
-                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                    onChange={(value) => setFormData({ ...formData, region: value || 'us-east-1' })}
+                    data={[
+                      { value: 'us-east-1', label: 'US East (N. Virginia)' },
+                      { value: 'us-west-2', label: 'US West (Oregon)' },
+                      { value: 'eu-west-1', label: 'Europe (Ireland)' },
+                      { value: 'ap-southeast-1', label: 'Asia Pacific (Singapore)' },
+                      { value: 'ap-northeast-1', label: 'Asia Pacific (Tokyo)' },
+                    ]}
+                    required
                   />
                   <TextInput
                     label="Client ID"
+                    placeholder="客户端 ID"
                     value={formData.clientId}
                     onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                    required
                   />
-                  <TextInput
+                  <PasswordInput
                     label="Client Secret"
-                    type="password"
+                    placeholder="客户端密钥"
                     value={formData.clientSecret}
                     onChange={(e) => setFormData({ ...formData, clientSecret: e.target.value })}
+                    required
                   />
                 </>
               )}
@@ -666,64 +675,45 @@ export default function Accounts() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="json" pt="md">
-            <Stack gap="md">
+          <Tabs.Panel value="import">
+            <Stack gap="md" style={{ minHeight: '500px' }}>
               <Text size="sm" c="dimmed">
-                支持单个对象或数组格式，自动识别
+                支持 JSON 输入或文件上传，可导入单个账号或批量导入
               </Text>
               <Textarea
+                label="JSON 输入"
+                placeholder="粘贴 JSON 配置..."
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                minRows={15}
+                minRows={20}
                 autosize
-                maxRows={25}
-                styles={{ input: { fontFamily: 'monospace', fontSize: '0.9em' } }}
+                styles={{
+                  input: {
+                    fontFamily: 'monospace',
+                    fontSize: '0.85em',
+                    lineHeight: '1.5'
+                  }
+                }}
               />
-              <Group justify="flex-end">
-                <Button variant="light" onClick={() => setShowAddModal(false)}>
-                  取消
-                </Button>
-                <Button onClick={handleJsonSubmit}>导入</Button>
-              </Group>
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="file" pt="md">
-            <Stack gap="md">
-              <Text size="sm" c="dimmed">
-                选择 JSON 文件导入账号（支持单个对象或数组）
+              <Text size="xs" c="dimmed">
+                或者选择 JSON 文件导入
               </Text>
-              <Code block>
-                {`// 单个账号
-{
-  "id": "account-1",
-  "name": "我的账号",
-  "authMethod": "social",
-  "refreshToken": "...",
-  "enabled": true
-}
-
-// 或多个账号
-[
-  { "id": "account-1", ... },
-  { "id": "account-2", ... }
-]`}
-              </Code>
               <FileButton
                 resetRef={resetRef}
                 onChange={handleFileImport}
                 accept="application/json,.json"
               >
                 {(props) => (
-                  <Button {...props} leftSection={<Upload size={16} />} fullWidth>
+                  <Button {...props} leftSection={<Upload size={16} />} variant="light" fullWidth>
                     选择 JSON 文件
                   </Button>
                 )}
               </FileButton>
-              <Group justify="flex-end">
+              <Group justify="flex-end" mt="auto">
                 <Button variant="light" onClick={() => setShowAddModal(false)}>
                   取消
                 </Button>
+                <Button onClick={handleJsonSubmit}>导入</Button>
               </Group>
             </Stack>
           </Tabs.Panel>

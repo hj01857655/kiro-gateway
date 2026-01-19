@@ -1,4 +1,5 @@
 // 模型 API
+import { fetchWithTimeout } from './utils'
 
 export interface Model {
   id: string
@@ -20,22 +21,18 @@ export const modelsApi = {
   // 获取模型列表
   async list(forceRefresh = false): Promise<Model[]> {
     const now = Date.now()
-    
+
     // 如果有缓存且未过期，直接返回
     if (!forceRefresh && modelsCache && now - cacheTimestamp < CACHE_DURATION) {
       return modelsCache
     }
-    
+
     try {
-      const res = await fetch('/v1/models')
-      if (!res.ok) {
-        throw new Error('获取模型列表失败')
-      }
-      
+      const res = await fetchWithTimeout('/v1/models')
       const data: ModelsResponse = await res.json()
       modelsCache = data.data
       cacheTimestamp = now
-      
+
       return data.data
     } catch (error) {
       console.error('获取模型列表失败:', error)
@@ -51,7 +48,7 @@ export const modelsApi = {
       ]
     }
   },
-  
+
   // 清除缓存
   clearCache() {
     modelsCache = null
