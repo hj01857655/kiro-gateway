@@ -697,8 +697,8 @@ export default function Accounts() {
                 placeholder="粘贴 JSON 配置..."
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                minRows={14}
-                maxRows={18}
+                minRows={20}
+                maxRows={25}
                 styles={{
                   input: {
                     fontFamily: 'monospace',
