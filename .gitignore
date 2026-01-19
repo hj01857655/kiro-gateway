@@ -14,6 +14,11 @@ Cargo.lock
 # Data
 /data/*.json
 !/data/.gitkeep
+/src-tauri/data/*.json
+!/src-tauri/data/.gitkeep
+
+# Claude
+.claude/settings.local.json
 
 # IDE
 .vscode/
