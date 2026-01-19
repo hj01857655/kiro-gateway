@@ -1,9 +1,13 @@
 [package]
-name = "kiro-gateway-desktop"
+name = "kiro-gateway"
 version = "0.1.0"
 description = "Kiro Gateway Desktop Application"
 authors = ["kiro-gateway"]
 edition = "2021"
+
+[[bin]]
+name = "kiro-gateway"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

@@ -254,6 +254,9 @@ async fn chat_completions(
     let is_stream = is_stream_request_openai(&request);
     let model = request.model.as_str();
     
+    // 记录请求日志
+    crate::kirogate_info!("收到 OpenAI 请求: model={}, stream={}", model, is_stream);
+    
     let account = state.accounts.get_account().await?;
     // 将空字符串的 profileArn 转换为 None
     let profile_arn = if account.profile_arn.is_empty() {
@@ -268,6 +271,7 @@ async fn chat_completions(
     let request_id = uuid::Uuid::new_v4().to_string();
 
     if is_stream {
+        let request_id_clone = request_id.clone();
         let openai_stream = async_stream::stream! {
             tokio::pin!(stream);
             let mut has_tool = false;
@@ -283,16 +287,17 @@ async fn chat_completions(
                         total_tokens: total,
                     });
                 }
-                if let Some(chunk) = kiro_to_openai(&event, &request_id) {
+                if let Some(chunk) = kiro_to_openai(&event, &request_id_clone) {
                     yield Ok::<_, Infallible>(Event::default().data(serde_json::to_string(&chunk).unwrap_or_default()));
                 }
             }
 
-            let end = create_openai_end_with_reason(&request_id, has_tool, false, usage);
+            let end = create_openai_end_with_reason(&request_id_clone, has_tool, false, usage);
             yield Ok::<_, Infallible>(Event::default().data(serde_json::to_string(&end).unwrap_or_default()));
             yield Ok::<_, Infallible>(Event::default().data("[DONE]"));
         };
         
+        crate::kirogate_info!("OpenAI 流式响应开始: request_id={}", request_id);
         Ok(Sse::new(openai_stream).into_response())
     } else {
         Err(AppError::BadRequest("非流式响应暂未实现".into()))
@@ -305,6 +310,9 @@ async fn messages(
     Json(request): Json<AnthropicRequest>,
 ) -> Result<Response, AppError> {
     verify_api_key(&headers, &state.config, &state.api_keys)?;
+
+    // 记录请求日志
+    crate::kirogate_info!("收到 Anthropic 请求: model={}", request.model);
 
     // 检查是否为 WebSearch 请求
     if crate::websearch::is_web_search_request(&request) {
@@ -343,12 +351,13 @@ async fn messages(
     let request_id = uuid::Uuid::new_v4().to_string();
 
     if is_stream {
+        let request_id_clone = request_id.clone();
         let anthropic_stream = async_stream::stream! {
             tokio::pin!(stream);
             
             yield Ok::<_, Infallible>(Event::default().event("message_start").data(format!(
                 r#"{{"type":"message_start","message":{{"id":"msg_{}","type":"message","role":"assistant","content":[],"model":"claude","stop_reason":null}}}}"#,
-                request_id
+                request_id_clone
             )));
 
             yield Ok::<_, Infallible>(Event::default().event("content_block_start").data(
@@ -374,6 +383,7 @@ async fn messages(
             ));
         };
         
+        crate::kirogate_info!("Anthropic 流式响应开始: request_id={}", request_id);
         Ok(Sse::new(anthropic_stream).into_response())
     } else {
         Err(AppError::BadRequest("非流式响应暂未实现".into()))

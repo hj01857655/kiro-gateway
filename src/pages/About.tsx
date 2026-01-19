@@ -1,6 +1,6 @@
 import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor } from '@mantine/core'
 import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
-import { open } from '@tauri-apps/plugin-shell'
+import { open } from '@tauri-apps/api/shell'
 
 export default function About() {
   const openGithub = () => {

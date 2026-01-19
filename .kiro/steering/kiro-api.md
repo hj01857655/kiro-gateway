@@ -2,7 +2,56 @@
 
 ## 端点
 
+### 聊天接口
 `POST https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse`
+
+### 模型列表接口
+`GET https://codewhisperer.us-east-1.amazonaws.com/ListAvailableModels`
+
+参数：
+- `origin`: "AI_EDITOR"
+- `profileArn`: 账号的 profileArn（可为空）
+
+返回：
+```json
+{
+  "models": [
+    {
+      "modelId": "qdev::auto",
+      "tokenLimits": {
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 8192
+      }
+    },
+    {
+      "modelId": "qdev::claude-haiku-4.5",
+      "tokenLimits": {
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 8192
+      }
+    },
+    {
+      "modelId": "qdev::claude-sonnet-4",
+      "tokenLimits": {
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 8192
+      }
+    },
+    {
+      "modelId": "qdev::claude-sonnet-4.5",
+      "tokenLimits": {
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 8192
+      }
+    }
+  ]
+}
+```
+
+注意：
+- 模型 ID 带有 `qdev::` 前缀
+- 返回的模型列表取决于账号类型和权限
+- Claude Opus 4.5 已不再可用（2026-01-15 测试）
 
 ## 必需请求头
 
