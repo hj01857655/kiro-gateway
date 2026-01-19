@@ -197,6 +197,16 @@ export default function Settings() {
 
   // 保存服务器配置
   const handleSaveServerConfig = async () => {
+    // 验证端口范围
+    if (serverConfig.port < 1024 || serverConfig.port > 65535) {
+      notifications.show({
+        title: '验证失败',
+        message: '端口号必须在 1024-65535 之间',
+        color: 'red',
+      })
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch('/admin/config/server', {

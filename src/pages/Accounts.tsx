@@ -361,20 +361,9 @@ export default function Accounts() {
       {/* 健康状态概览 */}
       {healthData && (
         <Card withBorder>
-          <Group justify="space-between" mb="md">
-            <Group>
-              <Activity size={20} />
-              <Text fw={600}>健康状态</Text>
-            </Group>
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<RefreshCw size={14} />}
-              onClick={handleCheckHealth}
-              loading={checkHealthMutation.isPending}
-            >
-              检查健康
-            </Button>
+          <Group mb="md">
+            <Activity size={20} />
+            <Text fw={600}>健康状态</Text>
           </Group>
           <Group grow>
             <Card withBorder p="sm">
@@ -424,12 +413,21 @@ export default function Accounts() {
 
       <Group justify="space-between">
         <Title order={2}>账号管理</Title>
-        <Menu shadow="md" width={200}>
-          <Menu.Target>
-            <Button leftSection={<Plus size={16} />} rightSection={<ChevronDown size={16} />}>
-              添加账号
-            </Button>
-          </Menu.Target>
+        <Group gap="sm">
+          <Button
+            variant="light"
+            leftSection={<RefreshCw size={16} />}
+            onClick={handleCheckHealth}
+            loading={checkHealthMutation.isPending}
+          >
+            检查健康
+          </Button>
+          <Menu shadow="md" width={200}>
+            <Menu.Target>
+              <Button leftSection={<Plus size={16} />} rightSection={<ChevronDown size={16} />}>
+                添加账号
+              </Button>
+            </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
               leftSection={<Plus size={16} />}
@@ -457,6 +455,7 @@ export default function Accounts() {
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
+        </Group>
       </Group>
 
       {(accounts || []).length === 0 ? (
@@ -507,7 +506,7 @@ export default function Accounts() {
                       ID: {account.id}
                     </Text>
                     
-                    <Group gap="md">
+                    <Group gap="md" wrap="wrap">
                       {/* 配额显示 - 紧凑版 */}
                       {quota && (
                         <Group gap="xs">

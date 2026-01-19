@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
-import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center } from '@mantine/core'
+import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center, Burger } from '@mantine/core'
 import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import { useThemeStore } from './stores/themeStore'
 
@@ -15,6 +15,7 @@ type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'about'
 export default function App() {
   const colorScheme = useThemeStore((state) => state.colorScheme)
   const [currentPage, setCurrentPage] = useState<Page>('accounts')
+  const [navbarOpened, setNavbarOpened] = useState(true)
 
   const navigation = [
     { id: 'accounts' as Page, name: '账号管理', icon: Users, color: 'violet' },
@@ -46,19 +47,39 @@ export default function App() {
 
   return (
     <AppShell
-      navbar={{ width: 280, breakpoint: 'sm' }}
+      navbar={{
+        width: navbarOpened ? 220 : 70,
+        breakpoint: 'sm',
+      }}
       padding="md"
       styles={{
         main: {
           background: colorScheme === 'dark'
-            ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
+            ? 'linear-gradient(135deg, #0d1117 0%, #161b22 100%)'
             : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         },
       }}
     >
+      <div
+        style={{
+          position: 'fixed',
+          top: rem(16),
+          left: navbarOpened ? rem(220 + 16) : rem(70 + 16),
+          zIndex: 1000,
+          transition: 'left 0.3s ease',
+          background: colorScheme === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          borderRadius: rem(8),
+          padding: rem(8),
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+          backdropFilter: 'blur(10px)',
+        }}
+      >
+        <Burger opened={navbarOpened} onClick={() => setNavbarOpened(!navbarOpened)} size="sm" />
+      </div>
+
       <AppShell.Navbar p="md">
         <AppShell.Section>
-          <Group mb="xl">
+          <Group mb="xl" justify="center">
             <div
               style={{
                 width: rem(40),
@@ -76,35 +97,39 @@ export default function App() {
                 K
               </Text>
             </div>
-            <div>
-              <Text fw={700} size="lg">
-                Kiro Gateway
-              </Text>
-              <Text size="xs" c="dimmed">
-                API 网关管理
-              </Text>
-            </div>
+            {navbarOpened && (
+              <div>
+                <Text fw={700} size="lg">
+                  Kiro Gateway
+                </Text>
+                <Text size="xs" c="dimmed">
+                  API 网关管理
+                </Text>
+              </div>
+            )}
           </Group>
         </AppShell.Section>
 
-        <AppShell.Section grow>
+        <AppShell.Section grow mt="xs">
           {navigation.slice(0, 4).map((item) => {
             const Icon = item.icon
             return (
               <NavLink
                 key={item.id}
                 active={currentPage === item.id}
-                label={item.name}
-                leftSection={<Icon size={20} />}
+                label={navbarOpened ? item.name : ''}
+                leftSection={<Icon size={navbarOpened ? 20 : 24} />}
                 onClick={() => setCurrentPage(item.id)}
                 color={item.color}
                 variant="subtle"
-                mb={4}
+                mb={6}
                 styles={{
                   root: {
-                    borderRadius: rem(8),
+                    borderRadius: rem(10),
                     fontWeight: 500,
-                    padding: `${rem(10)} ${rem(12)}`,
+                    padding: navbarOpened ? `${rem(12)} ${rem(14)}` : rem(12),
+                    justifyContent: navbarOpened ? 'flex-start' : 'center',
+                    transition: 'all 0.2s ease',
                   },
                   label: {
                     fontSize: rem(14),
@@ -113,24 +138,26 @@ export default function App() {
               />
             )
           })}
-          <Divider my="sm" />
+          <Divider my="md" />
           {navigation.slice(4).map((item) => {
             const Icon = item.icon
             return (
               <NavLink
                 key={item.id}
                 active={currentPage === item.id}
-                label={item.name}
-                leftSection={<Icon size={20} />}
+                label={navbarOpened ? item.name : ''}
+                leftSection={<Icon size={navbarOpened ? 20 : 24} />}
                 onClick={() => setCurrentPage(item.id)}
                 color={item.color}
                 variant="subtle"
-                mb={4}
+                mb={6}
                 styles={{
                   root: {
-                    borderRadius: rem(8),
+                    borderRadius: rem(10),
                     fontWeight: 500,
-                    padding: `${rem(10)} ${rem(12)}`,
+                    padding: navbarOpened ? `${rem(12)} ${rem(14)}` : rem(12),
+                    justifyContent: navbarOpened ? 'flex-start' : 'center',
+                    transition: 'all 0.2s ease',
                   },
                   label: {
                     fontSize: rem(14),
@@ -142,18 +169,41 @@ export default function App() {
         </AppShell.Section>
 
         <AppShell.Section>
-          <div
-            style={{
-              padding: rem(12),
-              borderRadius: rem(12),
-              background: colorScheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.1)'
-                : 'rgba(16, 185, 129, 0.08)',
-              border: `1px solid ${colorScheme === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'}`,
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <Group gap="xs" wrap="nowrap">
+          {navbarOpened ? (
+            <div
+              style={{
+                padding: rem(12),
+                borderRadius: rem(12),
+                background: colorScheme === 'dark'
+                  ? 'rgba(16, 185, 129, 0.1)'
+                  : 'rgba(16, 185, 129, 0.08)',
+                border: `1px solid ${colorScheme === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'}`,
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <Group gap="xs" wrap="nowrap">
+                <div
+                  style={{
+                    width: rem(8),
+                    height: rem(8),
+                    borderRadius: '50%',
+                    background: '#10b981',
+                    boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
+                    animation: 'pulse 2s ease-in-out infinite',
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <Text size="xs" fw={600} c={colorScheme === 'dark' ? 'green.4' : 'green.7'}>
+                    运行中
+                  </Text>
+                  <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
+                    127.0.0.1:8080
+                  </Text>
+                </div>
+              </Group>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
               <div
                 style={{
                   width: rem(8),
@@ -162,18 +212,11 @@ export default function App() {
                   background: '#10b981',
                   boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
                   animation: 'pulse 2s ease-in-out infinite',
+                  margin: '0 auto',
                 }}
               />
-              <div style={{ flex: 1 }}>
-                <Text size="xs" fw={600} c={colorScheme === 'dark' ? 'green.4' : 'green.7'}>
-                  运行中
-                </Text>
-                <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
-                  127.0.0.1:8080
-                </Text>
-              </div>
-            </Group>
-          </div>
+            </div>
+          )}
         </AppShell.Section>
       </AppShell.Navbar>
 

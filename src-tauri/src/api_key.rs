@@ -69,6 +69,45 @@ impl ApiKeyManager {
 
     /// 生成新的 API Key
     pub fn generate_key(&self, name: Option<String>) -> Result<ApiKey, AppError> {
+        // 生成 sk-{48位Base62字符} 格式（类似 OpenAI）
+        use rand::Rng;
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let mut rng = rand::thread_rng();
+        let random_str: String = (0..48)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+        let key = format!("sk-{}", random_str);
+        
+        // 生成 ID（key 的 SHA256 前 16 位）
+        let mut hasher = Sha256::new();
+        hasher.update(key.as_bytes());
+        let hash = hasher.finalize();
+        let id = hex::encode(&hash[..8]);
+
+        let api_key = ApiKey {
+            id,
+            key: key.clone(),
+            name,
+            created_at: Utc::now().timestamp_millis(),
+            last_used: None,
+            enabled: true,
+        };
+
+        let mut keys = self.keys.write();
+        keys.insert(key.clone(), api_key.clone());
+        drop(keys);
+
+        // 保存到文件
+        self.save_to_file()?;
+
+        Ok(api_key)
+    }
+
+    /// 生成新的 API Key（十六进制格式）
+    pub fn generate_key_hex(&self, name: Option<String>) -> Result<ApiKey, AppError> {
         // 生成 sk-{64位十六进制} 格式（256-bit 随机数）
         let random_bytes: [u8; 32] = rand::random();
         let key = format!("sk-{}", hex::encode(random_bytes));

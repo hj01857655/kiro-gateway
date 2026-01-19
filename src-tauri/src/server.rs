@@ -84,19 +84,22 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 加载 API Keys
-    if let Ok(api_keys_file) = std::env::var("API_KEYS_FILE") {
-        match std::fs::read_to_string(&api_keys_file) {
-            Ok(content) => {
-                if let Err(e) = api_keys.load_from_json(&content) {
-                    tracing::error!("从文件 {} 加载 API Keys 失败: {}", api_keys_file, e);
-                }
-            }
-            Err(e) => {
-                tracing::warn!("读取 API Keys 文件 {} 失败: {}", api_keys_file, e);
+    let default_api_keys_file = "data/api_keys.json";
+    let api_keys_file = std::env::var("API_KEYS_FILE").unwrap_or_else(|_| default_api_keys_file.to_string());
+    
+    match std::fs::read_to_string(&api_keys_file) {
+        Ok(content) => {
+            if let Err(e) = api_keys.load_from_json(&content) {
+                tracing::error!("从文件 {} 加载 API Keys 失败: {}", api_keys_file, e);
+            } else {
+                tracing::info!("从文件 {} 加载了 API Keys", api_keys_file);
             }
         }
-        api_keys.set_keys_file(&api_keys_file);
+        Err(e) => {
+            tracing::info!("API Keys 文件 {} 不存在或读取失败: {}，将创建新文件", api_keys_file, e);
+        }
     }
+    api_keys.set_keys_file(&api_keys_file);
     
     // 创建健康检查器（每 5 分钟检查一次）
     let health_checker = Arc::new(crate::health_checker::HealthChecker::new(Arc::clone(&accounts), 300));
@@ -785,7 +788,13 @@ async fn admin_generate_api_key(
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let name = payload.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let api_key = state.api_keys.generate_key(name)?;
+    let format = payload.get("format").and_then(|v| v.as_str()).unwrap_or("base62");
+    
+    let api_key = match format {
+        "hex" => state.api_keys.generate_key_hex(name)?,
+        _ => state.api_keys.generate_key(name)?,
+    };
+    
     Ok(Json(serde_json::json!({ "key": api_key })))
 }
 
