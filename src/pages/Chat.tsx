@@ -149,7 +149,7 @@ export default function Chat() {
   }
 
   return (
-    <Stack gap="md" style={{ height: 'calc(100vh - 100px)', maxWidth: 1000, margin: '0 auto', width: '100%' }}>
+    <Stack gap="md" style={{ height: 'calc(100vh - 100px)', maxWidth: 1000, margin: '0 auto' }}>
       <Group justify="space-between">
         <Group>
           <MessageSquare size={24} color="#228be6" />

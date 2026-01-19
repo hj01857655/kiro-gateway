@@ -15,13 +15,17 @@ import {
   Tabs,
   Textarea,
   Alert,
+  Switch,
 } from '@mantine/core'
-import { Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff, Download, Wand2, AlertCircle } from 'lucide-react'
+import { Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff, Download, Wand2, AlertCircle, Moon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
 import { apiKeysApi, type ApiKey } from '@/api/apiKeys'
+import { useThemeStore } from '@/stores/themeStore'
 
 export default function Settings() {
+  const colorScheme = useThemeStore((state) => state.colorScheme)
+  const toggleColorScheme = useThemeStore((state) => state.toggleColorScheme)
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
@@ -175,8 +179,28 @@ export default function Settings() {
   }
 
   return (
-    <Stack gap="md" maw={1200} mx="auto" w="100%">
+    <Stack gap="md" maw={1200} mx="auto">
       <Title order={2}>设置</Title>
+
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group mb="md">
+          <Moon size={20} color="#7950f2" />
+          <Text size="lg" fw={600}>
+            外观
+          </Text>
+        </Group>
+        <Group justify="space-between">
+          <div>
+            <Text size="sm" fw={500}>深色模式</Text>
+            <Text size="xs" c="dimmed">切换浅色/深色主题</Text>
+          </div>
+          <Switch
+            checked={colorScheme === 'dark'}
+            onChange={toggleColorScheme}
+            size="md"
+          />
+        </Group>
+      </Card>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Group mb="md">

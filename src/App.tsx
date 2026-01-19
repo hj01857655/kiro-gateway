@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AppShell, NavLink, Group, Text, Badge, rem } from '@mantine/core'
+import { AppShell, NavLink, Group, Text, Badge, rem, Divider } from '@mantine/core'
 import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import Accounts from './pages/Accounts'
 import Metrics from './pages/Metrics'
@@ -7,10 +7,12 @@ import Logs from './pages/Logs'
 import SettingsPage from './pages/Settings'
 import Chat from './pages/Chat'
 import About from './pages/About'
+import { useThemeStore } from './stores/themeStore'
 
 type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'about'
 
 export default function App() {
+  const colorScheme = useThemeStore((state) => state.colorScheme)
   const [currentPage, setCurrentPage] = useState<Page>('accounts')
 
   const navigation = [
@@ -47,7 +49,9 @@ export default function App() {
       padding="md"
       styles={{
         main: {
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          background: colorScheme === 'dark'
+            ? 'linear-gradient(135deg, #1a1b26 0%, #24283b 100%)'
+            : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         },
       }}
     >
@@ -59,7 +63,9 @@ export default function App() {
                 width: rem(40),
                 height: rem(40),
                 borderRadius: rem(12),
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: colorScheme === 'dark'
+                  ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -81,7 +87,7 @@ export default function App() {
         </AppShell.Section>
 
         <AppShell.Section grow>
-          {navigation.map((item) => {
+          {navigation.slice(0, 4).map((item) => {
             const Icon = item.icon
             return (
               <NavLink
@@ -91,8 +97,44 @@ export default function App() {
                 leftSection={<Icon size={20} />}
                 onClick={() => setCurrentPage(item.id)}
                 color={item.color}
-                variant="filled"
-                mb="xs"
+                variant="subtle"
+                mb={4}
+                styles={{
+                  root: {
+                    borderRadius: rem(8),
+                    fontWeight: 500,
+                    padding: `${rem(10)} ${rem(12)}`,
+                  },
+                  label: {
+                    fontSize: rem(14),
+                  },
+                }}
+              />
+            )
+          })}
+          <Divider my="sm" />
+          {navigation.slice(4).map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.id}
+                active={currentPage === item.id}
+                label={item.name}
+                leftSection={<Icon size={20} />}
+                onClick={() => setCurrentPage(item.id)}
+                color={item.color}
+                variant="subtle"
+                mb={4}
+                styles={{
+                  root: {
+                    borderRadius: rem(8),
+                    fontWeight: 500,
+                    padding: `${rem(10)} ${rem(12)}`,
+                  },
+                  label: {
+                    fontSize: rem(14),
+                  },
+                }}
               />
             )
           })}
@@ -103,7 +145,9 @@ export default function App() {
             p="sm"
             style={{
               borderRadius: rem(8),
-              background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
+              background: colorScheme === 'dark'
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
             }}
           >
             <Badge color="green" variant="dot" size="lg">

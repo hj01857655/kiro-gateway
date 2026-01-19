@@ -105,7 +105,6 @@ chmod +x kiro-gateway_0.1.0_amd64.AppImage
 
 ## 🔗 相关链接
 
-- 源码仓库（私有）: https://github.com/hj01857655/kiro-gateway_dev
 - 问题反馈: https://github.com/hj01857655/kiro-gateway/issues
 - 文档: 查看仓库 `docs/` 目录
 
@@ -143,7 +142,6 @@ chmod +x kiro-gateway_0.1.0_amd64.AppImage
 ## 注意事项
 
 - ✅ 公开仓库只用于 Release，不推送源码
-- ✅ 所有开发在私有仓库 `kiro-gateway_dev` 进行
 - ✅ Release 前确保所有测试通过
 - ✅ Release 描述要清晰明了
 - ✅ 上传所有平台的安装包
