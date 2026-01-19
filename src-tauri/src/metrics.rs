@@ -269,6 +269,12 @@ impl Metrics {
 
   /// 保存到文件
   pub fn save_to_file(&self, path: &str) -> Result<(), String> {
+    // 确保父目录存在
+    if let Some(parent) = std::path::Path::new(path).parent() {
+      std::fs::create_dir_all(parent)
+        .map_err(|e| format!("创建目录失败: {}", e))?;
+    }
+    
     let inner = self.inner.read().unwrap();
     let json = serde_json::to_string_pretty(&*inner)
       .map_err(|e| format!("序列化失败: {}", e))?;

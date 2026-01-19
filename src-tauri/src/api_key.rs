@@ -204,6 +204,12 @@ impl ApiKeyManager {
     pub fn save_to_file(&self) -> Result<(), AppError> {
         let file_path = self.keys_file.read();
         if let Some(ref path) = *file_path {
+            // 确保父目录存在
+            if let Some(parent) = std::path::Path::new(path).parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| AppError::BadRequest(format!("创建目录失败: {}", e)))?;
+            }
+            
             let keys: Vec<ApiKey> = self.keys.read().values().cloned().collect();
             let json = serde_json::json!({ "keys": keys });
             std::fs::write(path, serde_json::to_string_pretty(&json).unwrap())

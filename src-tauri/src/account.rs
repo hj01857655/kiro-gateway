@@ -267,6 +267,12 @@ impl AccountManager {
     /// 保存账号列表到文件
     pub fn save_accounts_to_file(&self, accounts: &[Account]) -> Result<(), AppError> {
         if let Some(ref file_path) = *self.accounts_file.read() {
+            // 确保父目录存在
+            if let Some(parent) = std::path::Path::new(file_path).parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| AppError::BadRequest(format!("创建目录失败: {}", e)))?;
+            }
+            
             // 直接保存为数组格式，不包装在 {"accounts": ...} 中
             std::fs::write(file_path, serde_json::to_string_pretty(&accounts).unwrap_or_default())
                 .map_err(|e| AppError::BadRequest(format!("保存账号文件失败: {}", e)))?;
