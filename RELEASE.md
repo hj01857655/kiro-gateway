@@ -51,10 +51,11 @@ Kiro API 网关桌面应用，提供 OpenAI/Anthropic 兼容接口。
 - ✅ 多账号管理和智能轮询
 - ✅ Token 自动刷新
 - ✅ 账号健康检查
-- ✅ 智能 Token 分配（基于成功率、新鲜度、负载均衡）
-- ✅ 实时统计监控
+- ✅ 动态模型列表加载（从 Kiro API 获取）
+- ✅ 实时统计监控（请求数、响应时间、延迟百分位、24小时趋势）
 - ✅ 日志查看和搜索
-- ✅ 现代化 UI 界面
+- ✅ 现代化 UI 界面（Mantine v7）
+- ✅ 工具调用和 Thinking block 支持
 
 ## 📦 安装
 
@@ -80,18 +81,27 @@ chmod +x kiro-gateway_0.1.0_amd64.AppImage
 
 ## 📝 更新日志
 
-### v0.1.0 (2026-01-17)
+### v0.1.0 (2026-01-19)
 
 **新功能**:
-- 完整的账号管理系统
-- 智能 Token 分配和健康检查
-- 统计监控和日志系统
-- Mantine UI 现代化界面
+- 完整的账号管理系统（表单/JSON/批量/文件导入）
+- 账号健康检查和自动切换
+- 动态模型列表加载（支持 5 分钟缓存）
+- 实时统计监控系统（请求数、响应时间、延迟百分位、24小时趋势）
+- 日志系统（结构化存储、搜索、过滤、清空）
+- Mantine v7 现代化界面
+- 工具调用和 Thinking block 支持
 
 **技术栈**:
 - 后端: Rust + Axum + Tokio
-- 前端: React 19 + TypeScript + Mantine v7
+- 前端: React 19 + TypeScript + Mantine v7 + TailwindCSS 4
 - 桌面框架: Tauri 2.0
+
+**支持的模型**:
+- `qdev::auto` - 自动选择
+- `qdev::claude-haiku-4.5` - 快速模型
+- `qdev::claude-sonnet-4` - 常规模型
+- `qdev::claude-sonnet-4.5` - 最新模型
 
 ## 🔗 相关链接
 
@@ -104,6 +114,7 @@ chmod +x kiro-gateway_0.1.0_amd64.AppImage
 - 本应用仅用于个人学习和研究
 - 请遵守 Kiro 服务条款
 - 不要滥用 API 配额
+- 公开仓库仅用于发布 Release，不包含源码
 ```
 
 ## 版本号规范

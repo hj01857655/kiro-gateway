@@ -14,6 +14,7 @@ Kiro Gateway 将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Ant
 - 🖥️ 友好的桌面管理界面
 - 🛠️ 工具调用和图片支持
 - 💭 Thinking block 解析
+- 🎯 动态模型列表加载
 
 ## 技术栈
 
@@ -27,7 +28,10 @@ Kiro Gateway 将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Ant
 - React 19 - UI 框架
 - TypeScript - 类型安全
 - Vite - 构建工具
-- TailwindCSS - 样式框架
+- TailwindCSS 4 - 样式框架
+- Mantine v7 - UI 组件库
+- TanStack Query - 数据管理
+- Zustand - 状态管理
 
 ## 项目结构
 
@@ -185,6 +189,9 @@ anthropic-version: 2023-06-01
 # 健康检查
 GET http://127.0.0.1:8080/health
 
+# 获取模型列表（动态从 Kiro API 获取）
+GET http://127.0.0.1:8080/v1/models
+
 # 获取统计数据
 GET http://127.0.0.1:8080/admin/metrics
 
@@ -197,14 +204,26 @@ POST http://127.0.0.1:8080/admin/logs/clear
 
 ## 模型映射
 
-**OpenAI → Kiro**：
+Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射到 OpenAI/Anthropic 模型名称。
+
+**当前支持的 Kiro 模型**：
+- `qdev::auto` - 自动选择（默认）
+- `qdev::claude-haiku-4.5` - 快速模型
+- `qdev::claude-sonnet-4` - 常规模型
+- `qdev::claude-sonnet-4.5` - 最新模型
+
+**OpenAI → Kiro 映射**：
 - `gpt-4` / `gpt-4-turbo` / `gpt-4o` → `claude-sonnet-4.5`
 - `gpt-3.5-turbo` → `claude-haiku-4.5`
 
-**Anthropic → Kiro**：
+**Anthropic → Kiro 映射**：
 - `claude-3-5-sonnet-*` → `claude-sonnet-4.5`
-- `claude-3-opus-*` → `claude-opus-4.5`
 - `claude-3-haiku-*` → `claude-haiku-4.5`
+
+**模糊匹配**：
+- 包含 `haiku` → `claude-haiku-4.5`
+- 包含 `sonnet` → `claude-sonnet-4.5`
+- 默认 → `auto`
 
 ## 功能特性
 
@@ -218,9 +237,11 @@ POST http://127.0.0.1:8080/admin/logs/clear
 - ✅ 工具调用支持
 - ✅ 图片上传支持
 - ✅ Thinking block 解析
-- ✅ 日志系统
-- ✅ 统计监控
-- ✅ 桌面管理界面
+- ✅ 动态模型列表加载（从 Kiro API 获取）
+- ✅ 日志系统（结构化存储、搜索、过滤）
+- ✅ 统计监控（请求数、响应时间、延迟百分位、24小时趋势）
+- ✅ 桌面管理界面（Mantine UI）
+- ✅ 账号健康检查
 
 ### 待实现
 
@@ -230,10 +251,15 @@ POST http://127.0.0.1:8080/admin/logs/clear
 
 ## 参考项目
 
-- [aliom-v/KiroGate](https://github.com/aliom-v/KiroGate) - Python 实现，主要参考
+本项目参考了以下优秀项目的设计和实现：
+
+- [aliom-v/KiroGate](https://github.com/aliom-v/KiroGate) - Python + FastAPI 实现，主要参考
+- [chaogei/Kiro-account-manager](https://github.com/chaogei/Kiro-account-manager) - Rust + Axum + Tauri 实现，反代架构参考
 - [justlovemaki/AIClient-2-API](https://github.com/justlovemaki/AIClient-2-API) - 多 Provider 架构参考
 - [aiclientproxy/proxycast](https://github.com/aiclientproxy/proxycast) - Tauri 桌面应用参考
-- [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust 实现参考
+- [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust + React 前端参考
+
+感谢这些项目的开源贡献！
 
 ## 开发规范
 
@@ -252,4 +278,10 @@ MIT License
 
 ## 联系方式
 
-- GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
+- GitHub 公开仓库: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
+- GitHub 私有仓库: [hj01857655/kiro-gateway_dev](https://github.com/hj01857655/kiro-gateway_dev)
+- 问题反馈: [Issues](https://github.com/hj01857655/kiro-gateway/issues)
+
+## 免责声明
+
+本项目仅供学习和研究使用，请遵守 Kiro 服务条款，不要滥用 API 配额。
