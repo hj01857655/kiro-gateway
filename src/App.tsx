@@ -55,7 +55,7 @@ export default function App() {
       styles={{
         main: {
           background: colorScheme === 'dark'
-            ? 'linear-gradient(135deg, #0d1117 0%, #161b22 100%)'
+            ? '#0a0b14'
             : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         },
       }}
@@ -67,11 +67,14 @@ export default function App() {
           left: navbarOpened ? rem(220 + 16) : rem(70 + 16),
           zIndex: 1000,
           transition: 'left 0.3s ease',
-          background: colorScheme === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          background: colorScheme === 'dark' ? '#13141f' : 'rgba(255, 255, 255, 0.95)',
           borderRadius: rem(8),
           padding: rem(8),
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+          boxShadow: colorScheme === 'dark' 
+            ? '0 2px 8px rgba(0, 0, 0, 0.5)' 
+            : '0 2px 8px rgba(0, 0, 0, 0.15)',
           backdropFilter: 'blur(10px)',
+          border: colorScheme === 'dark' ? '1px solid #1f2937' : 'none',
         }}
       >
         <Burger opened={navbarOpened} onClick={() => setNavbarOpened(!navbarOpened)} size="sm" />
