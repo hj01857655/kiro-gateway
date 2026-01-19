@@ -43,6 +43,11 @@ impl ApiKeyManager {
         *self.keys_file.write() = Some(path.to_string());
     }
 
+    /// 获取 API Key 文件路径
+    pub fn get_keys_file(&self) -> Option<String> {
+        self.keys_file.read().clone()
+    }
+
     /// 从 JSON 加载 API Keys
     pub fn load_from_json(&self, json_str: &str) -> Result<(), AppError> {
         let keys: Vec<ApiKey> = if json_str.trim().starts_with('[') {

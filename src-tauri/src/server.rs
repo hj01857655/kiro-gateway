@@ -72,11 +72,13 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
 
     // 加载账号
     if let Some(ref json) = config.accounts_json {
+        info!("从环境变量 ACCOUNTS_JSON 加载账号");
         if let Err(e) = accounts.load_from_json(json) {
             tracing::error!("从环境变量加载账号失败: {}", e);
         }
         accounts.set_accounts_file(&accounts_file_str);
     } else if let Some(ref file) = config.accounts_file {
+        info!("从环境变量 ACCOUNTS_FILE 加载账号: {}", file);
         match std::fs::read_to_string(file) {
             Ok(content) => {
                 if let Err(e) = accounts.load_from_json(&content) {
@@ -89,10 +91,19 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         }
         accounts.set_accounts_file(file);
     } else {
+        info!("从默认路径加载账号: {}", accounts_file_str);
         accounts.set_accounts_file(&accounts_file_str);
-        if let Ok(content) = std::fs::read_to_string(&accounts_file) {
-            if let Err(e) = accounts.load_from_json(&content) {
-                tracing::error!("从默认文件加载账号失败: {}", e);
+        match std::fs::read_to_string(&accounts_file) {
+            Ok(content) => {
+                info!("成功读取账号文件，内容长度: {} 字节", content.len());
+                if let Err(e) = accounts.load_from_json(&content) {
+                    tracing::error!("解析账号文件失败: {}", e);
+                } else {
+                    info!("账号加载成功");
+                }
+            }
+            Err(e) => {
+                info!("账号文件不存在或无法读取: {}，将在添加账号时创建", e);
             }
         }
     }
@@ -274,6 +285,18 @@ async fn admin_auth_middleware(
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, AppError> {
+    // 检查是否来自 Tauri（本地桌面应用）
+    let is_tauri = headers
+        .get("origin")
+        .and_then(|v| v.to_str().ok())
+        .map(|origin| origin == "tauri://localhost")
+        .unwrap_or(false);
+
+    // Tauri 应用无需认证（本地访问）
+    if is_tauri {
+        return Ok(next.run(request).await);
+    }
+
     // 检查是否提供了 Admin API Key
     let provided = headers
         .get("authorization")
@@ -1063,9 +1086,21 @@ async fn admin_generate_config(
 
 // 获取服务器配置
 async fn admin_get_server_config(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    // 获取实际使用的文件路径
+    let accounts_file = state.accounts.get_accounts_file().unwrap_or_else(|| "未设置".to_string());
+    let api_keys_file = state.api_keys.get_keys_file().unwrap_or_else(|| "未设置".to_string());
+    
+    // 获取应用数据目录
+    let data_dir = get_app_data_dir(&state.app_handle)
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "无法获取".to_string());
+    
     Json(serde_json::json!({
         "host": state.config.host,
         "port": state.config.port,
+        "dataDir": data_dir,
+        "accountsFile": accounts_file,
+        "apiKeysFile": api_keys_file,
     }))
 }
 
