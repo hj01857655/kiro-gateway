@@ -1,6 +1,5 @@
 // OpenAI <-> Kiro 格式转换器
 
-use crate::error::AppError;
 use crate::models::*;
 use chrono;
 use uuid::Uuid;
