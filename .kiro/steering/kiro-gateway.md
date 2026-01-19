@@ -416,6 +416,22 @@ git push release v0.1.1  # 只推送 tag，不推送代码
 - 构建 Windows/macOS/Linux 安装包
 - 创建 GitHub Release 并上传
 
+#### 4. 清理失败的构建（如果失败）
+```bash
+# 删除失败的 Actions 运行记录
+gh run list --repo hj01857655/kiro-gateway --status failure --json databaseId --jq '.[].databaseId' | ForEach-Object { gh run delete $_ --repo hj01857655/kiro-gateway }
+
+# 删除失败的 Release（如果存在）
+gh release delete v0.1.1 --repo hj01857655/kiro-gateway --yes
+
+# 删除失败的 tag
+git push release --delete v0.1.1
+
+# 重新发布
+git tag v0.1.1
+git push release v0.1.1
+```
+
 ### 核心优势
 
 ✅ **代码不公开** - 只推送 tag，源码仍在私有仓库  
