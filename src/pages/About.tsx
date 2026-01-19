@@ -1,4 +1,4 @@
-import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List } from '@mantine/core'
+import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor } from '@mantine/core'
 import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
 
 export default function About() {
@@ -62,6 +62,17 @@ export default function About() {
             <Badge color="grape" variant="light">
               Axum
             </Badge>
+          </Group>
+          <Group>
+            <Text size="sm" fw={500} w={100}>
+              GitHub
+            </Text>
+            <Anchor href="https://github.com/hj01857655/kiro-gateway" target="_blank" size="sm">
+              <Group gap={4}>
+                <Github size={16} />
+                <Text size="sm">hj01857655/kiro-gateway</Text>
+              </Group>
+            </Anchor>
           </Group>
         </Stack>
       </Card>
