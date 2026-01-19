@@ -369,9 +369,90 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 
 ## Git 仓库规则
 
-- **私有仓库** (`kiro-gateway_dev`): 所有开发代码提交到 `main` 分支
-- **公开仓库** (`kiro-gateway`): 仅用于发布 Release
-- 发布时在公开仓库打 tag 触发 Actions 构建
+### 仓库架构
+
+- **私有仓库** (`kiro-gateway_dev`): 
+  - 所有开发代码提交到 `main` 分支
+  - **没有** `.github/workflows/` 配置文件
+  - 不触发 GitHub Actions，节省私有仓库额度
+  - 源码保持私有，不对外公开
+
+- **公开仓库** (`kiro-gateway`): 
+  - 仅用于发布 Release
+  - **有** `.github/workflows/release.yml` 配置
+  - 通过 tag 触发 Actions 自动构建
+  - 使用公开仓库的免费 Actions 额度
+
+### 发布流程
+
+#### 1. 日常开发（私有仓库）
+```bash
+# 开发和提交代码
+git add -A
+git commit -m "feat: 新功能"
+git push origin main
+```
+
+#### 2. 版本发布（公开仓库）
+```bash
+# 更新版本号
+# - src-tauri/Cargo.toml: version = "0.1.1"
+# - src-tauri/tauri.conf.json: version = "0.1.1"
+
+# 提交版本更新
+git add -A
+git commit -m "chore: bump version to 0.1.1"
+git push origin main
+
+# 创建并推送 tag 到公开仓库
+git tag v0.1.1
+git push release v0.1.1  # 只推送 tag，不推送代码
+```
+
+#### 3. 自动构建
+- 公开仓库检测到 tag 推送
+- GitHub Actions 自动触发
+- `actions/checkout@v4` 自动拉取 tag 对应的代码
+- 构建 Windows/macOS/Linux 安装包
+- 创建 GitHub Release 并上传
+
+### 核心优势
+
+✅ **代码不公开** - 只推送 tag，源码仍在私有仓库  
+✅ **节省额度** - 私有仓库不触发 Actions，不消耗额度  
+✅ **自动构建** - 公开仓库免费 Actions 额度构建发布包  
+✅ **版本管理** - tag 同时存在于两个仓库，方便追踪  
+
+### 技术原理
+
+**为什么只推送 tag 就能构建？**
+
+GitHub Actions 的 `actions/checkout@v4` 会：
+1. 自动识别触发事件（tag push）
+2. 自动 checkout 对应 tag 的代码快照
+3. 包含所有源文件和配置
+4. 不需要手动推送代码到公开仓库
+
+**工作流配置**：
+```yaml
+# .github/workflows/release.yml (仅在公开仓库)
+on:
+  push:
+    tags:
+      - 'v*'  # 监听 v* 格式的 tag
+
+steps:
+  - uses: actions/checkout@v4  # 自动 checkout tag 代码
+  - name: Build
+    run: cargo build --release
+```
+
+### 注意事项
+
+- ⚠️ 私有仓库必须删除 `.github/workflows/` 目录
+- ⚠️ 只推送 tag 到公开仓库，不要推送代码
+- ⚠️ 版本号必须在两个文件中同步更新
+- ⚠️ tag 格式必须是 `v*`（如 v0.1.1）
 
 ### 公开仓库文档同步
 
