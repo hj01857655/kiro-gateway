@@ -108,19 +108,27 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     Arc::clone(&health_checker).start();
     info!("账号健康检查器已启动");
 
-    // 注释掉 Metrics 持久化任务，避免触发 Tauri 文件监听导致重启
-    // tokio::spawn(async {
-    //     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
-    //     loop {
-    //         interval.tick().await;
-    //         if let Err(e) = crate::metrics::METRICS.save_to_file("data/metrics.json") {
-    //             tracing::warn!("保存 metrics 数据失败: {}", e);
-    //         } else {
-    //             tracing::debug!("已保存 metrics 数据");
-    //         }
-    //     }
-    // });
-    // info!("Metrics 持久化任务已启动");
+    // 加载 Metrics 数据
+    let metrics_file = "src-tauri/data/metrics.json";
+    if let Err(e) = crate::metrics::METRICS.load_from_file(metrics_file) {
+        tracing::warn!("加载 metrics 数据失败: {}，将使用空数据", e);
+    } else {
+        tracing::info!("已从 {} 加载 metrics 数据", metrics_file);
+    }
+
+    // 启用 Metrics 持久化任务（每 5 分钟保存一次）
+    tokio::spawn(async {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
+        loop {
+            interval.tick().await;
+            if let Err(e) = crate::metrics::METRICS.save_to_file("src-tauri/data/metrics.json") {
+                tracing::warn!("保存 metrics 数据失败: {}", e);
+            } else {
+                tracing::debug!("已保存 metrics 数据");
+            }
+        }
+    });
+    info!("Metrics 持久化任务已启动");
 
     let state = Arc::new(AppState { 
         config: config.clone(), 
