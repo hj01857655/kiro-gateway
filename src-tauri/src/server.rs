@@ -249,10 +249,12 @@ async fn chat_completions(
     headers: HeaderMap,
     Json(request): Json<OpenAIRequest>,
 ) -> Result<Response, AppError> {
+    let start_time = std::time::Instant::now();
+    
     verify_api_key(&headers, &state.config, &state.api_keys)?;
 
     let is_stream = is_stream_request_openai(&request);
-    let model = request.model.as_str();
+    let model = request.model.clone();
     
     // 记录请求日志
     crate::kirogate_info!("收到 OpenAI 请求: model={}, stream={}", model, is_stream);
@@ -267,11 +269,12 @@ async fn chat_completions(
     let kiro_request = build_kiro_payload(&request, profile_arn)
         .map_err(AppError::BadRequest)?;
     
-    let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, model).await?;
+    let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, &model).await?;
     let request_id = uuid::Uuid::new_v4().to_string();
 
     if is_stream {
         let request_id_clone = request_id.clone();
+        let model_clone = model.clone();
         let openai_stream = async_stream::stream! {
             tokio::pin!(stream);
             let mut has_tool = false;
@@ -297,6 +300,17 @@ async fn chat_completions(
             yield Ok::<_, Infallible>(Event::default().data("[DONE]"));
         };
         
+        // 记录 Metrics
+        let duration_ms = start_time.elapsed().as_millis() as f64;
+        crate::metrics::METRICS.record_request(
+            "/v1/chat/completions",
+            200,
+            duration_ms,
+            &model_clone,
+            true,
+            "openai"
+        );
+        
         crate::kirogate_info!("OpenAI 流式响应开始: request_id={}", request_id);
         Ok(Sse::new(openai_stream).into_response())
     } else {
@@ -309,6 +323,8 @@ async fn messages(
     headers: HeaderMap,
     Json(request): Json<AnthropicRequest>,
 ) -> Result<Response, AppError> {
+    let start_time = std::time::Instant::now();
+    
     verify_api_key(&headers, &state.config, &state.api_keys)?;
 
     // 记录请求日志
@@ -334,7 +350,7 @@ async fn messages(
     }
 
     let is_stream = is_stream_request_anthropic(&request);
-    let model = request.model.as_str();
+    let model = request.model.clone();
 
     let account = state.accounts.get_account().await?;
     let openai_request = anthropic_to_openai(&request);
@@ -347,11 +363,12 @@ async fn messages(
     let kiro_request = build_kiro_payload(&openai_request, profile_arn)
         .map_err(AppError::BadRequest)?;
 
-    let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, model).await?;
+    let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, &model).await?;
     let request_id = uuid::Uuid::new_v4().to_string();
 
     if is_stream {
         let request_id_clone = request_id.clone();
+        let model_clone = model.clone();
         let anthropic_stream = async_stream::stream! {
             tokio::pin!(stream);
             
@@ -382,6 +399,17 @@ async fn messages(
                 r#"{"type":"message_stop"}"#
             ));
         };
+        
+        // 记录 Metrics
+        let duration_ms = start_time.elapsed().as_millis() as f64;
+        crate::metrics::METRICS.record_request(
+            "/v1/messages",
+            200,
+            duration_ms,
+            &model_clone,
+            true,
+            "anthropic"
+        );
         
         crate::kirogate_info!("Anthropic 流式响应开始: request_id={}", request_id);
         Ok(Sse::new(anthropic_stream).into_response())

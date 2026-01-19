@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaudeDesktopConfig {

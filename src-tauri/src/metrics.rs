@@ -111,7 +111,6 @@ impl Metrics {
 
 
   /// 记录请求
-  #[allow(dead_code)]
   pub fn record_request(
     &self,
     endpoint: &str,
