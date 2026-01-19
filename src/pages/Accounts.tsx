@@ -680,24 +680,6 @@ export default function Accounts() {
               <Text size="sm" c="dimmed">
                 支持 JSON 输入或文件上传，可导入单个账号或批量导入
               </Text>
-              <Textarea
-                label="JSON 输入"
-                placeholder="粘贴 JSON 配置..."
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                minRows={20}
-                autosize
-                styles={{
-                  input: {
-                    fontFamily: 'monospace',
-                    fontSize: '0.85em',
-                    lineHeight: '1.5'
-                  }
-                }}
-              />
-              <Text size="xs" c="dimmed">
-                或者选择 JSON 文件导入
-              </Text>
               <FileButton
                 resetRef={resetRef}
                 onChange={handleFileImport}
@@ -709,6 +691,23 @@ export default function Accounts() {
                   </Button>
                 )}
               </FileButton>
+              <Text size="xs" c="dimmed" ta="center">
+                或者直接粘贴 JSON 配置
+              </Text>
+              <Textarea
+                placeholder="粘贴 JSON 配置..."
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                minRows={14}
+                maxRows={18}
+                styles={{
+                  input: {
+                    fontFamily: 'monospace',
+                    fontSize: '0.85em',
+                    lineHeight: '1.5'
+                  }
+                }}
+              />
               <Group justify="flex-end" mt="auto">
                 <Button variant="light" onClick={() => setShowAddModal(false)}>
                   取消

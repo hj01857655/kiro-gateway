@@ -31,6 +31,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+[data-mantine-color-scheme='dark'] .mantine-Card-root:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

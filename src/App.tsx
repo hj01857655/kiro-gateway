@@ -51,7 +51,7 @@ export default function App() {
       styles={{
         main: {
           background: colorScheme === 'dark'
-            ? 'linear-gradient(135deg, #1a1b26 0%, #24283b 100%)'
+            ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
             : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         },
       }}

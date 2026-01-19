@@ -80,9 +80,16 @@ export default function Logs() {
       {filteredLogs.length === 0 ? (
         <Card shadow="sm" padding="xl" radius="md" withBorder>
           <Center h={200}>
-            <Text c="dimmed">
-              {searchTerm || levelFilter !== 'all' ? '没有匹配的日志' : '暂无日志'}
-            </Text>
+            <Stack align="center" gap="sm">
+              <Text c="dimmed">
+                {searchTerm || levelFilter !== 'all' ? '没有匹配的日志' : '暂无日志'}
+              </Text>
+              {!searchTerm && levelFilter === 'all' && (
+                <Text size="sm" c="dimmed" ta="center">
+                  日志会在有 API 请求通过网关时自动记录
+                </Text>
+              )}
+            </Stack>
           </Center>
         </Card>
       ) : (

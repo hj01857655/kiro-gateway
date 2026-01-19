@@ -271,25 +271,77 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 - 已移除 Tauri 依赖
 - 在 `main.rs` 中被注释：`// mod websearch;`
 
-## 待完成功能
+## 已完成的所有功能
 
-### 1. WebSearch 集成
-- 修改 `src/websearch.rs` 适配 kiro-gateway 架构
-- 在 `main.rs` 中启用 `mod websearch;`
-- 在 `messages` 函数中添加 WebSearch 请求检测逻辑
+### ✅ 核心功能
+- OpenAI Chat Completions API 完全兼容
+- Anthropic Messages API 完全兼容
+- 多账号轮询和自动切换
+- 自动 Token 刷新（Social 和 IDC 账号）
+- 流式响应（SSE）
+- 工具调用支持
+- 图片上传支持
+- Thinking block 解析
+- 动态模型列表加载（从 Kiro API 获取）
 
-### 2. API Key 系统（可选）
+### ✅ WebSearch 集成
+- 已适配 kiro-gateway 架构
+- 在 `main.rs` 中启用
+- 在 `messages` 函数中集成 WebSearch 请求检测
+
+### ✅ API Key 管理系统
 - 生成 `sk-{48位十六进制}` 格式的 API Key
-- API Key 映射存储（JSON 文件）
-- 修改 `verify_api_key` 函数支持用户 API Key
+- API Key 映射存储（JSON 文件持久化）
+- `verify_api_key` 函数支持用户 API Key
 - 管理 API：
   - `POST /admin/api-keys` - 生成新 API Key
   - `GET /admin/api-keys` - 列出所有 API Key
+  - `PATCH /admin/api-keys/:id` - 更新 API Key（启用/禁用）
   - `DELETE /admin/api-keys/:id` - 删除 API Key
 
-### 3. Metrics 持久化（可选）
-- 参考 KiroGate 的 SQLite 实现
-- 或使用 JSON 文件简单持久化
+### ✅ 日志系统
+- 结构化日志存储（最多保留 1000 条）
+- 异步和同步日志记录
+- 便捷宏：`kirogate_info!`, `kirogate_debug!`, `kirogate_warn!`, `kirogate_error!`
+- API 端点：
+  - `GET /admin/logs` - 获取所有日志
+  - `POST /admin/logs/clear` - 清空日志
+
+### ✅ 统计监控系统
+- 请求计数（按端点、状态码、模型）
+- 流式/非流式请求统计
+- API 类型使用量统计（OpenAI/Anthropic）
+- 响应时间记录（最近 100 条）
+- 延迟直方图（P50/P95/P99）
+- 最近请求记录（最近 50 条）
+- 24 小时请求统计
+- Metrics 持久化（自动保存/加载 JSON 文件）
+- API 端点：`GET /admin/metrics`
+
+### ✅ 账号管理
+- 多账号添加/删除/更新
+- 账号健康检查
+- Token 自动刷新
+- 配额查询
+- 从 Kiro IDE 导入账号
+- 批量导入（JSON/文件）
+- 账号状态管理（启用/禁用）
+
+### ✅ 桌面管理界面
+- Tauri 2.0 桌面应用
+- React 19 + TypeScript + Mantine UI
+- 账号管理页面（简化表单：Social 1字段，IDC 4字段）
+- 日志查看页面
+- 统计监控页面
+- 设置页面（主题切换、服务器配置、API Key 管理）
+- 深色/浅色主题切换
+- 服务器配置编辑和重启
+
+### ✅ 配置生成器
+- 一键生成 Claude Desktop 配置
+- 一键生成 Claude CLI 配置
+- 一键生成 OpenAI 兼容配置
+- 自动应用配置到 Claude Desktop
 
 ## Metrics 说明
 
