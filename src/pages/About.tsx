@@ -3,7 +3,7 @@ import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
 
 export default function About() {
   return (
-    <Stack gap="md" maw={1200} mx="auto" w="100%">
+    <Stack gap="md" maw={1200} mx="auto">
       <Group>
         <Info size={24} color="#228be6" />
         <div>
@@ -206,7 +206,7 @@ export default function About() {
         </Text>
         <Divider my="md" />
         <Text size="xs" c="dimmed" ta="center">
-          Made with ❤️ by Kiro Gateway Team
+          Made with ❤️ by <Anchor href="https://github.com/hj01857655" target="_blank" rel="noopener noreferrer" size="xs">hj01857655</Anchor>
         </Text>
       </Card>
     </Stack>
