@@ -405,7 +405,20 @@ export default function Settings() {
                       </CopyButton>
                     </Group>
                     <Text size="xs" c="dimmed">
-                      创建于: {new Date(key.created_at).toLocaleString()}
+                      创建于: {new Date(key.createdAt).toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                      {key.lastUsed && ` · 最后使用: ${new Date(key.lastUsed).toLocaleString('zh-CN', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}`}
                     </Text>
                   </Stack>
                   <Group gap="xs">

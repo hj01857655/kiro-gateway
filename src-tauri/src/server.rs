@@ -198,18 +198,23 @@ fn verify_api_key(headers: &HeaderMap, config: &AppConfig, api_keys: &api_key::A
         .or_else(|| headers.get("x-api-key").and_then(|v| v.to_str().ok()));
     
     if let Some(key) = provided {
+        // 如果提供了 API Key，先检查是否是 Admin Key
         if let Some(ref admin_key) = config.api_key {
             if key == admin_key {
                 return Ok(());
             }
         }
+        // 然后验证是否是用户生成的 API Key
         return api_keys.verify_key(key);
     }
     
+    // 如果没有提供 API Key
     if config.api_key.is_some() {
+        // 配置了 Admin Key，必须提供
         return Err(AppError::BadRequest("Missing API key".into()));
     }
     
+    // 没有配置 Admin Key，允许无认证访问（开发模式）
     Ok(())
 }
 
@@ -337,14 +342,7 @@ async fn messages(
     // 检查是否为 WebSearch 请求
     if crate::websearch::is_web_search_request(&request) {
         let account = state.accounts.get_account().await?;
-        let verify_result = crate::websearch::VerifyResult {
-            refresh_token: account.refresh_token.clone(),
-            auth_method: "social".to_string(),
-            profile_arn: Some(account.profile_arn.clone()),
-            client_id: None,
-            client_secret: None,
-            region: Some("us-east-1".to_string()),
-        };
+        let verify_result = account.to_verify_result();
         return Ok(crate::websearch::handle_web_search_request(
             state,
             headers,
@@ -418,7 +416,116 @@ async fn messages(
         crate::kirogate_info!("Anthropic 流式响应开始: request_id={}", request_id);
         Ok(Sse::new(anthropic_stream).into_response())
     } else {
-        Err(AppError::BadRequest("非流式响应暂未实现".into()))
+        // 非流式响应：收集所有流事件并组装成完整响应
+        let request_id_clone = request_id.clone();
+        let model_clone = model.clone();
+        
+        tokio::pin!(stream);
+        let mut content_parts: Vec<String> = Vec::new();
+        let mut tool_calls_map: std::collections::HashMap<String, (String, Vec<String>)> = std::collections::HashMap::new();
+        let mut usage_info: Option<crate::models::Usage> = None;
+        
+        // 收集所有流事件
+        while let Some(Ok(event)) = stream.next().await {
+            // 收集文本内容
+            if let Some(text) = event.content {
+                content_parts.push(text);
+            }
+            
+            // 收集工具调用（input 是分片传输的，需要合并）
+            if let Some(tool_use_id) = event.tool_use_id {
+                if let Some(tool_name) = event.name {
+                    // 获取或创建工具调用条目
+                    let entry = tool_calls_map.entry(tool_use_id.clone())
+                        .or_insert_with(|| (tool_name.clone(), Vec::new()));
+                    
+                    // 添加 input 片段
+                    if let Some(input) = event.input {
+                        if let Some(input_str) = input.as_str() {
+                            entry.1.push(input_str.to_string());
+                        } else {
+                            // 如果是对象，直接序列化
+                            entry.1.push(serde_json::to_string(&input).unwrap_or_default());
+                        }
+                    }
+                }
+            }
+            
+            // 收集 usage 信息
+            if let Some(usage_val) = event.usage {
+                let total = (usage_val * 1000.0) as i32;
+                usage_info = Some(crate::models::Usage {
+                    prompt_tokens: total / 2,
+                    completion_tokens: total / 2,
+                    total_tokens: total,
+                });
+            }
+        }
+        
+        // 合并所有文本内容
+        let full_content = content_parts.join("");
+        
+        // 构建 content blocks
+        let mut content_blocks: Vec<serde_json::Value> = Vec::new();
+        
+        // 添加文本 block（如果有内容）
+        if !full_content.is_empty() {
+            content_blocks.push(serde_json::json!({
+                "type": "text",
+                "text": full_content
+            }));
+        }
+        
+        // 添加 tool_use blocks（合并 input 片段）
+        for (tool_use_id, (tool_name, input_parts)) in tool_calls_map {
+            let full_input = input_parts.join("");
+            // 尝试解析为 JSON
+            let input_json: serde_json::Value = serde_json::from_str(&full_input)
+                .unwrap_or_else(|_| serde_json::json!({}));
+            
+            content_blocks.push(serde_json::json!({
+                "type": "tool_use",
+                "id": tool_use_id,
+                "name": tool_name,
+                "input": input_json
+            }));
+        }
+        
+        // 确定 stop_reason
+        let stop_reason = if content_blocks.iter().any(|b| b.get("type").and_then(|t| t.as_str()) == Some("tool_use")) {
+            "tool_use"
+        } else {
+            "end_turn"
+        };
+        
+        // 构建完整响应
+        let response = serde_json::json!({
+            "id": format!("msg_{}", request_id_clone),
+            "type": "message",
+            "role": "assistant",
+            "content": content_blocks,
+            "model": "claude",
+            "stop_reason": stop_reason,
+            "stop_sequence": null,
+            "usage": usage_info.map(|u| serde_json::json!({
+                "input_tokens": u.prompt_tokens,
+                "output_tokens": u.completion_tokens
+            }))
+        });
+        
+        // 记录 Metrics
+        let duration_ms = start_time.elapsed().as_millis() as f64;
+        crate::metrics::METRICS.record_request(
+            "/v1/messages",
+            200,
+            duration_ms,
+            &model_clone,
+            false,
+            "anthropic"
+        );
+        
+        crate::kirogate_info!("Anthropic 非流式响应完成: request_id={}", request_id);
+        Ok(Json(response).into_response())
     }
 }
 

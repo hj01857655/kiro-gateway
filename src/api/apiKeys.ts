@@ -5,8 +5,9 @@ const API_BASE = '/admin'
 export interface ApiKey {
   id: string
   key: string
-  name: string
-  created_at: number
+  name: string | null
+  createdAt: number
+  lastUsed?: number | null
   enabled: boolean
 }
 

@@ -248,6 +248,7 @@ pub struct KiroTool {
 pub struct KiroToolSpec {
   pub name: String,
   pub description: String,
+  #[serde(rename = "inputSchema")]
   pub input_schema: KiroInputSchema,
 }
 

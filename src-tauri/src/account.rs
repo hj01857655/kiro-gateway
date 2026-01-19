@@ -100,6 +100,31 @@ impl Account {
             && self.status == AccountStatus::Active 
             && !self.is_throttled()
     }
+
+    /// 转换为 WebSearch 的 VerifyResult
+    /// 自动根据账号类型设置正确的认证方法和参数
+    pub fn to_verify_result(&self) -> crate::websearch::VerifyResult {
+        let (auth_method, client_id, client_secret) = if self.is_idc() {
+            // IDC 账号
+            (
+                "idc".to_string(),
+                self.client_id.clone(),
+                self.client_secret.clone(),
+            )
+        } else {
+            // Social 账号
+            ("social".to_string(), None, None)
+        };
+
+        crate::websearch::VerifyResult {
+            refresh_token: self.refresh_token.clone(),
+            auth_method,
+            profile_arn: Some(self.profile_arn.clone()),
+            client_id,
+            client_secret,
+            region: Some(self.region.clone().unwrap_or_else(|| "us-east-1".to_string())),
+        }
+    }
 }
 
 pub struct AccountManager {

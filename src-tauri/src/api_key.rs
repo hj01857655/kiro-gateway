@@ -148,6 +148,10 @@ impl ApiKeyManager {
             
             // 更新最后使用时间
             api_key.last_used = Some(Utc::now().timestamp_millis());
+            drop(keys);
+            
+            // 保存到文件
+            let _ = self.save_to_file();
             Ok(())
         } else {
             Err(AppError::BadRequest("无效的 API Key".into()))
@@ -197,7 +201,7 @@ impl ApiKeyManager {
     }
 
     /// 保存到文件
-    fn save_to_file(&self) -> Result<(), AppError> {
+    pub fn save_to_file(&self) -> Result<(), AppError> {
         let file_path = self.keys_file.read();
         if let Some(ref path) = *file_path {
             let keys: Vec<ApiKey> = self.keys.read().values().cloned().collect();

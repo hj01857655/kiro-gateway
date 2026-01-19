@@ -457,14 +457,23 @@ fn convert_tools(tools: &Option<Vec<Tool>>) -> Option<Vec<KiroTool>> {
   tools.as_ref().map(|tools| {
     tools.iter()
       .filter(|t| t.tool_type == "function")
-      .map(|t| KiroTool {
-        tool_specification: KiroToolSpec {
-          name: t.function.name.clone(),
-          description: t.function.description.clone().unwrap_or_default(),
-          input_schema: KiroInputSchema {
-            json: t.function.parameters.clone().unwrap_or(serde_json::json!({})),
+      .map(|t| {
+        let params = t.function.parameters.clone().unwrap_or(serde_json::json!({}));
+        tracing::debug!(
+          "[kiro-gateway] 转换工具: name={}, description={}, params={}",
+          t.function.name,
+          t.function.description.as_deref().unwrap_or(""),
+          serde_json::to_string(&params).unwrap_or_default()
+        );
+        KiroTool {
+          tool_specification: KiroToolSpec {
+            name: t.function.name.clone(),
+            description: t.function.description.clone().unwrap_or_default(),
+            input_schema: KiroInputSchema {
+              json: params,
+            },
           },
-        },
+        }
       })
       .collect()
   })
@@ -623,8 +632,10 @@ pub fn build_kiro_payload(
   let tool_results = extract_tool_results(&current_msg.content);
   
   // 处理长 description 的工具
+  tracing::debug!("[kiro-gateway] 原始 tools 数量: {:?}", request.tools.as_ref().map(|t| t.len()));
   let (processed_tools, tool_docs) = process_tools_with_long_descriptions(&request.tools);
   let tools = convert_tools(&processed_tools);
+  tracing::debug!("[kiro-gateway] 转换后 tools 数量: {:?}", tools.as_ref().map(|t| t.len()));
   
   // 如果有长 description 的工具文档，添加到 system prompt
   let mut final_content = current_content;
@@ -659,7 +670,7 @@ pub fn build_kiro_payload(
     tracing::info!("[kiro-gateway] 添加 {} 张图片到当前消息", image_count);
   }
   
-  Ok(KiroPayload {
+  let payload = KiroPayload {
     conversation_state: ConversationState {
       agent_continuation_id: Uuid::new_v4().to_string(),
       agent_task_type: "vibe".to_string(),
@@ -679,7 +690,14 @@ pub fn build_kiro_payload(
       history,
     },
     profile_arn,
-  })
+  };
+  
+  // 调试：打印完整的 payload
+  if let Ok(json) = serde_json::to_string_pretty(&payload) {
+    tracing::debug!("[kiro-gateway] Kiro API 请求体:\n{}", json);
+  }
+  
+  Ok(payload)
 }
 
 // 构建推理配置

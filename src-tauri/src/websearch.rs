@@ -131,6 +131,10 @@ async fn call_mcp_api(
     mcp_request: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let mcp_url = format!("https://q.{}.amazonaws.com/mcp", region);
+    
+    // 调试日志：打印请求
+    emit_log_sync("INFO", "websearch", &format!("MCP URL: {}", mcp_url));
+    emit_log_sync("INFO", "websearch", &format!("MCP 请求: {}", serde_json::to_string_pretty(mcp_request).unwrap_or_default()));
 
     let resp = state
         .http_client
@@ -143,9 +147,12 @@ async fn call_mcp_api(
         .await
         .map_err(|e| format!("MCP API 请求失败: {}", e))?;
 
-    if !resp.status().is_success() {
-        let status = resp.status();
+    let status = resp.status();
+    emit_log_sync("INFO", "websearch", &format!("MCP 响应状态: {}", status));
+    
+    if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
+        emit_log_sync("ERROR", "websearch", &format!("MCP API 错误响应: {}", text));
         return Err(format!("MCP API 错误: HTTP {} - {}", status, text));
     }
 
@@ -153,11 +160,18 @@ async fn call_mcp_api(
         .json()
         .await
         .map_err(|e| format!("解析 MCP 响应失败: {}", e))?;
+    
+    // 调试日志：打印响应
+    emit_log_sync("INFO", "websearch", &format!("MCP 响应: {}", serde_json::to_string_pretty(&result).unwrap_or_default()));
 
+    // 检查错误：只有当 error 字段存在且不为 null 时才认为是错误
     if let Some(error) = result.get("error") {
-        let code = error.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
-        let message = error.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error");
-        return Err(format!("MCP 错误: {} - {}", code, message));
+        if !error.is_null() {
+            let code = error.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
+            let message = error.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error");
+            emit_log_sync("ERROR", "websearch", &format!("MCP 返回错误: code={}, message={}", code, message));
+            return Err(format!("MCP 错误: {} - {}", code, message));
+        }
     }
 
     Ok(result)
