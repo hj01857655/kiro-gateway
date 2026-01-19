@@ -158,6 +158,21 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
   - 简洁的架构设计
 - **参考用途**: 了解 KiroGate 的基础架构和设计思路
 
+### 1.2. chaogei/Kiro-account-manager ⭐⭐⭐⭐ 反代实现参考
+- **GitHub**: https://github.com/chaogei/Kiro-account-manager
+- **技术栈**: Rust + Axum + Tauri
+- **特点**:
+  - Rust + Axum 反代实现
+  - Tauri 桌面应用架构
+  - 账号管理和 Token 刷新
+  - 多账号轮询策略
+  - 健康检查机制
+- **参考用途**: 
+  - Rust + Axum 的反代实现方式
+  - Tauri 桌面应用集成
+  - 账号管理和健康检查逻辑
+- **注意**: 本项目的 Logger、Metrics、ThinkingParser、WebSearch 等模块都是从该项目迁移而来
+
 ### 2. justlovemaki/AIClient-2-API ⭐⭐⭐⭐ 架构参考
 - **GitHub**: https://github.com/justlovemaki/AIClient-2-API
 - **技术栈**: Node.js + Express
