@@ -3,14 +3,15 @@ use axum::{
     routing::{get, post},
     extract::State,
     response::{sse::{Event, Sse}, Response, IntoResponse},
-    http::HeaderMap,
+    http::{HeaderMap, Request},
+    middleware::{self, Next},
     Json,
 };
 use std::sync::Arc;
 use std::convert::Infallible;
 use tokio_stream::StreamExt;
 use tower_http::cors::CorsLayer;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::account::AccountManager;
 use crate::config::AppConfig;
@@ -43,11 +44,21 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     let auth_cache = crate::auth::AuthCache::new();
     let api_keys = api_key::ApiKeyManager::new();
     
+    // 设置默认账号文件路径
+    let default_accounts_file = "data/accounts.json";
+    
+    // 确保 data 目录存在
+    if let Err(e) = std::fs::create_dir_all("data") {
+        tracing::warn!("创建 data 目录失败: {}", e);
+    }
+    
     // 加载账号
     if let Some(ref json) = config.accounts_json {
         if let Err(e) = accounts.load_from_json(json) {
             tracing::error!("从环境变量加载账号失败: {}", e);
         }
+        // 即使从环境变量加载，也设置默认文件路径用于保存
+        accounts.set_accounts_file(default_accounts_file);
     } else if let Some(ref file) = config.accounts_file {
         match std::fs::read_to_string(file) {
             Ok(content) => {
@@ -56,10 +67,19 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Err(e) => {
-                tracing::error!("读取账号文件 {} 失败: {}", file, e);
+                tracing::warn!("读取账号文件 {} 失败: {}", file, e);
             }
         }
         accounts.set_accounts_file(file);
+    } else {
+        // 没有配置任何账号来源，使用默认文件路径
+        accounts.set_accounts_file(default_accounts_file);
+        // 尝试从默认文件加载
+        if let Ok(content) = std::fs::read_to_string(default_accounts_file) {
+            if let Err(e) = accounts.load_from_json(&content) {
+                tracing::error!("从默认文件 {} 加载账号失败: {}", default_accounts_file, e);
+            }
+        }
     }
 
     // 加载 API Keys
@@ -80,43 +100,23 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     // 创建健康检查器（每 5 分钟检查一次）
     let health_checker = Arc::new(crate::health_checker::HealthChecker::new(Arc::clone(&accounts), 300));
 
-    // 加载账号
-    if let Some(ref json) = config.accounts_json {
-        if let Err(e) = accounts.load_from_json(json) {
-            tracing::error!("从环境变量加载账号失败: {}", e);
-        }
-    } else if let Some(ref file) = config.accounts_file {
-        match std::fs::read_to_string(file) {
-            Ok(content) => {
-                if let Err(e) = accounts.load_from_json(&content) {
-                    tracing::error!("从文件 {} 加载账号失败: {}", file, e);
-                }
-            }
-            Err(e) => {
-                tracing::error!("读取账号文件 {} 失败: {}", file, e);
-            }
-        }
-        accounts.set_accounts_file(file);
-    }
-
-    // 加载 API Keys
-    if let Ok(api_keys_file) = std::env::var("API_KEYS_FILE") {
-        match std::fs::read_to_string(&api_keys_file) {
-            Ok(content) => {
-                if let Err(e) = api_keys.load_from_json(&content) {
-                    tracing::error!("从文件 {} 加载 API Keys 失败: {}", api_keys_file, e);
-                }
-            }
-            Err(e) => {
-                tracing::warn!("读取 API Keys 文件 {} 失败: {}", api_keys_file, e);
-            }
-        }
-        api_keys.set_keys_file(&api_keys_file);
-    }
-
     // 启动健康检查器
     Arc::clone(&health_checker).start();
     info!("账号健康检查器已启动");
+
+    // 注释掉 Metrics 持久化任务，避免触发 Tauri 文件监听导致重启
+    // tokio::spawn(async {
+    //     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
+    //     loop {
+    //         interval.tick().await;
+    //         if let Err(e) = crate::metrics::METRICS.save_to_file("data/metrics.json") {
+    //             tracing::warn!("保存 metrics 数据失败: {}", e);
+    //         } else {
+    //             tracing::debug!("已保存 metrics 数据");
+    //         }
+    //     }
+    // });
+    // info!("Metrics 持久化任务已启动");
 
     let state = Arc::new(AppState { 
         config: config.clone(), 
@@ -133,17 +133,47 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/messages", post(messages))
         .route("/v1/models", get(list_models))
         .route("/health", get(health))
-        // Admin API
-        .route("/admin/accounts", get(admin_get_accounts).post(admin_add_account))
-        .route("/admin/accounts/:id", axum::routing::patch(admin_update_account).delete(admin_delete_account))
-        .route("/admin/accounts/:id/refresh", post(admin_refresh_account))
-        .route("/admin/health", get(admin_get_health).post(admin_check_health))
-        .route("/admin/allocator/stats", get(admin_get_allocator_stats))
-        .route("/admin/metrics", get(admin_get_metrics))
-        .route("/admin/logs", get(admin_get_logs))
-        .route("/admin/logs/clear", post(admin_clear_logs))
+        // Admin API - 需要认证
+        .nest("/admin", 
+            Router::new()
+                .route("/accounts", get(admin_get_accounts).post(admin_add_account))
+                .route("/accounts/import", post(admin_import_accounts))
+                .route("/accounts/:id", axum::routing::patch(admin_update_account).delete(admin_delete_account))
+                .route("/accounts/:id/refresh", post(admin_refresh_account))
+                .route("/accounts/:id/quota", get(admin_get_quota))
+                .route("/health", get(admin_get_health).post(admin_check_health))
+                .route("/allocator/stats", get(admin_get_allocator_stats))
+                .route("/metrics", get(admin_get_metrics))
+                .route("/logs", get(admin_get_logs))
+                .route("/logs/clear", post(admin_clear_logs))
+                .route("/api-keys", get(admin_list_api_keys).post(admin_generate_api_key))
+                .route("/api-keys/:id", axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key))
+                .layer(middleware::from_fn_with_state(Arc::clone(&state), admin_auth_middleware))
+        )
         .with_state(state)
-        .layer(CorsLayer::permissive());
+        .layer(
+            CorsLayer::new()
+                .allow_origin([
+                    "http://localhost:5173".parse().unwrap(),
+                    "http://127.0.0.1:5173".parse().unwrap(),
+                    "http://localhost:8080".parse().unwrap(),
+                    "http://127.0.0.1:8080".parse().unwrap(),
+                    "tauri://localhost".parse().unwrap(),
+                ])
+                .allow_methods([
+                    axum::http::Method::GET,
+                    axum::http::Method::POST,
+                    axum::http::Method::PATCH,
+                    axum::http::Method::DELETE,
+                    axum::http::Method::OPTIONS,
+                ])
+                .allow_headers([
+                    axum::http::header::CONTENT_TYPE,
+                    axum::http::header::AUTHORIZATION,
+                    "x-api-key".parse().unwrap(),
+                ])
+                .allow_credentials(true)
+        );
 
     let addr = format!("{}:{}", config.host, config.port);
     info!("kiro-gateway Axum 服务启动: http://{}", addr);
@@ -176,6 +206,41 @@ fn verify_api_key(headers: &HeaderMap, config: &AppConfig, api_keys: &api_key::A
     Ok(())
 }
 
+// Admin API 认证中间件
+async fn admin_auth_middleware(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    request: Request<axum::body::Body>,
+    next: Next,
+) -> Result<Response, AppError> {
+    // 检查是否提供了 Admin API Key
+    let provided = headers.get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .or_else(|| headers.get("x-api-key").and_then(|v| v.to_str().ok()));
+    
+    // 如果配置了 API_KEY，必须提供且匹配
+    if let Some(ref admin_key) = state.config.api_key {
+        match provided {
+            Some(key) if key == admin_key => {
+                // 认证通过
+                Ok(next.run(request).await)
+            }
+            Some(_) => {
+                // 提供了 key 但不匹配
+                Err(AppError::BadRequest("Invalid admin API key".into()))
+            }
+            None => {
+                // 未提供 key
+                Err(AppError::BadRequest("Admin API key required".into()))
+            }
+        }
+    } else {
+        // 未配置 API_KEY，允许访问（仅限本地开发）
+        Ok(next.run(request).await)
+    }
+}
+
 async fn chat_completions(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -187,8 +252,14 @@ async fn chat_completions(
     let model = request.model.as_str();
     
     let account = state.accounts.get_account().await?;
-    let kiro_request = build_kiro_payload(&request, Some(account.profile_arn.clone()))
-        .map_err(|e| AppError::BadRequest(e))?;
+    // 将空字符串的 profileArn 转换为 None
+    let profile_arn = if account.profile_arn.is_empty() {
+        None
+    } else {
+        Some(account.profile_arn.clone())
+    };
+    let kiro_request = build_kiro_payload(&request, profile_arn)
+        .map_err(AppError::BadRequest)?;
     
     let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, model).await?;
     let request_id = uuid::Uuid::new_v4().to_string();
@@ -216,7 +287,7 @@ async fn chat_completions(
 
             let end = create_openai_end_with_reason(&request_id, has_tool, false, usage);
             yield Ok::<_, Infallible>(Event::default().data(serde_json::to_string(&end).unwrap_or_default()));
-            yield Ok::<_, Infallible>(Event::default().data("[DONE]".to_string()));
+            yield Ok::<_, Infallible>(Event::default().data("[DONE]"));
         };
         
         Ok(Sse::new(openai_stream).into_response())
@@ -232,14 +303,39 @@ async fn messages(
 ) -> Result<Response, AppError> {
     verify_api_key(&headers, &state.config, &state.api_keys)?;
 
+    // 检查是否为 WebSearch 请求
+    if crate::websearch::is_web_search_request(&request) {
+        let account = state.accounts.get_account().await?;
+        let verify_result = crate::websearch::VerifyResult {
+            refresh_token: account.refresh_token.clone(),
+            auth_method: "social".to_string(),
+            profile_arn: Some(account.profile_arn.clone()),
+            client_id: None,
+            client_secret: None,
+            region: Some("us-east-1".to_string()),
+        };
+        return Ok(crate::websearch::handle_web_search_request(
+            state,
+            headers,
+            request,
+            verify_result,
+        ).await);
+    }
+
     let is_stream = is_stream_request_anthropic(&request);
     let model = request.model.as_str();
-    
+
     let account = state.accounts.get_account().await?;
     let openai_request = anthropic_to_openai(&request);
-    let kiro_request = build_kiro_payload(&openai_request, Some(account.profile_arn.clone()))
-        .map_err(|e| AppError::BadRequest(e))?;
-    
+    // 将空字符串的 profileArn 转换为 None
+    let profile_arn = if account.profile_arn.is_empty() {
+        None
+    } else {
+        Some(account.profile_arn.clone())
+    };
+    let kiro_request = build_kiro_payload(&openai_request, profile_arn)
+        .map_err(AppError::BadRequest)?;
+
     let stream = state.client.generate_with_refresh(kiro_request, &state.accounts, model).await?;
     let request_id = uuid::Uuid::new_v4().to_string();
 
@@ -253,7 +349,7 @@ async fn messages(
             )));
 
             yield Ok::<_, Infallible>(Event::default().event("content_block_start").data(
-                r#"{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}"#.to_string()
+                r#"{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}"#
             ));
 
             while let Some(Ok(event)) = stream.next().await {
@@ -263,15 +359,15 @@ async fn messages(
             }
 
             yield Ok::<_, Infallible>(Event::default().event("content_block_stop").data(
-                r#"{"type":"content_block_stop","index":0}"#.to_string()
+                r#"{"type":"content_block_stop","index":0}"#
             ));
 
             yield Ok::<_, Infallible>(Event::default().event("message_delta").data(
-                r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#.to_string()
+                r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"}}"#
             ));
 
             yield Ok::<_, Infallible>(Event::default().event("message_stop").data(
-                r#"{"type":"message_stop"}"#.to_string()
+                r#"{"type":"message_stop"}"#
             ));
         };
         
@@ -426,7 +522,7 @@ async fn admin_get_health(State(state): State<Arc<AppState>>) -> Json<serde_json
 // 手动触发健康检查
 async fn admin_check_health(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
     let summary = state.health_checker.check_all_accounts().await
-        .map_err(|e| AppError::BadRequest(e))?;
+        .map_err(AppError::BadRequest)?;
     
     Ok(Json(serde_json::json!({
         "success": true,
@@ -456,8 +552,46 @@ async fn admin_get_allocator_stats(State(state): State<Arc<AppState>>) -> Json<s
     }))
 }
 
-// 从 Kiro IDE 缓存导入账号（暂未启用）
-#[allow(dead_code)]
+// 获取账号配额
+async fn admin_get_quota(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // 获取账号
+    let accounts = state.accounts.list_accounts();
+    let account = accounts.iter()
+        .find(|a| a.id == id)
+        .ok_or_else(|| AppError::BadRequest(format!("账号 {} 不存在", id)))?;
+    
+    // 如果 Token 过期，先刷新
+    let account = if account.is_expired() {
+        info!("账号 {} Token 过期，刷新后查询配额", id);
+        state.accounts.refresh_account(&id).await?
+    } else {
+        account.clone()
+    };
+    
+    // 查询配额
+    match state.client.get_usage_limits(&account).await {
+        Ok(quota) => Ok(Json(quota)),
+        Err(AppError::TokenExpired) => {
+            // Token 过期，刷新后重试
+            info!("配额查询时 Token 过期，刷新后重试");
+            let refreshed = state.accounts.refresh_account(&id).await?;
+            let quota = state.client.get_usage_limits(&refreshed).await?;
+            Ok(Json(quota))
+        }
+        Err(AppError::AccountBanned(msg)) => {
+            // 账号被封禁，标记状态
+            warn!("账号 {} 已被封禁: {}", id, msg);
+            state.accounts.mark_status(&id, crate::account::AccountStatus::Banned);
+            Err(AppError::AccountBanned(msg))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+// 从 Kiro IDE 缓存导入账号
 async fn admin_import_accounts(State(_state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
     use std::path::PathBuf;
     
@@ -514,4 +648,40 @@ async fn admin_import_accounts(State(_state): State<Arc<AppState>>) -> Result<Js
         "success": true,
         "accounts": [account]
     })))
+}
+
+// API Key 管理端点
+async fn admin_list_api_keys(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let keys = state.api_keys.list_keys();
+    Json(serde_json::json!({ "keys": keys }))
+}
+
+async fn admin_generate_api_key(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let name = payload.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let api_key = state.api_keys.generate_key(name)?;
+    Ok(Json(serde_json::json!({ "key": api_key })))
+}
+
+async fn admin_delete_api_key(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    state.api_keys.delete_key(&id)?;
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+async fn admin_update_api_key(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if let Some(enabled) = payload.get("enabled").and_then(|v| v.as_bool()) {
+        state.api_keys.set_key_enabled(&id, enabled)?;
+        Ok(Json(serde_json::json!({ "success": true })))
+    } else {
+        Err(AppError::BadRequest("缺少 enabled 字段".into()))
+    }
 }

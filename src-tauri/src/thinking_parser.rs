@@ -159,14 +159,14 @@ impl ThinkingParser {
             }
         }
 
-        if stripped.starts_with(Self::OPEN_TAG) {
-            self.buffer = stripped[Self::OPEN_TAG.len()..].to_string();
+        if let Some(after_tag) = stripped.strip_prefix(Self::OPEN_TAG) {
+            self.buffer = after_tag.to_string();
             self.state = ParseState::InThinking;
             tracing::debug!("[ThinkingParser] Detected <thinking> tag at start, entering thinking mode");
-            return Some(true);
+            Some(true)
         } else {
             self.state = ParseState::Passthrough;
-            return Some(true);
+            Some(true)
         }
     }
 

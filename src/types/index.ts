@@ -15,6 +15,7 @@ export interface Account {
   enabled: boolean
   status: 'active' | 'expired' | 'throttled' | 'error' | 'disabled' | 'banned'
   throttledUntil?: number
+  quota?: QuotaInfo // 缓存的配额信息
 }
 
 // 日志类型
@@ -55,4 +56,64 @@ export interface RecentRequest {
 export interface HourlyStats {
   hour: string
   count: number
+}
+
+// 配额信息类型
+export interface QuotaInfo {
+  daysUntilReset: number
+  nextDateReset: number
+  subscriptionInfo: {
+    type: string
+    subscriptionTitle: string
+    overageCapability: string
+    upgradeCapability: string
+    subscriptionManagementTarget?: string
+  }
+  usageBreakdownList: UsageBreakdown[]
+  userInfo: {
+    email: string
+    userId: string
+  }
+  overageConfiguration?: {
+    overageEnabled: boolean
+  }
+}
+
+export interface UsageBreakdown {
+  resourceType: string
+  unit: string
+  displayName: string
+  displayNamePlural: string
+  usageLimit: number
+  usageLimitWithPrecision: number
+  currentUsage: number
+  currentUsageWithPrecision: number
+  currency: string
+  overageRate: number
+  overageCap: number
+  overageCapWithPrecision: number
+  currentOverages: number
+  currentOveragesWithPrecision: number
+  overageCharges: number
+  nextDateReset: number
+  freeTrialInfo?: {
+    freeTrialStatus: string
+    usageLimit: number
+    usageLimitWithPrecision: number
+    currentUsage: number
+    currentUsageWithPrecision: number
+    freeTrialExpiry: number
+  }
+  bonuses: Bonus[]
+}
+
+export interface Bonus {
+  bonusCode: string
+  displayName: string
+  usageLimit: number
+  usageLimitWithPrecision: number
+  currentUsage: number
+  currentUsageWithPrecision: number
+  expiresAt: number
+  status: string
 }

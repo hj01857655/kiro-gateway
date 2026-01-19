@@ -70,8 +70,8 @@ pub fn extract_search_query(request: &AnthropicMessagesRequest) -> Option<String
 
     // 去除前缀 "Perform a web search for the query: "
     let prefix = "Perform a web search for the query: ";
-    let query = if text.starts_with(prefix) {
-        text[prefix.len()..].to_string()
+    let query = if let Some(stripped) = text.strip_prefix(prefix) {
+        stripped.to_string()
     } else {
         text
     };
@@ -106,7 +106,7 @@ fn create_mcp_request(query: &str) -> (String, serde_json::Value) {
     let random_8 = generate_random_id(8);
 
     let request_id = format!("web_search_tooluse_{}_{}_{}", random_22, timestamp, random_8);
-    let tool_use_id = format!("srvtoolu_{}", Uuid::new_v4().to_string().replace("-", "")[..32].to_string());
+    let tool_use_id = format!("srvtoolu_{}", &Uuid::new_v4().to_string().replace("-", "")[..32]);
 
     let mcp_request = json!({
         "id": request_id,
@@ -329,7 +329,7 @@ fn generate_non_stream_response(
     input_tokens: i32,
     output_tokens: i32,
 ) -> Response {
-    let id = format!("msg_{}", Uuid::new_v4().to_string().replace("-", "")[..24].to_string());
+    let id = format!("msg_{}", &Uuid::new_v4().to_string().replace("-", "")[..24]);
 
     let mut content_blocks = Vec::new();
 
@@ -397,7 +397,7 @@ fn generate_stream_response(
     use axum::body::Body;
     use axum::http::header;
 
-    let id = format!("msg_{}", Uuid::new_v4().to_string().replace("-", "")[..24].to_string());
+    let id = format!("msg_{}", &Uuid::new_v4().to_string().replace("-", "")[..24]);
 
     let stream = async_stream::stream! {
         // 1. message_start

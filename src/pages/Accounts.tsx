@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useHealth, useCheckHealth } from '@/hooks/useHealth'
+import { accountsApi } from '@/api/accounts'
 import {
   Button,
   Card,
@@ -34,9 +35,10 @@ import {
   FileJson,
   ChevronDown,
   Activity,
+  CreditCard,
 } from 'lucide-react'
 import { format } from 'date-fns'
-import type { Account } from '@/types'
+import type { Account, QuotaInfo } from '@/types'
 
 export default function Accounts() {
   const { accounts, isLoading, addAccount, updateAccount, deleteAccount, refreshAccount } =
@@ -46,6 +48,8 @@ export default function Accounts() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [activeTab, setActiveTab] = useState<string | null>('form')
   const resetRef = useRef<() => void>(null)
+  const [quotaCache, setQuotaCache] = useState<Record<string, QuotaInfo>>({})
+  const [loadingQuotas, setLoadingQuotas] = useState<Record<string, boolean>>({})
 
   const [formData, setFormData] = useState({
     name: '',
@@ -87,6 +91,42 @@ export default function Accounts() {
     "enabled": true
   }
 ]`)
+
+  // 页面加载时自动获取所有账号的配额
+  useEffect(() => {
+    if (accounts && accounts.length > 0) {
+      accounts.forEach((account) => {
+        fetchQuota(account.id)
+      })
+    }
+  }, [accounts?.length])
+
+  // 获取配额（静默失败，使用缓存）
+  const fetchQuota = async (accountId: string) => {
+    if (loadingQuotas[accountId]) return
+    
+    setLoadingQuotas((prev) => ({ ...prev, [accountId]: true }))
+    try {
+      const quota = await accountsApi.getQuota(accountId)
+      setQuotaCache((prev) => ({ ...prev, [accountId]: quota }))
+    } catch (error) {
+      // 静默失败，使用缓存的配额信息
+      console.warn(`获取账号 ${accountId} 配额失败:`, error)
+    } finally {
+      setLoadingQuotas((prev) => ({ ...prev, [accountId]: false }))
+    }
+  }
+
+  // 刷新账号（同时刷新配额）
+  const handleRefresh = async (accountId: string) => {
+    try {
+      await refreshAccount(accountId)
+      // 刷新成功后立即获取配额
+      await fetchQuota(accountId)
+    } catch (error) {
+      // refreshAccount 已经显示了错误通知
+    }
+  }
 
   const handleFormSubmit = () => {
     if (!formData.name || !formData.refreshToken) {
@@ -245,6 +285,55 @@ export default function Accounts() {
     }
   }
 
+  // 格式化配额显示
+  const formatQuota = (quota: QuotaInfo | undefined) => {
+    if (!quota || !quota.usageBreakdownList || quota.usageBreakdownList.length === 0) {
+      return null
+    }
+
+    const usage = quota.usageBreakdownList[0]
+    const total = usage.usageLimit + (usage.freeTrialInfo?.usageLimit || 0)
+    const used = usage.currentUsage + (usage.freeTrialInfo?.currentUsage || 0)
+    const percentage = total > 0 ? (used / total) * 100 : 0
+
+    return { total, used, percentage, unit: usage.displayName }
+  }
+
+  // 从 Kiro IDE 导入账号
+  const handleImportFromKiro = async () => {
+    try {
+      const res = await fetch('/admin/accounts/import', { method: 'POST' })
+      if (!res.ok) throw new Error('导入失败')
+      
+      const data = await res.json()
+      if (!data.success || !data.accounts || data.accounts.length === 0) {
+        notifications.show({
+          title: '导入失败',
+          message: data.message || '未找到 Kiro IDE 缓存文件',
+          color: 'orange',
+        })
+        return
+      }
+
+      // 添加导入的账号
+      for (const account of data.accounts) {
+        await addAccount(account)
+      }
+
+      notifications.show({
+        title: '导入成功',
+        message: `成功导入 ${data.accounts.length} 个账号`,
+        color: 'green',
+      })
+    } catch (error) {
+      notifications.show({
+        title: '导入失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        color: 'red',
+      })
+    }
+  }
+
   return (
     <Stack gap="md">
       {/* 健康状态概览 */}
@@ -347,6 +436,12 @@ export default function Accounts() {
             >
               文件导入
             </Menu.Item>
+            <Menu.Item
+              leftSection={<Upload size={16} />}
+              onClick={handleImportFromKiro}
+            >
+              从 Kiro IDE 导入
+            </Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Group>
@@ -366,6 +461,9 @@ export default function Accounts() {
         <Stack gap="md">
           {(accounts || []).map((account: Account) => {
             const health = getAccountHealth(account.id)
+            const quota = formatQuota(quotaCache[account.id])
+            const isLoadingQuota = loadingQuotas[account.id]
+            
             return (
               <Card key={account.id} shadow="sm" padding="lg" radius="md" withBorder>
                 <Group justify="space-between" wrap="nowrap">
@@ -395,21 +493,48 @@ export default function Accounts() {
                     >
                       ID: {account.id}
                     </Text>
-                    {health && (
-                      <Group gap="md">
-                        <Text size="sm" c="dimmed">
-                          成功: {health.success_count} | 失败: {health.fail_count}
-                        </Text>
-                        <Text size="sm" c="dimmed">
-                          成功率: {(health.success_rate * 100).toFixed(1)}%
-                        </Text>
-                        {health.last_used && (
+                    
+                    <Group gap="md">
+                      {/* 配额显示 - 紧凑版 */}
+                      {quota && (
+                        <Group gap="xs">
+                          <CreditCard size={14} />
                           <Text size="sm" c="dimmed">
-                            最后使用: {format(new Date(health.last_used), 'HH:mm:ss')}
+                            配额: {quota.used}/{quota.total}
                           </Text>
-                        )}
-                      </Group>
-                    )}
+                          <Badge
+                            size="xs"
+                            color={quota.percentage > 80 ? 'red' : quota.percentage > 50 ? 'yellow' : 'green'}
+                          >
+                            {quota.percentage.toFixed(0)}%
+                          </Badge>
+                        </Group>
+                      )}
+                      {isLoadingQuota && (
+                        <Group gap="xs">
+                          <Loader size="xs" />
+                          <Text size="xs" c="dimmed">加载配额...</Text>
+                        </Group>
+                      )}
+                      
+                      {/* 健康统计 */}
+                      {health && (
+                        <>
+                          <Text size="sm" c="dimmed">
+                            成功: {health.success_count} | 失败: {health.fail_count}
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            成功率: {(health.success_rate * 100).toFixed(1)}%
+                          </Text>
+                          {health.last_used && (
+                            <Text size="sm" c="dimmed">
+                              最后使用: {format(new Date(health.last_used), 'HH:mm:ss')}
+                            </Text>
+                          )}
+                        </>
+                      )}
+                    </Group>
+                    
                     {account.expiresAt && (
                       <Text size="sm" c="dimmed">
                         过期: {format(new Date(account.expiresAt), 'yyyy-MM-dd HH:mm:ss')}
@@ -421,7 +546,8 @@ export default function Accounts() {
                       variant="light"
                       color="blue"
                       size="lg"
-                      onClick={() => refreshAccount(account.id)}
+                      onClick={() => handleRefresh(account.id)}
+                      loading={isLoadingQuota}
                     >
                       <RefreshCw size={18} />
                     </ActionIcon>

@@ -111,16 +111,32 @@ impl HealthChecker {
     async fn check_account(&self, account_id: &str) -> Result<bool, String> {
         debug!("检查账号: {}", account_id);
 
-        // 尝试刷新 Token
-        match self.accounts.refresh_account(account_id).await {
-            Ok(_) => {
-                debug!("账号 {} 健康检查通过", account_id);
+        // 获取账号信息
+        let accounts = self.accounts.list_accounts();
+        let account = accounts.iter().find(|a| a.id == account_id);
+        
+        if let Some(acc) = account {
+            // 检查 accessToken 是否过期
+            if acc.is_expired() {
+                debug!("账号 {} accessToken 已过期，尝试刷新", account_id);
+                match self.accounts.refresh_account(account_id).await {
+                    Ok(_) => {
+                        debug!("账号 {} Token 刷新成功", account_id);
+                        Ok(true)
+                    }
+                    Err(e) => {
+                        warn!("账号 {} Token 刷新失败: {}，标记为 expired", account_id, e);
+                        // 刷新失败才标记为不可用
+                        Ok(false)
+                    }
+                }
+            } else {
+                // accessToken 还有效，账号可用
+                debug!("账号 {} accessToken 有效，无需刷新", account_id);
                 Ok(true)
             }
-            Err(e) => {
-                warn!("账号 {} 健康检查失败: {}", account_id, e);
-                Ok(false)
-            }
+        } else {
+            Err(format!("账号 {} 不存在", account_id))
         }
     }
 }

@@ -1,6 +1,6 @@
 // kiro-gateway 统计模块
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -12,7 +12,7 @@ const MAX_RECENT_REQUESTS: usize = 50;
 #[allow(dead_code)]
 const MAX_RESPONSE_TIMES: usize = 100;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecentRequest {
   pub timestamp: String,
   pub endpoint: String,
@@ -21,7 +21,7 @@ pub struct RecentRequest {
   pub response_time_ms: f64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HourlyStats {
   pub hour: String,
   pub count: u64,
@@ -49,6 +49,7 @@ pub struct MetricsData {
   pub hourly_stats: Vec<HourlyStats>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MetricsInner {
   // 请求计数：{endpoint:status:model -> count}
   request_total: HashMap<String, u64>,
@@ -79,12 +80,7 @@ pub struct Metrics {
 
 impl Metrics {
   pub fn new() -> Self {
-    let now = SystemTime::now()
-      .duration_since(UNIX_EPOCH)
-      .unwrap_or(Duration::ZERO)
-      .as_millis() as u64;
-
-    Self {
+    let metrics = Self {
       inner: RwLock::new(MetricsInner {
         request_total: HashMap::new(),
         stream_requests: 0,
@@ -96,9 +92,21 @@ impl Metrics {
         latency_buckets: vec![0; LATENCY_BUCKETS.len()],
         latency_sum: 0.0,
         latency_count: 0,
-        start_timestamp: now,
+        start_timestamp: SystemTime::now()
+          .duration_since(UNIX_EPOCH)
+          .unwrap_or(Duration::ZERO)
+          .as_millis() as u64,
       }),
+    };
+
+    // 尝试加载历史数据
+    if let Err(e) = metrics.load_from_file("data/metrics.json") {
+      tracing::debug!("未加载历史 metrics 数据: {}", e);
+    } else {
+      tracing::info!("已加载历史 metrics 数据");
     }
+
+    metrics
   }
 
 
@@ -258,6 +266,26 @@ impl Metrics {
       }
     }
     LATENCY_BUCKETS[LATENCY_BUCKETS.len() - 2]
+  }
+
+  /// 保存到文件
+  pub fn save_to_file(&self, path: &str) -> Result<(), String> {
+    let inner = self.inner.read().unwrap();
+    let json = serde_json::to_string_pretty(&*inner)
+      .map_err(|e| format!("序列化失败: {}", e))?;
+    std::fs::write(path, json)
+      .map_err(|e| format!("写入文件失败: {}", e))?;
+    Ok(())
+  }
+
+  /// 从文件加载
+  pub fn load_from_file(&self, path: &str) -> Result<(), String> {
+    let content = std::fs::read_to_string(path)
+      .map_err(|e| format!("读取文件失败: {}", e))?;
+    let loaded: MetricsInner = serde_json::from_str(&content)
+      .map_err(|e| format!("反序列化失败: {}", e))?;
+    *self.inner.write().unwrap() = loaded;
+    Ok(())
   }
 }
 

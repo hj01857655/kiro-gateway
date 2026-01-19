@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kiro-cli chat:*)",
+      "Bash(cargo check:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(kiro-cli:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(cargo build:*)",
+      "Bash(cargo clippy:*)",
+      "WebSearch",
+      "Bash(git add:*)"
+    ]
+  }
+}

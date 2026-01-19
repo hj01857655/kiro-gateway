@@ -178,6 +178,8 @@ pub struct KiroPayload {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationState {
+  pub agent_continuation_id: String,
+  pub agent_task_type: String,
   pub chat_trigger_type: String,
   pub conversation_id: String,
   pub current_message: CurrentMessage,
@@ -198,9 +200,12 @@ pub struct CurrentMessage {
 pub struct UserInputMessage {
   pub content: String,
   pub model_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub user_intent: Option<String>,
   pub origin: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub images: Option<Vec<KiroImage>>,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub user_input_message_context: Option<UserInputMessageContext>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub inference_config: Option<InferenceConfig>,
@@ -276,9 +281,12 @@ pub enum HistoryItem {
 pub struct HistoryUserMessage {
   pub content: String,
   pub model_id: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub user_intent: Option<String>,
   pub origin: String,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub images: Option<Vec<KiroImage>>,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub user_input_message_context: Option<UserInputMessageContext>,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub inference_config: Option<InferenceConfig>,

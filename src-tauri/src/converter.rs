@@ -27,7 +27,7 @@ fn detect_image_format(url: &str) -> String {
   }
   
   // 回退到扩展名检测 (Kiro IDE 的方式)
-  match url.split('.').last().map(|s| s.to_lowercase()).as_deref() {
+  match url.split('.').next_back().map(|s| s.to_lowercase()).as_deref() {
     Some("png") => "png".to_string(),
     Some("gif") => "gif".to_string(),
     Some("webp") => "webp".to_string(),
@@ -548,6 +548,7 @@ pub fn build_kiro_payload(
             user_input_message: HistoryUserMessage {
               content,
               model_id: model_id.clone(),
+              user_intent: Some("CODE_GENERATION".to_string()),
               origin: "AI_EDITOR".to_string(),
               images: None,  // 历史消息不包含图片数据
               user_input_message_context: context,
@@ -580,6 +581,7 @@ pub fn build_kiro_payload(
             user_input_message: HistoryUserMessage {
               content: String::new(),
               model_id: model_id.clone(),
+              user_intent: Some("CODE_GENERATION".to_string()),
               origin: "AI_EDITOR".to_string(),
               images: None,  // tool 消息不包含图片
               user_input_message_context: Some(UserInputMessageContext {
@@ -659,12 +661,15 @@ pub fn build_kiro_payload(
   
   Ok(KiroPayload {
     conversation_state: ConversationState {
+      agent_continuation_id: Uuid::new_v4().to_string(),
+      agent_task_type: "vibe".to_string(),
       chat_trigger_type: "MANUAL".to_string(),
       conversation_id,
       current_message: CurrentMessage {
         user_input_message: UserInputMessage {
           content: final_content,
           model_id,
+          user_intent: Some("CODE_GENERATION".to_string()),
           origin: "AI_EDITOR".to_string(),
           images: if images.is_empty() { None } else { Some(images) },
           user_input_message_context: context,

@@ -39,4 +39,10 @@ export const accountsApi = {
     const res = await fetch(`${API_BASE}/accounts/${id}/refresh`, { method: 'POST' })
     if (!res.ok) throw new Error('刷新 Token 失败')
   },
+
+  getQuota: async (id: string): Promise<import('../types').QuotaInfo> => {
+    const res = await fetch(`${API_BASE}/accounts/${id}/quota`)
+    if (!res.ok) throw new Error('获取配额失败')
+    return await res.json()
+  },
 }

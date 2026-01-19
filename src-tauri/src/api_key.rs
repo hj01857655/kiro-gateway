@@ -24,6 +24,12 @@ pub struct ApiKeyManager {
     keys_file: RwLock<Option<String>>,
 }
 
+impl Default for ApiKeyManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ApiKeyManager {
     pub fn new() -> Self {
         Self {
@@ -63,8 +69,8 @@ impl ApiKeyManager {
 
     /// 生成新的 API Key
     pub fn generate_key(&self, name: Option<String>) -> Result<ApiKey, AppError> {
-        // 生成 sk-{48位十六进制} 格式
-        let random_bytes: [u8; 24] = rand::random();
+        // 生成 sk-{64位十六进制} 格式（256-bit 随机数）
+        let random_bytes: [u8; 32] = rand::random();
         let key = format!("sk-{}", hex::encode(random_bytes));
         
         // 生成 ID（key 的 SHA256 前 16 位）

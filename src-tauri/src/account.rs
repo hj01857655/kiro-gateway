@@ -13,7 +13,9 @@ use crate::token_allocator::SmartTokenAllocator;
 // 账号状态
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum AccountStatus {
+    #[default]
     Active,
     Expired,
     Throttled,
@@ -22,9 +24,6 @@ pub enum AccountStatus {
     Banned,
 }
 
-impl Default for AccountStatus {
-    fn default() -> Self { AccountStatus::Active }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +111,12 @@ pub struct AccountManager {
     save_task_running: Arc<Mutex<bool>>,
     // 智能 Token 分配器
     allocator: Arc<SmartTokenAllocator>,
+}
+
+impl Default for AccountManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AccountManager {
@@ -389,6 +394,8 @@ impl AccountManager {
                 json.get_mut("accounts").and_then(|a| a.as_array_mut())
             };
             
+            let mut has_changes = false;
+            
             if let Some(accounts_array) = accounts_array {
                 for account_id in account_ids {
                     // 从内存中找到账号
@@ -396,10 +403,22 @@ impl AccountManager {
                         // 在 JSON 中找到并更新
                         for acc in accounts_array.iter_mut() {
                             if acc.get("id").and_then(|v| v.as_str()) == Some(&account.id) {
-                                acc["accessToken"] = serde_json::Value::String(account.access_token.clone());
-                                acc["refreshToken"] = serde_json::Value::String(account.refresh_token.clone());
-                                if let Some(expires_at) = account.expires_at {
-                                    acc["expiresAt"] = serde_json::Value::Number(expires_at.into());
+                                // 检查是否真的有变化
+                                let old_access_token = acc.get("accessToken").and_then(|v| v.as_str()).unwrap_or("");
+                                let old_refresh_token = acc.get("refreshToken").and_then(|v| v.as_str()).unwrap_or("");
+                                let old_expires_at = acc.get("expiresAt").and_then(|v| v.as_i64());
+                                
+                                if old_access_token != account.access_token 
+                                    || old_refresh_token != account.refresh_token 
+                                    || old_expires_at != account.expires_at 
+                                {
+                                    acc["accessToken"] = serde_json::Value::String(account.access_token.clone());
+                                    acc["refreshToken"] = serde_json::Value::String(account.refresh_token.clone());
+                                    if let Some(expires_at) = account.expires_at {
+                                        acc["expiresAt"] = serde_json::Value::Number(expires_at.into());
+                                    }
+                                    acc["status"] = serde_json::to_value(&account.status).unwrap_or(serde_json::json!("active"));
+                                    has_changes = true;
                                 }
                                 break;
                             }
@@ -408,11 +427,13 @@ impl AccountManager {
                 }
             }
             
-            // 写回文件
-            if let Err(e) = tokio::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()).await {
-                warn!("更新账号文件失败: {}", e);
-            } else {
-                info!("批量更新 {} 个账号到文件", account_ids.len());
+            // 只有真正有变化时才写文件
+            if has_changes {
+                if let Err(e) = tokio::fs::write(path, serde_json::to_string_pretty(&json).unwrap_or_default()).await {
+                    warn!("更新账号文件失败: {}", e);
+                } else {
+                    info!("批量更新 {} 个账号到文件", account_ids.len());
+                }
             }
         }
     }

@@ -170,9 +170,10 @@ impl KiroClient {
         let url = format!("{}/generateAssistantResponse", self.config.kiro_endpoint);
         let invocation_id = uuid::Uuid::new_v4().to_string();
 
-        // 调试：打印请求体
-        let request_json = serde_json::to_string_pretty(request).unwrap_or_default();
-        info!("Kiro 请求体:\n{}", request_json);
+        // 调试：打印完整请求体
+        debug!("调用 Kiro API，conversationId: {}", 
+            request.conversation_state.conversation_id);
+        debug!("完整请求体: {}", serde_json::to_string_pretty(&request).unwrap_or_default());
 
         debug!("调用 Kiro API: {}", url);
 
@@ -344,39 +345,17 @@ where
 
                     let json_str = &buffer[json_start..json_end];
                     
-                    // 调试：打印原始 JSON（安全截取，避免 UTF-8 边界问题）
-                    let preview = if json_str.len() > 500 {
-                        json_str.chars().take(500).collect::<String>()
-                    } else {
-                        json_str.to_string()
-                    };
-                    info!("📥 收到 JSON #{}: {}", event_count + 1, preview);
+                    // 调试：记录收到事件（不打印完整内容）
+                    debug!("📥 收到 JSON 事件 #{}", event_count + 1);
                     
                     // 尝试解析 JSON
                     match serde_json::from_str::<KiroEvent>(json_str) {
                         Ok(event) => {
                             event_count += 1;
                             
-                            // 安全截取字符串用于日志
-                            let content_preview = event.content.as_ref().map(|s| {
-                                if s.len() > 50 {
-                                    s.chars().take(50).collect::<String>()
-                                } else {
-                                    s.clone()
-                                }
-                            });
-                            let text_preview = event.text.as_ref().map(|s| {
-                                if s.len() > 50 {
-                                    s.chars().take(50).collect::<String>()
-                                } else {
-                                    s.clone()
-                                }
-                            });
-                            
-                            info!("✅ 解析事件 #{}: content={:?}, text={:?}, tool_use_id={:?}, language={:?}, usage={:?}", 
+                            // 记录事件类型（不打印内容）
+                            debug!("✅ 解析事件 #{}: tool_use_id={:?}, language={:?}, usage={:?}", 
                                 event_count,
-                                content_preview,
-                                text_preview,
                                 event.tool_use_id,
                                 event.language,
                                 event.usage

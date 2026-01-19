@@ -133,6 +133,12 @@ pub struct AuthCache {
     cache: Arc<RwLock<HashMap<String, Arc<TokenManager>>>>,
 }
 
+impl Default for AuthCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AuthCache {
     pub fn new() -> Self {
         Self {
