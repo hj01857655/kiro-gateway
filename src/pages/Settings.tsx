@@ -12,8 +12,11 @@ import {
   Modal,
   CopyButton,
   Tooltip,
+  Tabs,
+  Textarea,
+  Alert,
 } from '@mantine/core'
-import { Settings as SettingsIcon, Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff } from 'lucide-react'
+import { Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff, Download, Wand2, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
 import { apiKeysApi, type ApiKey } from '@/api/apiKeys'
@@ -24,6 +27,9 @@ export default function Settings() {
   const [newKeyName, setNewKeyName] = useState('')
   const [generatedKey, setGeneratedKey] = useState<ApiKey | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showConfigModal, setShowConfigModal] = useState(false)
+  const [configPackage, setConfigPackage] = useState<any>(null)
+  const [configLoading, setConfigLoading] = useState(false)
 
   useEffect(() => {
     loadApiKeys()
@@ -107,8 +113,69 @@ export default function Settings() {
       })
     }
   }
+
+  // 生成配置包
+  const handleGenerateConfig = async () => {
+    setConfigLoading(true)
+    try {
+      const res = await fetch('/admin/config/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) throw new Error('生成配置失败')
+      const data = await res.json()
+      setConfigPackage(data)
+      setShowConfigModal(true)
+      notifications.show({
+        title: '成功',
+        message: '配置已生成',
+        color: 'green',
+      })
+    } catch (error) {
+      notifications.show({
+        title: '生成失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        color: 'red',
+      })
+    } finally {
+      setConfigLoading(false)
+    }
+  }
+
+  // 应用配置到 Claude Desktop
+  const handleApplyConfig = async () => {
+    if (!configPackage) return
+    
+    setConfigLoading(true)
+    try {
+      // 从 claude_desktop_json 中提取 apiKey
+      const config = JSON.parse(configPackage.claude_desktop_json)
+      const res = await fetch('/admin/config/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: config.apiKey }),
+      })
+      if (!res.ok) throw new Error('应用配置失败')
+      const data = await res.json()
+      notifications.show({
+        title: '成功',
+        message: data.message || 'Claude Desktop 配置已应用',
+        color: 'green',
+      })
+    } catch (error) {
+      notifications.show({
+        title: '应用失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        color: 'red',
+      })
+    } finally {
+      setConfigLoading(false)
+    }
+  }
+
   return (
-    <Stack gap="md">
+    <Stack gap="md" maw={1200} mx="auto" w="100%">
       <Title order={2}>设置</Title>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder>
@@ -304,40 +371,152 @@ export default function Settings() {
         </Stack>
       </Card>
 
+      {/* 一键配置 Claude */}
       <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Group mb="md">
-          <SettingsIcon size={20} color="#868e96" />
-          <Text size="lg" fw={600}>
-            关于
-          </Text>
+        <Group justify="space-between" mb="md">
+          <Group>
+            <Wand2 size={20} color="#f59f00" />
+            <Text size="lg" fw={600}>
+              一键配置 Claude
+            </Text>
+          </Group>
+          <Button
+            leftSection={<Download size={16} />}
+            onClick={handleGenerateConfig}
+            loading={configLoading}
+            size="sm"
+          >
+            生成配置
+          </Button>
         </Group>
-        <Stack gap="xs">
-          <Group>
-            <Text size="sm" fw={500}>
-              项目名称:
-            </Text>
-            <Text size="sm">kiro-gateway</Text>
-          </Group>
-          <Group>
-            <Text size="sm" fw={500}>
-              版本:
-            </Text>
-            <Text size="sm">1.0.0</Text>
-          </Group>
-          <Group>
-            <Text size="sm" fw={500}>
-              技术栈:
-            </Text>
-            <Text size="sm">Tauri 2.0 + Rust + React + Mantine</Text>
-          </Group>
-          <Group>
-            <Text size="sm" fw={500}>
-              描述:
-            </Text>
-            <Text size="sm">Kiro API 网关，提供 OpenAI/Anthropic 兼容接口</Text>
-          </Group>
-        </Stack>
+        <Text size="sm" c="dimmed" mb="md">
+          自动生成 Claude Desktop、Claude CLI 和 OpenAI 兼容工具的配置文件
+        </Text>
+        <Alert icon={<AlertCircle size={16} />} color="blue" variant="light">
+          点击"生成配置"后，可以选择：
+          <ul style={{ marginTop: 8, marginBottom: 0 }}>
+            <li>一键应用到 Claude Desktop（自动写入配置文件）</li>
+            <li>复制配置脚本手动配置 Claude CLI</li>
+            <li>复制 OpenAI 兼容配置供其他工具使用</li>
+          </ul>
+        </Alert>
       </Card>
+
+      {/* 配置生成模态框 */}
+      <Modal
+        opened={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        title="Claude 配置"
+        size="lg"
+      >
+        {configPackage && (
+          <Tabs defaultValue="desktop">
+            <Tabs.List>
+              <Tabs.Tab value="desktop">Claude Desktop</Tabs.Tab>
+              <Tabs.Tab value="cli">Claude CLI</Tabs.Tab>
+              <Tabs.Tab value="openai">OpenAI 兼容</Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="desktop" pt="md">
+              <Stack gap="md">
+                <Text size="sm" c="dimmed">
+                  配置文件路径: {configPackage.claude_desktop_path || '未知'}
+                </Text>
+                <Textarea
+                  label="配置内容"
+                  value={configPackage.claude_desktop_json}
+                  readOnly
+                  minRows={15}
+                  autosize
+                  styles={{ input: { fontFamily: 'monospace', fontSize: '0.85em' } }}
+                />
+                <Group justify="space-between">
+                  <CopyButton value={configPackage.claude_desktop_json}>
+                    {({ copied, copy }) => (
+                      <Button
+                        leftSection={copied ? <Check size={16} /> : <Copy size={16} />}
+                        onClick={copy}
+                        variant="light"
+                        color={copied ? 'teal' : 'blue'}
+                      >
+                        {copied ? '已复制' : '复制配置'}
+                      </Button>
+                    )}
+                  </CopyButton>
+                  <Button
+                    leftSection={<Wand2 size={16} />}
+                    onClick={handleApplyConfig}
+                    loading={configLoading}
+                  >
+                    一键应用
+                  </Button>
+                </Group>
+                <Alert icon={<AlertCircle size={16} />} color="blue" variant="light" title="说明">
+                  点击"一键应用"将自动写入 Claude Desktop 配置文件，重启 Claude Desktop 后生效
+                </Alert>
+              </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="cli" pt="md">
+              <Stack gap="md">
+                <Textarea
+                  label="配置脚本"
+                  value={configPackage.claude_cli_script}
+                  readOnly
+                  minRows={18}
+                  autosize
+                  styles={{ input: { fontFamily: 'monospace', fontSize: '0.85em' } }}
+                />
+                <CopyButton value={configPackage.claude_cli_script}>
+                  {({ copied, copy }) => (
+                    <Button
+                      leftSection={copied ? <Check size={16} /> : <Copy size={16} />}
+                      onClick={copy}
+                      fullWidth
+                      variant="light"
+                      color={copied ? 'teal' : 'blue'}
+                    >
+                      {copied ? '已复制' : '复制脚本'}
+                    </Button>
+                  )}
+                </CopyButton>
+                <Alert icon={<AlertCircle size={16} />} color="blue" variant="light" title="使用方法">
+                  复制上方脚本到终端执行，或手动设置环境变量
+                </Alert>
+              </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="openai" pt="md">
+              <Stack gap="md">
+                <Textarea
+                  label="OpenAI 兼容配置"
+                  value={configPackage.openai_config}
+                  readOnly
+                  minRows={18}
+                  autosize
+                  styles={{ input: { fontFamily: 'monospace', fontSize: '0.85em' } }}
+                />
+                <CopyButton value={configPackage.openai_config}>
+                  {({ copied, copy }) => (
+                    <Button
+                      leftSection={copied ? <Check size={16} /> : <Copy size={16} />}
+                      onClick={copy}
+                      fullWidth
+                      variant="light"
+                      color={copied ? 'teal' : 'blue'}
+                    >
+                      {copied ? '已复制' : '复制配置'}
+                    </Button>
+                  )}
+                </CopyButton>
+                <Alert icon={<AlertCircle size={16} />} color="blue" variant="light" title="适用工具">
+                  适用于 Continue、Cursor、LangChain 等支持 OpenAI API 的工具
+                </Alert>
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
+        )}
+      </Modal>
     </Stack>
   )
 }

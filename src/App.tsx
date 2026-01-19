@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { AppShell, NavLink, Group, Text, Badge, rem } from '@mantine/core'
-import { Users, BarChart3, FileText, Settings, MessageSquare } from 'lucide-react'
+import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import Accounts from './pages/Accounts'
 import Metrics from './pages/Metrics'
 import Logs from './pages/Logs'
 import SettingsPage from './pages/Settings'
 import Chat from './pages/Chat'
+import About from './pages/About'
 
-type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat'
+type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'about'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('accounts')
@@ -18,6 +19,7 @@ export default function App() {
     { id: 'logs' as Page, name: '日志查看', icon: FileText, color: 'teal' },
     { id: 'chat' as Page, name: '聊天测试', icon: MessageSquare, color: 'orange' },
     { id: 'settings' as Page, name: '设置', icon: Settings, color: 'gray' },
+    { id: 'about' as Page, name: '关于', icon: Info, color: 'cyan' },
   ]
 
   const renderPage = () => {
@@ -32,6 +34,8 @@ export default function App() {
         return <SettingsPage />
       case 'chat':
         return <Chat />
+      case 'about':
+        return <About />
       default:
         return <Accounts />
     }

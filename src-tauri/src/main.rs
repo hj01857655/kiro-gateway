@@ -16,6 +16,7 @@ pub mod api_key;
 pub mod server;
 pub mod health_checker;
 pub mod token_allocator;
+pub mod config_generator;
 
 fn main() {
     // 初始化 Logger

@@ -3,7 +3,7 @@ import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
 
 export default function About() {
   return (
-    <Stack gap="md">
+    <Stack gap="md" maw={1200} mx="auto" w="100%">
       <Group>
         <Info size={24} color="#228be6" />
         <div>
@@ -146,15 +146,7 @@ export default function About() {
               Claude Sonnet 4.5
             </Badge>
             <Text size="sm" c="dimmed">
-              最新模型（1.3x 费率）
-            </Text>
-          </Group>
-          <Group>
-            <Badge color="grape" variant="light">
-              Claude Opus 4.5
-            </Badge>
-            <Text size="sm" c="dimmed">
-              最强模型（2.2x 费率）
+              最新推荐（1.3x 费率）
             </Text>
           </Group>
         </Stack>

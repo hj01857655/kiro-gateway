@@ -335,7 +335,7 @@ export default function Accounts() {
   }
 
   return (
-    <Stack gap="md">
+    <Stack gap="md" maw={1400} mx="auto" w="100%">
       {/* 健康状态概览 */}
       {healthData && (
         <Card withBorder>

@@ -631,5 +631,45 @@ impl KiroClient {
 
         Ok(())
     }
+
+    /// 获取可用模型列表
+    /// 调用 Kiro API 的 ListAvailableModels 接口
+    pub async fn list_available_models(&self, account: &Account) -> Result<Vec<serde_json::Value>, AppError> {
+        let url = format!("{}/ListAvailableModels", self.config.kiro_endpoint);
+        
+        let resp = self.client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", account.access_token))
+            .header("x-amz-user-agent", self.get_user_agent())
+            .query(&[
+                ("origin", "AI_EDITOR"),
+                ("profileArn", &account.profile_arn),
+            ])
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        let status = resp.status();
+        
+        if status == 401 || status == 403 {
+            return Err(AppError::TokenExpired);
+        }
+        
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            return Err(AppError::KiroApiError(format!("{}: {}", status, text)));
+        }
+        
+        let data: serde_json::Value = resp.json().await
+            .map_err(|e| AppError::ParseError(e.to_string()))?;
+        
+        let models = data.get("models")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.clone())
+            .unwrap_or_default();
+        
+        Ok(models)
+    }
 }
 

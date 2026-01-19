@@ -21,6 +21,7 @@ use crate::kiro_client::KiroClient;
 use crate::models::{OpenAIRequest, AnthropicRequest, Usage};
 use crate::api_key;
 use crate::health_checker::HealthChecker;
+use crate::config_generator;
 
 pub struct AppState {
     pub config: AppConfig,
@@ -148,6 +149,8 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
                 .route("/logs/clear", post(admin_clear_logs))
                 .route("/api-keys", get(admin_list_api_keys).post(admin_generate_api_key))
                 .route("/api-keys/:id", axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key))
+                .route("/config/generate", post(admin_generate_config))
+                .route("/config/apply", post(admin_apply_config))
                 .layer(middleware::from_fn_with_state(Arc::clone(&state), admin_auth_middleware))
         )
         .with_state(state)
@@ -377,14 +380,96 @@ async fn messages(
     }
 }
 
-async fn list_models() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
+async fn list_models(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
+    // 尝试获取一个可用账号
+    match state.accounts.get_account().await {
+        Ok(account) => {
+            // 调用 Kiro API 获取模型列表
+            match state.client.list_available_models(&account).await {
+                Ok(kiro_models) => {
+                    // 转换为 OpenAI 格式
+                    let models: Vec<serde_json::Value> = kiro_models.iter()
+                        .filter_map(|m| {
+                            m.get("modelId")
+                                .and_then(|id| id.as_str())
+                                .map(|id| {
+                                    // 移除 qdev:: 前缀
+                                    let clean_id = id.strip_prefix("qdev::").unwrap_or(id);
+                                    serde_json::json!({
+                                        "id": clean_id,
+                                        "object": "model",
+                                        "owned_by": "anthropic"
+                                    })
+                                })
+                        })
+                        .collect();
+                    
+                    Ok(Json(serde_json::json!({
+                        "object": "list",
+                        "data": models
+                    })))
+                }
+                Err(AppError::TokenExpired) => {
+                    // Token 过期，尝试刷新后重试
+                    match state.accounts.refresh_account(&account.id).await {
+                        Ok(refreshed) => {
+                            match state.client.list_available_models(&refreshed).await {
+                                Ok(kiro_models) => {
+                                    let models: Vec<serde_json::Value> = kiro_models.iter()
+                                        .filter_map(|m| {
+                                            m.get("modelId")
+                                                .and_then(|id| id.as_str())
+                                                .map(|id| {
+                                                    let clean_id = id.strip_prefix("qdev::").unwrap_or(id);
+                                                    serde_json::json!({
+                                                        "id": clean_id,
+                                                        "object": "model",
+                                                        "owned_by": "anthropic"
+                                                    })
+                                                })
+                                        })
+                                        .collect();
+                                    
+                                    Ok(Json(serde_json::json!({
+                                        "object": "list",
+                                        "data": models
+                                    })))
+                                }
+                                Err(_) => {
+                                    // 刷新后仍失败，返回默认列表
+                                    Ok(Json(get_default_models()))
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // 刷新失败，返回默认列表
+                            Ok(Json(get_default_models()))
+                        }
+                    }
+                }
+                Err(_) => {
+                    // 其他错误，返回默认列表
+                    Ok(Json(get_default_models()))
+                }
+            }
+        }
+        Err(_) => {
+            // 没有可用账号，返回默认列表
+            Ok(Json(get_default_models()))
+        }
+    }
+}
+
+// 默认模型列表（当无法从 Kiro API 获取时使用）
+fn get_default_models() -> serde_json::Value {
+    serde_json::json!({
         "object": "list",
         "data": [
-            {"id": "kiro", "object": "model", "owned_by": "amazon"},
+            {"id": "claude-haiku-4.5", "object": "model", "owned_by": "anthropic"},
+            {"id": "claude-sonnet-4", "object": "model", "owned_by": "anthropic"},
             {"id": "claude-sonnet-4.5", "object": "model", "owned_by": "anthropic"},
         ]
-    }))
+    })
 }
 
 async fn health() -> Json<serde_json::Value> {
@@ -684,4 +769,52 @@ async fn admin_update_api_key(
     } else {
         Err(AppError::BadRequest("缺少 enabled 字段".into()))
     }
+}
+
+// 生成配置包
+async fn admin_generate_config(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // 获取 API Key（可选，如果不提供则生成新的）
+    let api_key = if let Some(key) = payload.get("apiKey").and_then(|v| v.as_str()) {
+        key.to_string()
+    } else {
+        // 生成新的 API Key
+        let new_key = state.api_keys.generate_key(Some("自动生成（配置用）".to_string()))?;
+        new_key.key
+    };
+    
+    // 获取基础 URL
+    let base_url = format!("http://{}:{}", state.config.host, state.config.port);
+    
+    // 生成配置包
+    let config_package = config_generator::generate_config_package(&base_url, &api_key)
+        .map_err(AppError::BadRequest)?;
+    
+    Ok(Json(serde_json::to_value(config_package).unwrap_or_default()))
+}
+
+// 应用配置到 Claude Desktop
+async fn admin_apply_config(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // 获取 API Key
+    let api_key = payload.get("apiKey")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::BadRequest("缺少 apiKey 字段".into()))?;
+    
+    // 获取基础 URL
+    let base_url = format!("http://{}:{}", state.config.host, state.config.port);
+    
+    // 写入 Claude Desktop 配置
+    let config_path = config_generator::write_claude_desktop_config(&base_url, api_key).await
+        .map_err(AppError::BadRequest)?;
+    
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "configPath": config_path,
+        "message": "Claude Desktop 配置已成功写入"
+    })))
 }

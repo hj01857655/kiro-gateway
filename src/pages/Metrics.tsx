@@ -46,7 +46,7 @@ export default function Metrics() {
   }))
 
   return (
-    <Stack gap="md">
+    <Stack gap="md" maw={1400} mx="auto" w="100%">
       <Title order={2}>统计监控</Title>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">

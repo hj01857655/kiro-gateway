@@ -17,10 +17,19 @@ import {
 import { MessageSquare, Send, AlertCircle, Sparkles } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
+import { modelsApi, type Model } from '@/api/models'
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
   content: string
+}
+
+// 模型显示名称映射
+const MODEL_LABELS: Record<string, string> = {
+  'claude-haiku-4.5': 'Claude Haiku 4.5 (快速)',
+  'claude-sonnet-4': 'Claude Sonnet 4',
+  'claude-sonnet-4.5': 'Claude Sonnet 4.5 (推荐)',
+  'claude-opus-4.5': 'Claude Opus 4.5',
 }
 
 export default function Chat() {
@@ -28,7 +37,26 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [model, setModel] = useState('claude-sonnet-4.5')
+  const [models, setModels] = useState<Model[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
   const viewport = useRef<HTMLDivElement>(null)
+
+  // 加载模型列表
+  useEffect(() => {
+    loadModels()
+  }, [])
+
+  const loadModels = async () => {
+    setModelsLoading(true)
+    try {
+      const modelList = await modelsApi.list()
+      setModels(modelList)
+    } catch (error) {
+      console.error('加载模型列表失败:', error)
+    } finally {
+      setModelsLoading(false)
+    }
+  }
 
   // 自动滚动到底部
   useEffect(() => {
@@ -121,7 +149,7 @@ export default function Chat() {
   }
 
   return (
-    <Stack gap="md" style={{ height: 'calc(100vh - 100px)' }}>
+    <Stack gap="md" style={{ height: 'calc(100vh - 100px)', maxWidth: 1000, margin: '0 auto', width: '100%' }}>
       <Group justify="space-between">
         <Group>
           <MessageSquare size={24} color="#228be6" />
@@ -136,13 +164,13 @@ export default function Chat() {
           <Select
             value={model}
             onChange={(value) => setModel(value || 'claude-sonnet-4.5')}
-            data={[
-              { value: 'claude-haiku-4.5', label: 'Claude Haiku 4.5 (快速)' },
-              { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
-              { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
-              { value: 'claude-opus-4.5', label: 'Claude Opus 4.5 (最强)' },
-            ]}
-            style={{ width: 200 }}
+            data={models.map((m) => ({
+              value: m.id,
+              label: MODEL_LABELS[m.id] || m.id,
+            }))}
+            style={{ width: 220 }}
+            disabled={modelsLoading || models.length === 0}
+            placeholder={modelsLoading ? '加载中...' : '选择模型'}
           />
           <Button variant="light" onClick={handleClear} disabled={messages.length === 0}>
             清空对话

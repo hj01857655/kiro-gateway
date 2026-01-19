@@ -46,7 +46,7 @@ export default function Logs() {
   }
 
   return (
-    <Stack gap="md">
+    <Stack gap="md" maw={1400} mx="auto" w="100%">
       <Group justify="space-between">
         <Title order={2}>日志查看</Title>
         <Button leftSection={<Trash2 size={16} />} color="red" onClick={() => clearLogs()}>
