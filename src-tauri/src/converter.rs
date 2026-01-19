@@ -611,7 +611,8 @@ pub fn build_kiro_payload(
   };
   
   // 当前消息（最后一条）
-  let current_msg = merged_messages.last().unwrap();
+  let current_msg = merged_messages.last()
+    .ok_or_else(|| AppError::BadRequest("消息列表为空".to_string()))?;
   let mut current_content = extract_text_content(&current_msg.content);
   
   // 如果没有历史且有 system prompt，添加到当前消息
@@ -728,9 +729,9 @@ fn merge_adjacent_messages(messages: &[&ChatMessage]) -> Vec<ChatMessage> {
       continue;
     }
     
-    let last = merged.last_mut().unwrap();
-    if last.role == msg.role {
-      // 合并内容
+    if let Some(last) = merged.last_mut() {
+      if last.role == msg.role {
+        // 合并内容
       let last_text = extract_text_content(&last.content);
       let current_text = extract_text_content(&msg.content);
       last.content = Some(serde_json::Value::String(format!("{}\n{}", last_text, current_text)));
@@ -740,7 +741,12 @@ fn merge_adjacent_messages(messages: &[&ChatMessage]) -> Vec<ChatMessage> {
         if last.tool_calls.is_none() {
           last.tool_calls = Some(Vec::new());
         }
-        last.tool_calls.as_mut().unwrap().extend(tc.clone());
+        if let Some(tool_calls) = last.tool_calls.as_mut() {
+          tool_calls.extend(tc.clone());
+        }
+      }
+      } else {
+        merged.push(msg.clone());
       }
     } else {
       merged.push((*msg).clone());

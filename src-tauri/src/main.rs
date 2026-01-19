@@ -24,10 +24,13 @@ fn main() {
     
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .setup(|_app| {
+        .setup(|app| {
+            // 获取 AppHandle
+            let app_handle = app.handle().clone();
+            
             // 启动 Axum 后端服务器
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = server::start_server().await {
+                if let Err(e) = server::start_server(app_handle).await {
                     eprintln!("后端服务器启动失败: {}", e);
                 }
             });

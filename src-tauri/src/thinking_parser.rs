@@ -186,18 +186,23 @@ impl ThinkingParser {
             return None;
         }
 
-        let close_pos = close_pos.unwrap();
-        let thinking_content = self.buffer[..close_pos].to_string();
-        let after_tag = &self.buffer[close_pos + Self::CLOSE_TAG.len()..];
-        let after_tag = after_tag.trim_start_matches('\n');
+        if let Some(close_pos) = close_pos {
+            let thinking_content = self.buffer[..close_pos].to_string();
+            let after_tag = &self.buffer[close_pos + Self::CLOSE_TAG.len()..];
+            let after_tag = after_tag.trim_start_matches('\n');
 
-        self.buffer = after_tag.to_string();
-        self.state = ParseState::AfterThinking;
-        self.thinking_extracted = true;
+            self.buffer = after_tag.to_string();
+            self.state = ParseState::AfterThinking;
+            self.thinking_extracted = true;
 
-        tracing::debug!("[ThinkingParser] Extracted thinking block: {} chars", thinking_content.len());
-        Some(TextSegment {
-            segment_type: SegmentType::Thinking,
+            tracing::debug!("[ThinkingParser] Extracted thinking block: {} chars", thinking_content.len());
+            Some(TextSegment {
+                segment_type: SegmentType::Thinking,
+                content: thinking_content,
+            })
+        } else {
+            None
+        }
             content: thinking_content,
         })
     }

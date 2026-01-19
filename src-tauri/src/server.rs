@@ -9,9 +9,11 @@ use axum::{
 };
 use std::sync::Arc;
 use std::convert::Infallible;
+use std::path::PathBuf;
 use tokio_stream::StreamExt;
 use tower_http::cors::CorsLayer;
 use tracing::{info, warn};
+use tauri::{AppHandle, Manager};
 
 use crate::account::AccountManager;
 use crate::config::AppConfig;
@@ -31,12 +33,24 @@ pub struct AppState {
     pub auth_cache: crate::auth::AuthCache,
     pub api_keys: api_key::ApiKeyManager,
     pub health_checker: Arc<HealthChecker>,
+    pub app_handle: AppHandle,
 }
 
-pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
+// 获取应用数据目录
+fn get_app_data_dir(app_handle: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let data_dir = app_handle.path().app_data_dir()?;
+    std::fs::create_dir_all(&data_dir)?;
+    Ok(data_dir)
+}
+
+pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "kiro_gateway=info".to_string()))
         .init();
+
+    // 获取应用数据目录
+    let data_dir = get_app_data_dir(&app_handle)?;
+    info!("应用数据目录: {:?}", data_dir);
 
     let config = AppConfig::from_env();
     let client = KiroClient::new(config.clone());
@@ -45,21 +59,16 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     let auth_cache = crate::auth::AuthCache::new();
     let api_keys = api_key::ApiKeyManager::new();
     
-    // 设置默认账号文件路径
-    let default_accounts_file = "data/accounts.json";
-    
-    // 确保 data 目录存在
-    if let Err(e) = std::fs::create_dir_all("data") {
-        tracing::warn!("创建 data 目录失败: {}", e);
-    }
+    // 设置账号文件路径（使用应用数据目录）
+    let accounts_file = data_dir.join("accounts.json");
+    let accounts_file_str = accounts_file.to_string_lossy().to_string();
     
     // 加载账号
     if let Some(ref json) = config.accounts_json {
         if let Err(e) = accounts.load_from_json(json) {
             tracing::error!("从环境变量加载账号失败: {}", e);
         }
-        // 即使从环境变量加载，也设置默认文件路径用于保存
-        accounts.set_accounts_file(default_accounts_file);
+        accounts.set_accounts_file(&accounts_file_str);
     } else if let Some(ref file) = config.accounts_file {
         match std::fs::read_to_string(file) {
             Ok(content) => {
@@ -73,33 +82,31 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
         }
         accounts.set_accounts_file(file);
     } else {
-        // 没有配置任何账号来源，使用默认文件路径
-        accounts.set_accounts_file(default_accounts_file);
-        // 尝试从默认文件加载
-        if let Ok(content) = std::fs::read_to_string(default_accounts_file) {
+        accounts.set_accounts_file(&accounts_file_str);
+        if let Ok(content) = std::fs::read_to_string(&accounts_file) {
             if let Err(e) = accounts.load_from_json(&content) {
-                tracing::error!("从默认文件 {} 加载账号失败: {}", default_accounts_file, e);
+                tracing::error!("从默认文件加载账号失败: {}", e);
             }
         }
     }
 
-    // 加载 API Keys
-    let default_api_keys_file = "data/api_keys.json";
-    let api_keys_file = std::env::var("API_KEYS_FILE").unwrap_or_else(|_| default_api_keys_file.to_string());
+    // 加载 API Keys（使用应用数据目录）
+    let api_keys_file = data_dir.join("api_keys.json");
+    let api_keys_file_str = api_keys_file.to_string_lossy().to_string();
     
     match std::fs::read_to_string(&api_keys_file) {
         Ok(content) => {
             if let Err(e) = api_keys.load_from_json(&content) {
-                tracing::error!("从文件 {} 加载 API Keys 失败: {}", api_keys_file, e);
+                tracing::error!("从文件加载 API Keys 失败: {}", e);
             } else {
-                tracing::info!("从文件 {} 加载了 API Keys", api_keys_file);
+                tracing::info!("从文件加载了 API Keys");
             }
         }
         Err(e) => {
-            tracing::info!("API Keys 文件 {} 不存在或读取失败: {}，将创建新文件", api_keys_file, e);
+            tracing::info!("API Keys 文件不存在或读取失败: {}，将创建新文件", e);
         }
     }
-    api_keys.set_keys_file(&api_keys_file);
+    api_keys.set_keys_file(&api_keys_file_str);
     
     // 创建健康检查器（每 5 分钟检查一次）
     let health_checker = Arc::new(crate::health_checker::HealthChecker::new(Arc::clone(&accounts), 300));
@@ -108,20 +115,23 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
     Arc::clone(&health_checker).start();
     info!("账号健康检查器已启动");
 
-    // 加载 Metrics 数据
-    let metrics_file = "src-tauri/data/metrics.json";
-    if let Err(e) = crate::metrics::METRICS.load_from_file(metrics_file) {
+    // 加载 Metrics 数据（使用应用数据目录）
+    let metrics_file = data_dir.join("metrics.json");
+    let metrics_file_str = metrics_file.to_string_lossy().to_string();
+    
+    if let Err(e) = crate::metrics::METRICS.load_from_file(&metrics_file_str) {
         tracing::warn!("加载 metrics 数据失败: {}，将使用空数据", e);
     } else {
-        tracing::info!("已从 {} 加载 metrics 数据", metrics_file);
+        tracing::info!("已从 {:?} 加载 metrics 数据", metrics_file);
     }
 
     // 启用 Metrics 持久化任务（每 5 分钟保存一次）
-    tokio::spawn(async {
+    let metrics_file_for_task = metrics_file_str.clone();
+    tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
         loop {
             interval.tick().await;
-            if let Err(e) = crate::metrics::METRICS.save_to_file("src-tauri/data/metrics.json") {
+            if let Err(e) = crate::metrics::METRICS.save_to_file(&metrics_file_for_task) {
                 tracing::warn!("保存 metrics 数据失败: {}", e);
             } else {
                 tracing::debug!("已保存 metrics 数据");
@@ -138,6 +148,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error>> {
         auth_cache,
         api_keys,
         health_checker,
+        app_handle,
     });
 
     let app = Router::new()
@@ -854,17 +865,12 @@ async fn admin_get_quota(
 }
 
 // 从 Kiro IDE 缓存导入账号
-async fn admin_import_accounts(State(_state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
-    use std::path::PathBuf;
+async fn admin_import_accounts(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
+    // 获取用户主目录
+    let home = dirs::home_dir()
+        .ok_or_else(|| AppError::BadRequest("无法获取用户目录".into()))?;
     
-    // 读取 Kiro IDE 缓存文件
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .map_err(|_| AppError::BadRequest("无法获取用户目录".into()))?;
-    
-    let kiro_token_path: PathBuf = [&home, ".aws", "sso", "cache", "kiro-auth-token.json"]
-        .iter()
-        .collect();
+    let kiro_token_path = home.join(".aws").join("sso").join("cache").join("kiro-auth-token.json");
     
     if !kiro_token_path.exists() {
         return Ok(Json(serde_json::json!({

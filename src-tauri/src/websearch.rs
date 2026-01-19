@@ -33,7 +33,10 @@ pub fn is_web_search_request(request: &AnthropicMessagesRequest) -> bool {
         return false;
     }
 
-    let tools = request.tools.as_ref().unwrap();
+    let tools = match request.tools.as_ref() {
+        Some(t) => t,
+        None => return false,
+    };
     if tools.len() != 1 {
         return false;
     }
