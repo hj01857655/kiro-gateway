@@ -242,12 +242,9 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - ✅ 统计监控（请求数、响应时间、延迟百分位、24小时趋势）
 - ✅ 桌面管理界面（Mantine UI）
 - ✅ 账号健康检查
-
-### 待实现
-
-- ⏳ WebSearch 集成
-- ⏳ API Key 管理系统
-- ⏳ Metrics 持久化
+- ✅ WebSearch 集成（Kiro MCP API）
+- ✅ API Key 管理系统（生成、验证、持久化）
+- ✅ Metrics 持久化（自动保存/加载）
 
 ## 参考项目
 
@@ -278,8 +275,7 @@ MIT License
 
 ## 联系方式
 
-- GitHub 公开仓库: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
-- GitHub 私有仓库: [hj01857655/kiro-gateway_dev](https://github.com/hj01857655/kiro-gateway_dev)
+- GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
 - 问题反馈: [Issues](https://github.com/hj01857655/kiro-gateway/issues)
 
 ## 免责声明
