@@ -1071,6 +1071,16 @@ async fn admin_get_quota(
     // 查询配额
     match state.client.get_usage_limits(&account).await {
         Ok(quota) => {
+            // 检查配额使用率，如果达到 100% 则标记为配额用尽
+            if let Some(usage_percentage) = quota.get("usagePercentage").and_then(|v| v.as_f64()) {
+                if usage_percentage >= 100.0 {
+                    warn!("账号 {} 配额已用尽 ({}%)", id, usage_percentage);
+                    state.accounts.mark_status(&id, crate::account::AccountStatus::QuotaExhausted);
+                } else if usage_percentage >= 95.0 {
+                    warn!("账号 {} 配额即将用尽 ({}%)", id, usage_percentage);
+                }
+            }
+            
             // 缓存配额数据（5 分钟）
             state.accounts.update_quota_cache(&id, quota.clone());
             Ok(Json(quota))
@@ -1080,6 +1090,17 @@ async fn admin_get_quota(
             info!("配额查询时 Token 过期，刷新后重试");
             let refreshed = state.accounts.refresh_account(&id).await?;
             let quota = state.client.get_usage_limits(&refreshed).await?;
+            
+            // 检查配额使用率
+            if let Some(usage_percentage) = quota.get("usagePercentage").and_then(|v| v.as_f64()) {
+                if usage_percentage >= 100.0 {
+                    warn!("账号 {} 配额已用尽 ({}%)", id, usage_percentage);
+                    state.accounts.mark_status(&id, crate::account::AccountStatus::QuotaExhausted);
+                } else if usage_percentage >= 95.0 {
+                    warn!("账号 {} 配额即将用尽 ({}%)", id, usage_percentage);
+                }
+            }
+            
             // 缓存配额数据
             state.accounts.update_quota_cache(&id, quota.clone());
             Ok(Json(quota))

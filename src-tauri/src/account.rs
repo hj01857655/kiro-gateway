@@ -49,6 +49,7 @@ pub enum AccountStatus {
     Error,
     Disabled,
     Banned,
+    QuotaExhausted,  // 配额用尽（100%）
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,7 +130,9 @@ impl Account {
     }
 
     pub fn is_available(&self) -> bool {
-        self.enabled && self.status == AccountStatus::Active && !self.is_throttled()
+        self.enabled 
+            && self.status == AccountStatus::Active 
+            && !self.is_throttled()
     }
 
     /// 转换为 WebSearch 的 VerifyResult
