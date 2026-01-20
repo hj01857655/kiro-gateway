@@ -14,6 +14,14 @@
 
 Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
 
+<!-- 
+## 📸 应用截图
+
+![主界面](docs/screenshots/main.png)
+![账号管理](docs/screenshots/accounts.png)
+![统计监控](docs/screenshots/metrics.png)
+-->
+
 ## ✨ 核心特性
 
 | 特性 | 说明 |
