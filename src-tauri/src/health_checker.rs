@@ -78,6 +78,7 @@ impl HealthChecker {
                     if is_valid {
                         valid_count += 1;
                         // 如果账号之前是 expired 状态，恢复为 active
+                        // 但不要覆盖 Exhausted 状态（配额用尽需要手动处理）
                         if account.status == AccountStatus::Expired {
                             self.accounts
                                 .mark_status(&account.id, AccountStatus::Active);
@@ -85,16 +86,21 @@ impl HealthChecker {
                         }
                     } else {
                         invalid_count += 1;
-                        // 标记为 expired
-                        self.accounts
-                            .mark_status(&account.id, AccountStatus::Expired);
-                        warn!("账号 {} 标记为 expired", account.id);
+                        // 标记为 expired（但不要覆盖 Exhausted 状态）
+                        if account.status != AccountStatus::Exhausted {
+                            self.accounts
+                                .mark_status(&account.id, AccountStatus::Expired);
+                            warn!("账号 {} 标记为 expired", account.id);
+                        }
                     }
                 }
                 Err(e) => {
                     error!("检查账号 {} 失败: {}", account.id, e);
                     invalid_count += 1;
-                    self.accounts.mark_status(&account.id, AccountStatus::Error);
+                    // 标记为 error（但不要覆盖 Exhausted 状态）
+                    if account.status != AccountStatus::Exhausted {
+                        self.accounts.mark_status(&account.id, AccountStatus::Error);
+                    }
                 }
             }
 
