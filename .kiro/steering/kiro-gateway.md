@@ -715,4 +715,38 @@ steps:
 - Kiro IDE 源码位置：`C:\Users\12925\.kiro\steering\kiro-ide-source.md`
 - KiroGate 参考规范：`.kiro/steering/kirogate.md`
 
+## 相关项目
+
+### Kiro 源码分析项目
+
+**项目路径**: `E:\VSCodeSpace\Kiro\kiro-source-analysis`
+
+**项目说明**: 基于 Kiro IDE 源码（约 42MB）的逆向分析文档，包含 97 个文档文件。
+
+**主要内容**:
+- `auth/` - 认证相关（OAuth Social/IdC、SigV4、SSO）
+- `api/` - API 接口（CodeWhisperer、Bedrock、SageMaker 等）
+- `systems/` - 功能系统（Agent、Editor、Extensions、Platform）
+- `internals/` - 内部机制（Embedding、Checkpoint、Telemetry 等）
+- `reference/` - 参考资料（架构、工具、命令、配置等）
+
+**官方参考**:
+- **AWS Toolkit for VS Code**: https://github.com/aws/aws-toolkit-vscode
+  - 路径: `packages/core/src/codewhispererChat/clients/chat/v0/chat.ts`
+  - 包含 Amazon Q 和 CodeWhisperer 的完整实现
+
+**访问方式**（工作区外文件）:
+```powershell
+# 读取分析文档
+Get-Content "E:\VSCodeSpace\Kiro\kiro-source-analysis\README.md" -Raw
+
+# 列出所有分析文档
+Get-ChildItem "E:\VSCodeSpace\Kiro\kiro-source-analysis" -Filter "*.md"
+```
+
+**用途**: 
+- 理解 Kiro API 的实现原理
+- 查找官方的消息格式和处理逻辑
+- 参考 Kiro IDE 的功能实现方式
+
 
