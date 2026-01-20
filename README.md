@@ -114,7 +114,7 @@ IDC 账号：
 
 ## 📖 使用文档
 
-- **[📘 使用教程](docs/user-guide.md)** - 从零开始，5 分钟学会使用
+- **[📘 Kiro Gateway 使用教程](https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc)** - 从零开始，5 分钟学会使用（飞书云文档）
 - **[🚀 快速开始](docs/getting-started.md)** - 快速上手指南
 - **[🔧 API 文档](#api-端点)** - API 端点说明
 
