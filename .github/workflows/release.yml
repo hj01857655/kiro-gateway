@@ -71,7 +71,47 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'kiro-gateway v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: |
+            ## 🎉 kiro-gateway v__VERSION__
+            
+            Kiro API 网关 - OpenAI/Anthropic 兼容接口
+            
+            ### 📦 下载安装
+            
+            - **Windows**: `kiro-gateway_*_x64-setup.exe` 或 `.msi`
+            - **macOS (Apple Silicon)**: `kiro-gateway_*_aarch64.dmg`
+            - **macOS (Intel)**: `kiro-gateway_*_x64.dmg`
+            - **Linux**: `kiro-gateway_*_amd64.deb` 或 `.AppImage`
+            
+            ### ✨ 主要功能
+            
+            - ✅ OpenAI Chat Completions API 完全兼容
+            - ✅ Anthropic Messages API 完全兼容
+            - ✅ 多账号管理和自动轮询
+            - ✅ Token 自动刷新（Social/IDC）
+            - ✅ 流式响应和工具调用支持
+            - ✅ 图形化管理界面
+            - ✅ 日志查看和统计监控
+            
+            ### 📝 更新日志
+            
+            查看完整更新日志：[CHANGELOG](https://github.com/hj01857655/kiro-gateway/commits/${{ github.ref_name }})
+            
+            ### 🔧 使用说明
+            
+            1. 下载对应平台的安装包
+            2. 安装后启动应用
+            3. 添加 Kiro 账号（支持从 Kiro IDE 导入）
+            4. 使用 `http://127.0.0.1:8080` 作为 API 端点
+            
+            ### 📚 文档
+            
+            - [快速开始](https://github.com/hj01857655/kiro-gateway#readme)
+            - [配置说明](https://github.com/hj01857655/kiro-gateway/tree/main/docs)
+            
+            ---
+            
+            **完整源码**: [kiro-gateway_dev](https://github.com/hj01857655/kiro-gateway_dev)
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
