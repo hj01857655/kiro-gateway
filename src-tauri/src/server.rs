@@ -726,11 +726,25 @@ async fn list_models(
                             m.get("modelId").and_then(|id| id.as_str()).map(|id| {
                                 // 移除 qdev:: 前缀
                                 let clean_id = id.strip_prefix("qdev::").unwrap_or(id);
-                                serde_json::json!({
+                                
+                                // 提取 tokenLimits 信息
+                                let mut model_info = serde_json::json!({
                                     "id": clean_id,
                                     "object": "model",
                                     "owned_by": "anthropic"
-                                })
+                                });
+                                
+                                // 如果有 tokenLimits，添加到响应中
+                                if let Some(token_limits) = m.get("tokenLimits") {
+                                    if let Some(max_input) = token_limits.get("maxInputTokens") {
+                                        model_info["max_input_tokens"] = max_input.clone();
+                                    }
+                                    if let Some(max_output) = token_limits.get("maxOutputTokens") {
+                                        model_info["max_output_tokens"] = max_output.clone();
+                                    }
+                                }
+                                
+                                model_info
                             })
                         })
                         .collect();
@@ -752,11 +766,25 @@ async fn list_models(
                                             m.get("modelId").and_then(|id| id.as_str()).map(|id| {
                                                 let clean_id =
                                                     id.strip_prefix("qdev::").unwrap_or(id);
-                                                serde_json::json!({
+                                                
+                                                // 提取 tokenLimits 信息
+                                                let mut model_info = serde_json::json!({
                                                     "id": clean_id,
                                                     "object": "model",
                                                     "owned_by": "anthropic"
-                                                })
+                                                });
+                                                
+                                                // 如果有 tokenLimits，添加到响应中
+                                                if let Some(token_limits) = m.get("tokenLimits") {
+                                                    if let Some(max_input) = token_limits.get("maxInputTokens") {
+                                                        model_info["max_input_tokens"] = max_input.clone();
+                                                    }
+                                                    if let Some(max_output) = token_limits.get("maxOutputTokens") {
+                                                        model_info["max_output_tokens"] = max_output.clone();
+                                                    }
+                                                }
+                                                
+                                                model_info
                                             })
                                         })
                                         .collect();

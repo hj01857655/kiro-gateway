@@ -216,8 +216,141 @@ $json | ConvertTo-Json -Depth 10
    - 查看请求的大小和响应时间
    - 优化 kiro-gateway 的性能
 
+## 日志文件详细分析
+
+### 1. q-client.log ⭐⭐⭐⭐⭐
+
+**最重要的日志**，记录完整的 Kiro API 请求和响应。
+
+**内容示例**：
+- 完整的 `conversationState` 结构（包含 conversationId、agentContinuationId、agentTaskType）
+- 工具调用和工具结果的完整流程
+- 配额查询（GetUsageLimitsCommand）
+- 流式响应（STREAMING_CONTENT）
+
+**用途**：
+- 验证请求格式是否正确
+- 调试 API 错误
+- 学习官方实现
+
+### 2. Kiro Logs.log
+
+**主日志文件**，记录 Kiro IDE 的运行状态。
+
+**内容示例**：
+```
+2026-01-19 03:26:52.134 [warning] [SteeringController] AGENTS.md file is not in a workspace folder
+2026-01-19 03:26:52.160 [info] [ChatFile] Wrote chat file
+2026-01-19 03:26:52.631 [error] [ProfileStorage] Error reading profile
+2026-01-19 03:26:56.618 [info] [AgentIterator] Synchronizing results
+2026-01-19 03:26:56.622 [info] [Steering] Populating steering for execution
+2026-01-19 03:27:47.487 [info] [Execution] Completed with abort
+```
+
+**关键信息**：
+- SteeringController - Steering 文件管理
+- ChatFile - 聊天文件保存
+- ProfileStorage - 配置文件读取
+- AgentIterator - Agent 执行流程
+- Execution - 执行状态（完成/中止）
+
+**用途**：
+- 调试 Steering 文件问题
+- 查看 Agent 执行流程
+- 排查配置文件错误
+
+### 3. KiroLLMLogs.log
+
+**LLM 提示词日志**，记录发送给 LLM 的完整提示词。
+
+**内容示例**：
+- 完整的系统提示词（System Prompt）
+- 用户消息（User Message）
+- AI 响应（AI Message）
+- 工具调用（Tool Calls）
+
+**关键发现**：
+- 系统提示词包含完整的 Kiro IDE 功能说明
+- 包含 Steering 规则、Hooks 规则、MCP 规则等
+- 可以看到 AI 的思考过程和工具调用
+
+**用途**：
+- 理解 Kiro IDE 的提示词工程
+- 学习如何构建 AI Agent 系统
+- 调试 AI 响应问题
+
+### 4. Kiro - MCP Logs.log
+
+**MCP 日志**，记录 Model Context Protocol 相关的日志。
+
+**内容示例**：
+```
+2026-01-19 01:51:34.454 [info] [chrome-devtools] MCP Tool Call
+  Tool: list_network_requests
+  Arguments: {"resourceTypes":["script"],"pageSize":50}
+  Consent Mechanism: auto
+
+2026-01-19 01:52:28.833 [info] [chrome-devtools] MCP Tool Call
+  Tool: get_network_request
+  Arguments: {"reqid":130}
+  Consent Mechanism: auto
+
+2026-01-19 01:52:51.465 [info] [chrome-devtools] MCP Tool Call
+  Tool: navigate_page
+  Arguments: {"type":"url","url":"https://..."}
+  Consent Mechanism: auto
+```
+
+**关键信息**：
+- MCP 工具调用记录（Tool Call）
+- 工具参数（Arguments）
+- 同意机制（Consent Mechanism: auto/manual）
+- Chrome DevTools MCP 的使用
+
+**用途**：
+- 调试 MCP 工具调用
+- 查看 MCP 服务器状态
+- 学习 MCP 工具的使用方式
+
+### 5. 5-Kiro - LLM PromptCompletion.log
+
+**LLM 完成日志**，记录 LLM 的完整响应。
+
+**大小**：875 KB
+
+**用途**：
+- 查看 LLM 的完整响应
+- 调试流式响应问题
+- 分析 Token 使用情况
+
+---
+
+## 日志分析总结
+
+**最有价值的日志**：
+1. **q-client.log** - API 请求/响应，必看
+2. **KiroLLMLogs.log** - 提示词工程，学习用
+3. **Kiro - MCP Logs.log** - MCP 工具调用，调试用
+4. **Kiro Logs.log** - 运行状态，排查问题用
+
+**日志查看技巧**：
+- 使用 `-Tail` 参数只看最后几行
+- 使用 `Select-String` 搜索关键词
+- 使用 `Sort-Object LastWriteTime` 找最新日志
+- 大文件（如 Kiro Logs.log）慎用 `Get-Content -Raw`
+
+**常见问题排查**：
+- API 错误 → 查 q-client.log
+- Steering 不生效 → 查 Kiro Logs.log
+- MCP 工具失败 → 查 Kiro - MCP Logs.log
+- AI 响应异常 → 查 KiroLLMLogs.log
+
+---
+
 ## 相关文档
 
 - Kiro IDE 源码分析：`.kiro/steering/kiro-ide-source.md`
 - Kiro API 规范：`docs/kiro-gate/kiro-api.md`
 - 消息清理规范：`.kiro/steering/message-sanitization.md`
+- Kiro API 请求结构：`.kiro/steering/kiro-api-request-structure.md`
+- Kiro API 完整流程：`.kiro/steering/kiro-api-flow-analysis.md`
