@@ -10,6 +10,29 @@ Kiro IDE 和 Kiro Account Manager 都实现了完整的消息清理逻辑（`san
 
 ---
 
+## Kiro API 请求格式
+
+Kiro API 使用**原生 history 字段**来传递历史消息，而不是将历史嵌入到 currentMessage 中。
+
+**请求结构**（来自 Kiro IDE 源码 extension.js:679288）：
+
+```typescript
+{
+  history: serializedMessages.slice(0, -1),  // 除最后一条外的所有消息
+  currentMessage: serializedMessages.at(-1),  // 最后一条消息
+  chatTriggerType: "MANUAL",
+  // ... 其他字段
+}
+```
+
+**关键点**：
+- `history` 字段包含除最后一条外的所有消息
+- `currentMessage` 字段包含最后一条消息（必须是 user 消息）
+- 消息清理（sanitizeConversation）在构建 history 之前执行
+- 清理后的消息列表会被拆分为 history 和 currentMessage
+
+---
+
 ## 标准占位消息
 
 Kiro 使用标准的占位消息来确保消息格式正确：
@@ -344,39 +367,41 @@ function hasToolUses(message) {
 
 ---
 
-## 我们的实现对比
+## 我们的实现状态
 
-### 已有的功能 ✅
+### ✅ 已完成的功能（v0.3.8）
 
+**基础功能**：
 - `trim_message_history` - 截断历史消息
 - `merge_adjacent_messages` - 合并相邻同角色消息
 - 确保以 user 消息开始和结束
 
-### 缺少的功能 ❌
+**消息清理（sanitizeConversation）**：
+- ✅ `ensure_starts_with_user_message` - 确保以 user 消息开始
+- ✅ `remove_empty_user_messages` - 移除空的 user 消息（保留第一条和有内容/tool results 的）
+- ✅ `reorder_tool_result_messages` - 重新排序 tool result 消息，确保紧跟在 tool use 之后
+- ✅ `ensure_valid_tool_uses_and_results` - 工具调用验证，自动添加失败消息
+- ✅ `ensure_alternating_messages` - 确保消息交替（user → assistant → user → assistant）
+- ✅ `ensure_ends_with_user_message` - 确保以 user 消息结束
+- ✅ `has_matching_tool_results` - 工具结果匹配检查
+- ✅ 标准占位消息 - Hello/Continue/understood
 
-1. **工具调用验证** - `ensureValidToolUsesAndResults`
-2. **标准占位消息** - Hello/Continue/understood
-3. **空消息移除** - `removeEmptyUserMessages`
-4. **工具结果重排序** - `reorderToolResultMessages`
-5. **工具结果匹配检查** - `hasMatchingToolResults`
+**原生 History 支持**：
+- ✅ 使用 Kiro API 原生的 `history` 字段传递历史消息
+- ✅ `history` 包含除最后一条外的所有消息
+- ✅ `currentMessage` 包含最后一条消息（必须是 user 消息）
+- ✅ 消息清理在构建 history 之前执行
 
----
+**实现位置**：
+- 文件：`src-tauri/src/converter.rs`
+- 函数：`sanitize_conversation()` - 消息清理
+- 函数：`reorder_tool_result_messages()` - 工具结果重排序
+- 函数：`build_kiro_payload()` - 构建请求，拆分 history 和 currentMessage
+- 调用位置：`build_kiro_payload()` 中，在 `merge_adjacent_messages()` 之后
 
-## 建议改进
+### ⚠️ 完整实现
 
-### 优先级 1（高）
-
-- **添加工具调用验证** - 确保每个 tool use 都有对应的 tool result
-- **使用标准占位符** - 用 "Hello"/"Continue"/"understood" 替代 "continue"
-
-### 优先级 2（中）
-
-- **改进空消息处理** - 实现 `removeEmptyUserMessages` 逻辑
-- **工具结果匹配检查** - 验证 tool use 和 tool result 的 ID 是否匹配
-
-### 优先级 3（低）
-
-- **工具结果重排序** - 确保 tool result 紧跟在 tool use 之后
+所有 Kiro IDE 的消息清理功能已全部实现，与官方实现完全一致。
 
 ---
 

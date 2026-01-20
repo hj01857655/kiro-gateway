@@ -952,6 +952,73 @@ fn remove_empty_user_messages(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
     }).map(|(_, msg)| msg).collect()
 }
 
+/// 重新排序 tool result 消息，确保它们紧跟在对应的 tool use 之后
+/// 参考 Kiro IDE 的 reorderToolResultMessages 实现
+fn reorder_tool_result_messages(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    use std::collections::{HashMap, HashSet};
+    
+    // 找出所有 tool use 和 tool result 的位置
+    let mut tool_use_indices = Vec::new();
+    let mut tool_result_indices: HashMap<String, usize> = HashMap::new();
+    
+    for (i, msg) in messages.iter().enumerate() {
+        // 记录 assistant 消息中的 tool uses
+        if msg.role == "assistant" && msg.tool_calls.is_some() {
+            tool_use_indices.push(i);
+        }
+        // 记录 user 消息中的 tool results
+        else if msg.role == "user" {
+            let tool_results = extract_tool_results(&msg.content);
+            for result in tool_results {
+                if !tool_result_indices.contains_key(&result.tool_use_id) {
+                    tool_result_indices.insert(result.tool_use_id.clone(), i);
+                }
+            }
+        }
+    }
+    
+    // 如果没有 tool use，直接返回
+    if tool_use_indices.is_empty() {
+        return messages;
+    }
+    
+    // 重新排序消息
+    let mut result = Vec::new();
+    let mut processed: HashSet<usize> = HashSet::new();
+    
+    for (i, msg) in messages.iter().enumerate() {
+        if processed.contains(&i) {
+            continue;
+        }
+        
+        result.push(msg.clone());
+        processed.insert(i);
+        
+        // 如果是 assistant 消息且有 tool uses，立即添加对应的 tool results
+        if msg.role == "assistant" {
+            if let Some(tool_calls) = &msg.tool_calls {
+                for tool_call in tool_calls {
+                    if let Some(&result_index) = tool_result_indices.get(&tool_call.id) {
+                        // 只有当 result 不在当前位置的下一个，且还没被处理时，才移动它
+                        if result_index != i + 1 && !processed.contains(&result_index) {
+                            result.push(messages[result_index].clone());
+                            processed.insert(result_index);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    tracing::debug!(
+        "[kiro-gateway] 工具结果重排序: {} -> {} 条消息",
+        messages.len(),
+        result.len()
+    );
+    
+    result
+}
+
 /// 确保消息交替（user → assistant → user → assistant）
 fn ensure_alternating_messages(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
     if messages.len() <= 1 {
@@ -1094,13 +1161,16 @@ pub fn sanitize_conversation(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
     // 2. 移除空的 user 消息
     sanitized = remove_empty_user_messages(sanitized);
     
-    // 3. 确保工具调用有对应结果
+    // 3. 重新排序 tool result 消息（确保紧跟在 tool use 之后）
+    sanitized = reorder_tool_result_messages(sanitized);
+    
+    // 4. 确保工具调用有对应结果
     sanitized = ensure_valid_tool_uses_and_results(sanitized);
     
-    // 4. 确保消息交替（user → assistant → user → assistant）
+    // 5. 确保消息交替（user → assistant → user → assistant）
     sanitized = ensure_alternating_messages(sanitized);
     
-    // 5. 确保以 user 消息结束
+    // 6. 确保以 user 消息结束
     sanitized = ensure_ends_with_user_message(sanitized);
     
     tracing::debug!(
