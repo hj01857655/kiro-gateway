@@ -168,19 +168,18 @@ Kiro 支持两种认证方式：
 **新格式**（2026-01-20 后）:
 ```json
 {
-  "accessToken": "eyJraWQ...",
-  "refreshToken": "aorAAAAA...",
+  "accessToken": "aoaAAAAA...",
   "expiresIn": 3600,
-  "aws_sso_app_session_id": null,
-  "idToken": null,
-  "issuedTokenType": null,
-  "originSessionId": null
+  "profileArn": "arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK",
+  "refreshToken": "aorAAAAA..."
 }
 ```
 
 **格式变更说明**：
-- Kiro API 新增了 4 个 AWS SSO 字段
-- 这些字段通常为 `null`，但可能在某些情况下有值
+- ✅ 新增了 `profileArn` 字段（之前认为 Social 账号没有 profileArn，现在确认有）
+- ✅ Social 账号的 `profileArn` 格式：`arn:aws:codewhisperer:{region}:{accountId}:profile/{profileId}`
+- ✅ 字段顺序变化：`accessToken` → `expiresIn` → `profileArn` → `refreshToken`
+- ❌ **没有** AWS SSO 字段（`aws_sso_app_session_id`、`idToken` 等）
 - kiro-gateway 已更新解析逻辑，兼容两种格式
 - 核心字段（`accessToken`、`refreshToken`、`expiresIn`）保持不变
 
@@ -500,10 +499,16 @@ fn is_idc(account: &Account) -> bool {
 
 ### 2026-01-20：Token 刷新响应格式更新
 
-**背景**：Kiro API 更新了 Token 刷新响应格式，新增了 AWS SSO 相关字段。
+**背景**：Kiro API 更新了 Token 刷新响应格式。
 
-**变更内容**：
-- Social 和 IDC 账号的刷新响应都新增了 4 个可选字段：
+**Social 账号变更**：
+- ✅ 新增了 `profileArn` 字段（之前认为 Social 账号没有，现在确认有）
+- ✅ `profileArn` 格式：`arn:aws:codewhisperer:{region}:{accountId}:profile/{profileId}`
+- ✅ 字段顺序变化：`accessToken` → `expiresIn` → `profileArn` → `refreshToken`
+- ❌ **没有** AWS SSO 字段（`aws_sso_app_session_id`、`idToken` 等）
+
+**IDC 账号变更**：
+- 新增了 4 个可选的 AWS SSO 字段：
   - `aws_sso_app_session_id` - AWS SSO 应用会话 ID
   - `idToken` - ID Token（OpenID Connect）
   - `issuedTokenType` - 发行的 Token 类型
@@ -518,12 +523,15 @@ fn is_idc(account: &Account) -> bool {
 **实现细节**：
 - 文件：`src-tauri/src/account.rs`
 - 更新了 `RefreshResponse` 和 `IdcRefreshResponse` 结构体
-- 新增字段使用 `#[serde(default)]` 标记，确保向后兼容
-- 日志中记录 AWS SSO 字段（如果存在），便于调试
+- Social 响应新增 `profile_arn` 字段（可选）
+- IDC 响应新增 AWS SSO 字段（可选）
+- 所有新增字段使用 `#[serde(default)]` 标记，确保向后兼容
+- 日志中记录这些字段（如果存在），便于调试
 
 **用户影响**：
 - 无需任何操作
 - Token 刷新继续正常工作
+- Social 账号现在会自动获取和保存 `profileArn`
 - 如果 AWS SSO 字段有值，会在日志中记录
 
 ---

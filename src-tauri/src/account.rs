@@ -857,7 +857,10 @@ impl AccountManager {
             access_token: String,
             refresh_token: Option<String>,
             expires_in: Option<i64>,
-            // AWS SSO 字段（可选，新格式中可能包含）
+            // 新格式中包含 profileArn
+            #[serde(default)]
+            profile_arn: Option<String>,
+            // AWS SSO 字段（IDC 账号可能包含，Social 账号没有）
             #[serde(default)]
             aws_sso_app_session_id: Option<String>,
             #[serde(default)]
@@ -878,6 +881,12 @@ impl AccountManager {
         account.access_token = data.access_token;
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;
+        }
+        // 更新 profileArn（如果响应中包含）
+        if let Some(profile_arn) = data.profile_arn {
+            if !profile_arn.is_empty() {
+                account.profile_arn = profile_arn;
+            }
         }
         // 按 IDE 的方式设置 expiresAt：转换为 ISO 8601 字符串
         let expires_at_ms = Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000);
