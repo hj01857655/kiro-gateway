@@ -93,7 +93,7 @@ Kiro 支持两种认证方式：
   "authMethod": "social",
   "provider": "Google",
   "region": "us-east-1",
-  "expiresAt": "2026-01-10T13:02:24+00:00",
+  "expiresAt": "2026-01-20T16:00:40Z",
   "profileArn": ""
 }
 ```
@@ -107,11 +107,16 @@ Kiro 支持两种认证方式：
   "authMethod": "IdC",
   "provider": "BuilderId",
   "region": "us-east-1",
-  "expiresAt": "2026-01-10T13:02:24+00:00",
+  "expiresAt": "2026-01-20T16:00:40Z",
   "profileArn": "arn:aws:codewhisperer:us-east-1:123456789:profile/xxx",
   "clientIdHash": "abc123..."
 }
 ```
+
+**expiresAt 格式说明**：
+- 格式：ISO 8601 字符串（RFC 3339）
+- 示例：`"2026-01-20T16:00:40Z"`
+- 与 Kiro IDE 的 `kiro-auth-token.json` 格式一致
 
 **关键区别**：
 - `authMethod`: `social` vs `IdC`
