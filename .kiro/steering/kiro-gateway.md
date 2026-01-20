@@ -488,7 +488,7 @@ fn get_app_data_dir(app_handle: &AppHandle) -> Result<PathBuf, Box<dyn std::erro
 ### 仓库架构
 
 - **私有仓库** (`kiro-gateway_dev`): 
-  - 所有开发代码提交到 `main` 分支
+  - 所有开发代码提交到 `dev` 分支
   - **没有** `.github/workflows/` 配置文件
   - 不触发 GitHub Actions，节省私有仓库额度
   - 源码保持私有，不对外公开
@@ -498,55 +498,49 @@ fn get_app_data_dir(app_handle: &AppHandle) -> Result<PathBuf, Box<dyn std::erro
   - **有** `.github/workflows/release.yml` 配置
   - 通过 tag 触发 Actions 自动构建
   - 使用公开仓库的免费 Actions 额度
+  - **完全独立的仓库**，不与私有仓库共享提交历史
+
+### 远程仓库配置
+
+**本地只关联私有仓库**：
+
+```bash
+# 正确的配置（只有 origin）
+origin  https://github.com/hj01857655/kiro-gateway_dev.git (fetch)
+origin  https://github.com/hj01857655/kiro-gateway_dev.git (push)
+```
+
+**严禁配置**：
+- ❌ 不要添加公开仓库为远程仓库（如 `release`）
+- ❌ 不要从本地推送任何内容到公开仓库
+- ❌ 不要执行 `git push release <branch>` 或 `git push release <tag>`
+
+**原因**：
+- 当执行 `git push release v0.4.0` 时，Git 会把 tag 指向的整个提交历史都推送到公开仓库
+- 这会导致源码泄露到公开仓库
+- 公开仓库应该完全独立管理，不从本地推送
 
 ### 发布流程
+
+**重要提示**：由于公开仓库和私有仓库完全独立，当前暂时不支持自动发布。需要手动构建和发布。
 
 #### 1. 日常开发（私有仓库）
 ```bash
 # 开发和提交代码
 git add -A
 git commit -m "feat: 新功能"
-git push origin main
+git push origin dev
 ```
 
-#### 2. 版本发布（公开仓库）
-```bash
-# 更新版本号
-# - src-tauri/Cargo.toml: version = "0.1.1"
-# - src-tauri/tauri.conf.json: version = "0.1.1"
+#### 2. 版本发布（待定）
+当前发布流程需要重新设计，避免源码泄露到公开仓库。
 
-# 提交版本更新
-git add -A
-git commit -m "chore: bump version to 0.1.1"
-git push origin main
+可能的方案：
+1. 手动构建后上传到 GitHub Release
+2. 使用 GitHub Actions 的 workflow_dispatch 手动触发
+3. 公开仓库的 Actions 通过 GitHub Token 访问私有仓库代码
 
-# 创建并推送 tag 到公开仓库
-git tag v0.1.1
-git push release v0.1.1  # 只推送 tag，不推送代码
-```
-
-#### 3. 自动构建
-- 公开仓库检测到 tag 推送
-- GitHub Actions 自动触发
-- `actions/checkout@v4` 自动拉取 tag 对应的代码
-- 构建 Windows/macOS/Linux 安装包
-- 创建 GitHub Release 并上传
-
-#### 4. 清理失败的构建（如果失败）
-```bash
-# 删除失败的 Actions 运行记录
-gh run list --repo hj01857655/kiro-gateway --status failure --json databaseId --jq '.[].databaseId' | ForEach-Object { gh run delete $_ --repo hj01857655/kiro-gateway }
-
-# 删除失败的 Release（如果存在）
-gh release delete v0.1.1 --repo hj01857655/kiro-gateway --yes
-
-# 删除失败的 tag
-git push release --delete v0.1.1
-
-# 重新发布
-git tag v0.1.1
-git push release v0.1.1
-```
+**暂时不要推送 tag 到公开仓库！**
 
 ### 核心优势
 
