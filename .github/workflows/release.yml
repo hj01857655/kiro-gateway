@@ -8,8 +8,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +29,7 @@ jobs:
             args: ''
 
     runs-on: ${{ matrix.platform }}
+    name: Build for ${{ matrix.platform }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -53,6 +59,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        env:
+          DEBIAN_FRONTEND: noninteractive
 
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
