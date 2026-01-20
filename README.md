@@ -66,7 +66,7 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 - **手动添加**：
   - Social 账号：只需填写 Refresh Token
   - IDC 账号：需填写 Client ID、Client Secret、Refresh Token
-- **批量导入**：支持 JSON 文件导入
+- **批量导入**：支持 JSON 文件导入（格式见下方"配置说明"章节）
 
 ### 3. 配置客户端
 
@@ -176,11 +176,13 @@ PORT=8080
 - 使用桌面应用的"导入账号"功能
 - 自动从 `~/.aws/sso/cache/kiro-auth-token.json` 读取
 
-**方式 2：手动配置**
+**方式 2：批量导入 JSON 文件**
 
-在用户数据目录创建 `accounts.json`：
+在桌面应用的"账号管理"页面，点击"批量导入"按钮，选择 JSON 文件。
 
-**Social 账号示例**：
+**最小化 JSON 格式**（只包含必要字段）：
+
+Social 账号：
 ```json
 [
   {
@@ -190,7 +192,7 @@ PORT=8080
 ]
 ```
 
-**IDC 账号示例**：
+IDC 账号：
 ```json
 [
   {
@@ -250,6 +252,10 @@ PORT=8080
 - 已加密的数据格式为 JSON 对象：`{"ciphertext":"...","nonce":"..."}`
 - 不要手动编辑已加密的字段
 - `accessToken` 和 `expiresAt` 不需要填写，会自动通过 `refreshToken` 获取
+
+**方式 3：手动创建配置文件**
+
+在用户数据目录创建 `accounts.json`（格式同上）。
 
 ## API 端点
 
