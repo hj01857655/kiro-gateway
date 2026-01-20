@@ -45,6 +45,11 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
+      - name: Setup Rust build optimization
+        run: |
+          echo "CARGO_BUILD_JOBS=$(nproc)" >> $GITHUB_ENV
+        shell: bash
+
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
