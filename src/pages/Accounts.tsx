@@ -830,7 +830,7 @@ export default function Accounts() {
           </Tabs.Panel>
 
           <Tabs.Panel value="import">
-            <Stack gap="md" style={{ minHeight: '600px' }}>
+            <Stack gap="md">
               <Text size="sm" c="dimmed">
                 支持 JSON 输入或文件上传，可导入单个账号或批量导入
               </Text>
@@ -852,7 +852,8 @@ export default function Accounts() {
                 placeholder="粘贴 JSON 配置..."
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                minRows={28}
+                minRows={12}
+                maxRows={16}
                 autosize
                 styles={{
                   input: {
@@ -862,7 +863,7 @@ export default function Accounts() {
                   }
                 }}
               />
-              <Group justify="flex-end" mt="auto">
+              <Group justify="flex-end" mt="md">
                 <Button variant="light" onClick={() => setShowAddModal(false)}>
                   取消
                 </Button>
