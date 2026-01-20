@@ -110,12 +110,19 @@ impl KiroClient {
             }
             Err(AppError::BadRequest(ref msg)) if msg.contains("CONTENT_LENGTH_EXCEEDS_THRESHOLD") => {
                 // 内容长度超限，自动截断历史消息并重试
-                warn!("内容长度超限，截断历史消息后重试...");
+                warn!("内容长度超限，尝试截断历史消息...");
                 
                 // 截断历史消息（只保留最后一对对话）
                 if let Some(ref mut history) = request.conversation_state.history {
+                    if history.is_empty() {
+                        warn!("历史消息为空，无法截断");
+                        return Err(AppError::BadRequest(msg.clone()));
+                    }
+                    
                     use crate::converter::trim_message_history;
                     use crate::models::ChatMessage;
+                    
+                    info!("原始历史消息数量: {}", history.len());
                     
                     // 将 HistoryItem 转换为 ChatMessage 进行截断
                     let mut messages: Vec<ChatMessage> = Vec::new();
@@ -142,6 +149,13 @@ impl KiroClient {
                     
                     // 截断消息
                     let trimmed = trim_message_history(&messages);
+                    
+                    if trimmed.len() >= messages.len() {
+                        warn!("截断后消息数量未减少（{} -> {}），无法继续优化", messages.len(), trimmed.len());
+                        return Err(AppError::BadRequest("历史消息已是最小，但仍超过长度限制".to_string()));
+                    }
+                    
+                    info!("截断后历史消息数量: {}", trimmed.len());
                     
                     // 转换回 HistoryItem
                     let mut new_history = Vec::new();
@@ -181,20 +195,15 @@ impl KiroClient {
                     }
                     
                     *history = new_history;
-                    info!("历史消息已截断，重试请求...");
+                    info!("历史消息已截断，重新发起请求...");
                     
-                    // 重试请求
-                    return self.generate_with_timeout(
-                        request,
-                        &account,
-                        accounts,
-                        first_token_timeout,
-                        stream_timeout,
-                    ).await;
+                    // 递归调用 generate_with_refresh 以便再次捕获可能的错误
+                    // 使用 Box::pin 避免无限大小的 future
+                    return Box::pin(self.generate_with_refresh(request, accounts, model)).await;
                 } else {
-                    // 没有历史消息，无法截断
-                    warn!("没有历史消息可截断，返回错误");
-                    Err(AppError::BadRequest(msg.clone()))
+                    // 没有历史消息，可能是当前消息本身太长
+                    warn!("没有历史消息，可能是当前消息内容过长");
+                    Err(AppError::BadRequest("当前消息内容过长，无法处理".to_string()))
                 }
             }
             Err(e) => Err(e),
