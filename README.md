@@ -42,7 +42,7 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 | 平台 | 下载链接 |
 |------|---------|
-| 🪟 **Windows** | [kiro-gateway_x64-setup.exe](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64-setup.exe) |
+| 🪟 **Windows** | [kiro-gateway_x64-setup.msi](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64-setup.msi) |
 | 🍎 **macOS (Intel)** | [kiro-gateway_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64.dmg) |
 | 🍎 **macOS (Apple Silicon)** | [kiro-gateway_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_aarch64.dmg) |
 | 🐧 **Linux (AppImage)** | [kiro-gateway_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.AppImage) |
