@@ -25,8 +25,9 @@ Kiro 支持两种认证方式：
 
 ## 手动添加账号所需字段
 
-### Social 账号（1个字段）
+### Social 账号（2个字段）
 - **Refresh Token** - 刷新令牌
+- **Profile ARN** - 配置文件 ARN
 
 ### IDC 账号（3个字段）
 - **Client ID** - 客户端 ID
@@ -35,7 +36,6 @@ Kiro 支持两种认证方式：
 
 **注意**：
 - 两种账号都不需要手动输入 Access Token（会自动通过 Refresh Token 获取）
-- Profile ARN 不是手动输入的字段
 
 ---
 
