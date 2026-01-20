@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 use tracing::{info, warn};
 
+use crate::encryption::EncryptionManager;
 use crate::error::AppError;
 use crate::token_allocator::SmartTokenAllocator;
 
@@ -172,6 +173,8 @@ pub struct AccountManager {
     allocator: Arc<SmartTokenAllocator>,
     // Token 刷新锁（防止竞态条件）
     refresh_locks: Arc<parking_lot::Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    // 加密管理器
+    encryption: Option<Arc<EncryptionManager>>,
 }
 
 impl Default for AccountManager {
@@ -190,7 +193,13 @@ impl AccountManager {
             save_task_running: Arc::new(Mutex::new(false)),
             allocator: Arc::new(SmartTokenAllocator::new()),
             refresh_locks: Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new())),
+            encryption: None,
         }
+    }
+
+    /// 设置加密管理器
+    pub fn set_encryption(&mut self, encryption: Arc<EncryptionManager>) {
+        self.encryption = Some(encryption);
     }
 
     /// 获取智能分配器（用于外部访问统计数据）

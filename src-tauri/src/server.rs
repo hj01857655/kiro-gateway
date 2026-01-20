@@ -241,11 +241,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
             "/config/server",
             get(admin_get_server_config).post(admin_update_server_config),
         )
-        .route("/token", get(admin_get_token))
-        .route_layer(middleware::from_fn_with_state(
-            Arc::clone(&state),
-            admin_auth_middleware,
-        ));
+        .route("/token", get(admin_get_token));
 
     let app = Router::new()
         .route("/v1/chat/completions", post(chat_completions))
@@ -349,6 +345,13 @@ fn verify_admin_token(headers: &HeaderMap, state: &AppState) -> Result<(), AppEr
             Err(AppError::BadRequest("Admin Token 未配置".into()))
         }
     }
+}
+
+// 宏：简化 admin handler 的认证检查
+macro_rules! require_admin_auth {
+    ($headers:expr, $state:expr) => {
+        verify_admin_token($headers, $state)?
+    };
 }
 
 async fn chat_completions(
@@ -745,15 +748,17 @@ async fn admin_get_accounts(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    verify_admin_token(&headers, &state)?;
+    require_admin_auth!(&headers, &state);
     let accounts = state.accounts.list_accounts();
     Ok(Json(serde_json::json!({ "accounts": accounts })))
 }
 
 async fn admin_add_account(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(account): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
     // 解析账号数据
     let account: crate::account::Account = serde_json::from_value(account)
         .map_err(|e| AppError::BadRequest(format!("账号数据格式错误: {}", e)))?;
@@ -778,8 +783,10 @@ async fn admin_add_account(
 
 async fn admin_update_account(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
     let id = payload
         .get("id")
         .and_then(|v| v.as_str())
@@ -818,8 +825,10 @@ async fn admin_update_account(
 
 async fn admin_delete_account(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
     // 删除账号
     state.accounts.delete_account(&id)?;
 
@@ -832,29 +841,52 @@ async fn admin_delete_account(
 
 async fn admin_refresh_account(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     state.accounts.refresh_account(&id).await?;
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
-async fn admin_get_metrics() -> Json<serde_json::Value> {
+async fn admin_get_metrics(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let metrics = crate::metrics::METRICS.get_metrics();
-    Json(serde_json::to_value(metrics).unwrap_or_default())
+    Ok(Json(serde_json::to_value(metrics).unwrap_or_default()))
 }
 
-async fn admin_get_logs() -> Json<serde_json::Value> {
+async fn admin_get_logs(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let logs = crate::logger::get_logs().await;
-    Json(serde_json::json!(logs))
+    Ok(Json(serde_json::json!(logs)))
 }
 
-async fn admin_clear_logs() -> Json<serde_json::Value> {
+async fn admin_clear_logs(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     crate::logger::clear_logs().await;
-    Json(serde_json::json!({"success": true}))
+    Ok(Json(serde_json::json!({"success": true})))
 }
 
 // 获取健康检查状态
-async fn admin_get_health(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn admin_get_health(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let accounts = state.accounts.list_accounts();
     let allocator = state.accounts.get_allocator();
     let stats = allocator.get_all_stats();
@@ -878,17 +910,20 @@ async fn admin_get_health(State(state): State<Arc<AppState>>) -> Json<serde_json
         })
         .collect();
 
-    Json(serde_json::json!({
+    Ok(Json(serde_json::json!({
         "accounts": health_info,
         "total": accounts.len(),
         "available": accounts.iter().filter(|a| a.is_available()).count(),
-    }))
+    })))
 }
 
 // 手动触发健康检查
 async fn admin_check_health(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let summary = state
         .health_checker
         .check_all_accounts()
@@ -904,7 +939,12 @@ async fn admin_check_health(
 }
 
 // 获取智能分配器统计
-async fn admin_get_allocator_stats(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn admin_get_allocator_stats(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let allocator = state.accounts.get_allocator();
     let stats = allocator.get_all_stats();
 
@@ -921,16 +961,19 @@ async fn admin_get_allocator_stats(State(state): State<Arc<AppState>>) -> Json<s
         })
         .collect();
 
-    Json(serde_json::json!({
+    Ok(Json(serde_json::json!({
         "stats": stats_list
-    }))
+    })))
 }
 
 // 获取账号配额
 async fn admin_get_quota(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     // 先检查缓存（5 分钟内有效）
     if let Some(cached_quota) = state.accounts.get_quota_cache(&id) {
         info!("使用账号 {} 的配额缓存", id);
@@ -992,7 +1035,10 @@ async fn admin_get_quota(
 // 从 Kiro IDE 缓存导入账号
 async fn admin_import_accounts(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     // 获取用户主目录
     let home = dirs::home_dir().ok_or_else(|| AppError::BadRequest("无法获取用户目录".into()))?;
 
@@ -1111,15 +1157,23 @@ async fn admin_import_accounts(
 }
 
 // API Key 管理端点
-async fn admin_list_api_keys(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn admin_list_api_keys(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let keys = state.api_keys.list_keys();
-    Json(serde_json::json!({ "keys": keys }))
+    Ok(Json(serde_json::json!({ "keys": keys })))
 }
 
 async fn admin_generate_api_key(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let name = payload
         .get("name")
         .and_then(|v| v.as_str())
@@ -1139,17 +1193,23 @@ async fn admin_generate_api_key(
 
 async fn admin_delete_api_key(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     state.api_keys.delete_key(&id)?;
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
 async fn admin_update_api_key(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     if let Some(enabled) = payload.get("enabled").and_then(|v| v.as_bool()) {
         state.api_keys.set_key_enabled(&id, enabled)?;
         Ok(Json(serde_json::json!({ "success": true })))
@@ -1161,8 +1221,11 @@ async fn admin_update_api_key(
 // 生成配置包
 async fn admin_generate_config(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     // 获取 API Key（可选，如果不提供则生成新的）
     let api_key = if let Some(key) = payload.get("apiKey").and_then(|v| v.as_str()) {
         key.to_string()
@@ -1187,7 +1250,12 @@ async fn admin_generate_config(
 }
 
 // 获取服务器配置
-async fn admin_get_server_config(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn admin_get_server_config(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     // 获取实际使用的文件路径
     let accounts_file = state.accounts.get_accounts_file().unwrap_or_else(|| "未设置".to_string());
     let api_keys_file = state.api_keys.get_keys_file().unwrap_or_else(|| "未设置".to_string());
@@ -1197,20 +1265,23 @@ async fn admin_get_server_config(State(state): State<Arc<AppState>>) -> Json<ser
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| "无法获取".to_string());
     
-    Json(serde_json::json!({
+    Ok(Json(serde_json::json!({
         "host": state.config.host,
         "port": state.config.port,
         "dataDir": data_dir,
         "accountsFile": accounts_file,
         "apiKeysFile": api_keys_file,
-    }))
+    })))
 }
 
 // 更新服务器配置
 async fn admin_update_server_config(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let host = payload
         .get("host")
         .and_then(|v| v.as_str())
@@ -1290,9 +1361,14 @@ async fn admin_update_server_config(
 }
 
 // 获取 Admin Token（用于前端显示）
-async fn admin_get_token(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn admin_get_token(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_admin_auth!(&headers, &state);
+    
     let token = state.admin_token.read();
-    Json(serde_json::json!({
+    Ok(Json(serde_json::json!({
         "token": token.as_ref().unwrap_or(&String::new())
-    }))
+    })))
 }

@@ -22,6 +22,7 @@ struct EncryptedData {
 
 pub struct EncryptionManager {
     cipher: Aes256Gcm,
+    #[allow(dead_code)]
     key_file: PathBuf,
 }
 
