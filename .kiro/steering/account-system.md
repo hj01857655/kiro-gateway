@@ -25,17 +25,48 @@ Kiro 支持两种认证方式：
 
 ## 手动添加账号所需字段
 
-### Social 账号（1个字段）
-- **Refresh Token** - 刷新令牌
+### Social 账号
 
-### IDC 账号（3个字段）
-- **Client ID** - 客户端 ID
-- **Client Secret** - 客户端密钥
-- **Refresh Token** - 刷新令牌
+**必要字段（1个）**：
+- `refreshToken` - 刷新令牌
 
-**注意**：
-- 两种账号都不需要手动输入 Access Token（会自动通过 Refresh Token 获取）
-- Social 账号的 Profile ARN 字段为空字符串，不需要手动输入
+**可选字段**：
+- `name` - 账号名称（默认：My Social Account）
+- `region` - 区域（默认：us-east-1）
+
+**自动生成字段**：
+- `id` - 账号 ID（UUID）
+- `authMethod` - 认证方式（固定为 "social"）
+- `profileArn` - 配置文件 ARN（固定为空字符串 ""）
+- `accessToken` - 访问令牌（通过 refreshToken 自动获取）
+- `expiresAt` - 过期时间（自动计算）
+- `status` - 账号状态（默认：active）
+- `enabled` - 是否启用（默认：true）
+
+### IDC 账号
+
+**必要字段（3个）**：
+- `clientId` - 客户端 ID
+- `clientSecret` - 客户端密钥
+- `refreshToken` - 刷新令牌
+
+**可选字段**：
+- `name` - 账号名称（默认：My IDC Account）
+- `profileArn` - 配置文件 ARN（可选，如果有的话）
+- `region` - 区域（默认：us-east-1）
+
+**自动生成字段**：
+- `id` - 账号 ID（UUID）
+- `authMethod` - 认证方式（固定为 "IdC"）
+- `accessToken` - 访问令牌（通过 refreshToken 自动获取）
+- `expiresAt` - 过期时间（自动计算）
+- `status` - 账号状态（默认：active）
+- `enabled` - 是否启用（默认：true）
+
+**注意事项**：
+- 所有敏感字段（`refreshToken`、`accessToken`、`clientSecret`）会在保存时自动加密
+- `accessToken` 不需要手动输入，会在首次使用时通过 `refreshToken` 自动获取
+- `expiresAt` 会在 Token 刷新后自动更新
 
 ---
 
