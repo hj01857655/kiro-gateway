@@ -1,12 +1,9 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., v0.4.0)'
-        required: true
-        type: string
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -62,8 +59,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ inputs.version }}
-          releaseName: 'Kiro Gateway ${{ inputs.version }}'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Kiro Gateway ${{ github.ref_name }}'
           releaseBody: 'See the assets to download and install this version.'
           releaseDraft: true
           prerelease: false
@@ -85,25 +82,25 @@ jobs:
         run: |
           cat > latest.json << EOF
           {
-            "version": "${{ inputs.version }}",
+            "version": "${{ github.ref_name }}",
             "notes": "See the release notes for details.",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "windows-x86_64": {
                 "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_x64-setup.msi.zip"
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_x64-setup.msi.zip"
               },
               "linux-x86_64": {
                 "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_amd64.AppImage.tar.gz"
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_amd64.AppImage.tar.gz"
               },
               "darwin-x86_64": {
                 "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_x64.app.tar.gz"
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_x64.app.tar.gz"
               },
               "darwin-aarch64": {
                 "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_aarch64.app.tar.gz"
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_aarch64.app.tar.gz"
               }
             }
           }
