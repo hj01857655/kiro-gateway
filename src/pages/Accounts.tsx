@@ -116,6 +116,9 @@ export default function Accounts() {
     try {
       const quota = await accountsApi.getQuota(accountId)
       setQuotaCache((prev) => ({ ...prev, [accountId]: quota }))
+      
+      // 配额查询后刷新账号列表（状态可能已更新为 quotaexhausted）
+      refetch()
     } catch (error) {
       // 静默失败，使用缓存的配额信息
       logger.warn(`获取账号 ${accountId} 配额失败:`, error)
