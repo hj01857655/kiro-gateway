@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use crate::error::AppError;
 
@@ -297,5 +295,22 @@ impl SessionManager {
             .collect();
         
         Ok(results)
+    }
+
+    /// 创建新会话
+    pub async fn create_session(&self, title: String, workspace_dir: Option<String>) -> Result<Session, AppError> {
+        let session = Session::new(title, workspace_dir);
+        self.save_session(&session).await?;
+        Ok(session)
+    }
+
+    /// 获取会话详情
+    pub async fn get_session(&self, session_id: &str, workspace_dir: Option<&str>) -> Result<Session, AppError> {
+        self.load_session(session_id, workspace_dir).await
+    }
+
+    /// 更新会话
+    pub async fn update_session(&self, session: &Session) -> Result<(), AppError> {
+        self.save_session(session).await
     }
 }

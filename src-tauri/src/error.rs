@@ -93,6 +93,11 @@ impl IntoResponse for AppError {
                 "server_error",
                 self.to_string(),
             ),
+            AppError::NotFound(_) => (
+                StatusCode::NOT_FOUND,
+                "not_found",
+                self.to_string(),
+            ),
         };
 
         let body = json!({

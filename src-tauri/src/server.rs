@@ -1566,8 +1566,10 @@ async fn admin_get_token(
 // 列出所有会话
 async fn admin_list_sessions(
     State(state): State<Arc<AppState>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let sessions = state.sessions.list_sessions().await;
+    let workspace_dir = params.get("workspace").map(|s| s.as_str());
+    let sessions = state.sessions.list_sessions(workspace_dir).await?;
     Ok(Json(serde_json::json!({
         "sessions": sessions,
         "total": sessions.len()
@@ -1579,13 +1581,18 @@ async fn admin_create_session(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let model = payload
-        .get("model")
+    let title = payload
+        .get("title")
         .and_then(|v| v.as_str())
-        .unwrap_or("claude-sonnet-4.5")
+        .unwrap_or("New Session")
         .to_string();
+    
+    let workspace_dir = payload
+        .get("workspaceDirectory")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
-    let session = state.sessions.create_session(model).await?;
+    let session = state.sessions.create_session(title, workspace_dir).await?;
     Ok(Json(serde_json::json!({
         "success": true,
         "session": session
@@ -1596,8 +1603,10 @@ async fn admin_create_session(
 async fn admin_get_session(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let session = state.sessions.get_session(&id).await?;
+    let workspace_dir = params.get("workspace").map(|s| s.as_str());
+    let session = state.sessions.get_session(&id, workspace_dir).await?;
     Ok(Json(serde_json::to_value(session).unwrap_or_default()))
 }
 
@@ -1605,30 +1614,25 @@ async fn admin_get_session(
 async fn admin_update_session(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let mut session = state.sessions.get_session(&id).await?;
+    let workspace_dir = params.get("workspace").map(|s| s.as_str());
+    let mut session = state.sessions.get_session(&id, workspace_dir).await?;
 
     // 更新标题
     if let Some(title) = payload.get("title").and_then(|v| v.as_str()) {
         session.title = title.to_string();
     }
 
-    // 更新上下文使用率
-    if let Some(usage) = payload.get("contextUsagePercentage").and_then(|v| v.as_f64()) {
-        session.update_context_usage(usage);
-    }
-
-    // 更新 token 使用量
-    if let Some(tokens) = payload.get("tokens").and_then(|v| v.as_u64()) {
-        session.update_tokens(tokens);
+    // 更新隐藏状态
+    if let Some(hidden) = payload.get("hidden").and_then(|v| v.as_bool()) {
+        session.hidden = hidden;
     }
 
     // 添加消息到历史
     if let Some(message) = payload.get("message") {
-        if let Ok(chat_message) = serde_json::from_value::<crate::models::ChatMessage>(message.clone()) {
-            session.add_message(chat_message);
-        }
+        session.history.push(message.clone());
     }
 
     // 保存更新
@@ -1644,8 +1648,10 @@ async fn admin_update_session(
 async fn admin_delete_session(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    state.sessions.delete_session(&id).await?;
+    let workspace_dir = params.get("workspace").map(|s| s.as_str());
+    state.sessions.delete_session(&id, workspace_dir).await?;
     Ok(Json(serde_json::json!({
         "success": true
     })))
@@ -1657,7 +1663,8 @@ async fn admin_search_sessions(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let query = params.get("q").map(|s| s.as_str()).unwrap_or("");
-    let sessions = state.sessions.search_sessions(query).await;
+    let workspace_dir = params.get("workspace").map(|s| s.as_str());
+    let sessions = state.sessions.search_sessions(query, workspace_dir).await?;
     Ok(Json(serde_json::json!({
         "sessions": sessions,
         "total": sessions.len(),
