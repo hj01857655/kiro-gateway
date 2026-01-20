@@ -1,17 +1,18 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.4.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    permissions:
-      contents: write
+  build:
     strategy:
       fail-fast: false
       matrix:
@@ -27,9 +28,14 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout private repository
+        uses: actions/checkout@v4
+        with:
+          repository: hj01857655/kiro-gateway_dev
+          ref: dev
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -39,20 +45,6 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
-      - name: Setup Rust build optimization
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
-        shell: bash
-
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -60,121 +52,64 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install frontend dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
-      - uses: tauri-apps/tauri-action@v0.5.14
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'kiro-gateway v__VERSION__'
-          releaseBody: |
-            ## 🎉 kiro-gateway v__VERSION__
-            
-            Kiro API 网关 - OpenAI/Anthropic 兼容接口
-            
-            ### 📦 下载安装
-            
-            - **Windows**: `kiro-gateway_*_x64-setup.msi`
-            - **macOS (Apple Silicon)**: `kiro-gateway_*_aarch64.dmg`
-            - **macOS (Intel)**: `kiro-gateway_*_x64.dmg`
-            - **Linux**: `kiro-gateway_*_amd64.deb` 或 `.AppImage`
-            
-            ### ✨ 主要功能
-            
-            - ✅ OpenAI Chat Completions API 完全兼容
-            - ✅ Anthropic Messages API 完全兼容
-            - ✅ 多账号管理和自动轮询
-            - ✅ Token 自动刷新（Social/IDC）
-            - ✅ 流式响应和工具调用支持
-            - ✅ 图形化管理界面
-            - ✅ 日志查看和统计监控
-            
-            ### 📝 更新日志
-            
-            查看完整更新日志：[CHANGELOG](https://github.com/hj01857655/kiro-gateway/commits/${{ github.ref_name }})
-            
-            ### 🔧 使用说明
-            
-            1. 下载对应平台的安装包
-            2. 安装后启动应用
-            3. 添加 Kiro 账号（支持从 Kiro IDE 导入）
-            4. 使用 `http://127.0.0.1:8080` 作为 API 端点
-            
-            ### 📚 文档
-            
-            - [快速开始](https://github.com/hj01857655/kiro-gateway#readme)
-            - [配置说明](https://github.com/hj01857655/kiro-gateway/tree/main/docs)
-          releaseDraft: false
+          tagName: ${{ inputs.version }}
+          releaseName: 'Kiro Gateway ${{ inputs.version }}'
+          releaseBody: 'See the assets to download and install this version.'
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-          # 不在矩阵构建中生成 updater 文件，在后续单独生成
-          includeUpdaterJson: false
+        continue-on-error: true
 
-  # 所有平台构建完成后，从 Release 资源生成 latest.json
-  generate-updater-json:
-    needs: release
+      - name: Upload build artifacts (if build succeeded)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle/
+
+  create-release-info:
+    needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Release Assets
+      - name: Create latest.json
         run: |
-          mkdir -p ./release-assets
-          gh release download ${{ github.ref_name }} --dir ./release-assets --pattern "*.sig"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
-      - name: Generate latest.json
-        run: |
-          # 获取版本号（去掉 v 前缀）
-          VERSION="${{ github.ref_name }}"
-          VERSION=${VERSION#v}
-          
-          # 获取发布日期（RFC 3339 格式）
-          PUB_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          
-          # 读取签名文件
-          WINDOWS_SIG=$(cat ./release-assets/Kiro.Gateway_*_x64-setup.msi.sig 2>/dev/null || echo "")
-          LINUX_DEB_SIG=$(cat ./release-assets/Kiro.Gateway_*_amd64.deb.sig 2>/dev/null || echo "")
-          LINUX_APPIMAGE_SIG=$(cat ./release-assets/Kiro.Gateway_*_amd64.AppImage.sig 2>/dev/null || echo "")
-          MACOS_AARCH64_SIG=$(cat ./release-assets/Kiro.Gateway_*_aarch64.app.tar.gz.sig 2>/dev/null || echo "")
-          MACOS_X64_SIG=$(cat ./release-assets/Kiro.Gateway_*_x64.app.tar.gz.sig 2>/dev/null || echo "")
-          
-          # 生成 latest.json
           cat > latest.json << EOF
           {
-            "version": "$VERSION",
-            "pub_date": "$PUB_DATE",
+            "version": "${{ inputs.version }}",
+            "notes": "See the release notes for details.",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "windows-x86_64": {
-                "signature": "$WINDOWS_SIG",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_x64-setup.msi"
+                "signature": "",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_x64-setup.msi.zip"
               },
               "linux-x86_64": {
-                "signature": "$LINUX_DEB_SIG",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_amd64.deb"
-              },
-              "darwin-aarch64": {
-                "signature": "$MACOS_AARCH64_SIG",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_aarch64.app.tar.gz"
+                "signature": "",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_amd64.AppImage.tar.gz"
               },
               "darwin-x86_64": {
-                "signature": "$MACOS_X64_SIG",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_x64.app.tar.gz"
+                "signature": "",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_x64.app.tar.gz"
+              },
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ inputs.version }}/kiro-gateway_aarch64.app.tar.gz"
               }
             }
           }
           EOF
-          
-          cat latest.json
 
-      - name: Upload latest.json to Release
-        run: |
-          gh release upload ${{ github.ref_name }} latest.json --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Upload latest.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-json
+          path: latest.json
