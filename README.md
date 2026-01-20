@@ -6,12 +6,12 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，提供 OpenAI/Anthropic
 
 **最新版本**（永久链接）：https://github.com/hj01857655/kiro-gateway/releases/latest
 
-**各平台下载**：
-- **Windows**：[kiro-gateway_x64-setup.exe](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_x64-setup.exe)
-- **macOS (Intel)**：[kiro-gateway_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_x64.dmg)
-- **macOS (Apple Silicon)**：[kiro-gateway_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_aarch64.dmg)
-- **Linux (AppImage)**：[kiro-gateway_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_amd64.AppImage)
-- **Linux (deb)**：[kiro-gateway_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_amd64.deb)
+**各平台下载**（自动下载最新版本）：
+- **Windows**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64-setup.exe
+- **macOS (Intel)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64.dmg
+- **macOS (Apple Silicon)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_aarch64.dmg
+- **Linux (AppImage)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.AppImage
+- **Linux (deb)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.deb
 
 ## 💬 交流群
 
