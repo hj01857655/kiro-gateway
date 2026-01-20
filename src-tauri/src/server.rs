@@ -816,10 +816,52 @@ async fn admin_get_accounts(
 
 async fn admin_add_account(
     State(state): State<Arc<AppState>>,
-    Json(account): Json<serde_json::Value>,
+    Json(mut account_json): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    // 格式兼容处理：支持 Kiro Account Manager 导出的格式
+    
+    // 1. 转换 expiresAt 字符串格式为毫秒时间戳
+    if let Some(expires_at_str) = account_json.get("expiresAt").and_then(|v| v.as_str()) {
+        // 尝试解析 "2026/01/20 16:00:40" 格式
+        if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(expires_at_str, "%Y/%m/%d %H:%M:%S") {
+            // 转换为 UTC 时间戳（毫秒）
+            let timestamp_ms = dt.and_utc().timestamp_millis();
+            account_json["expiresAt"] = serde_json::json!(timestamp_ms);
+        }
+    }
+    
+    // 2. 自动推断 authMethod（如果缺失）
+    if account_json.get("authMethod").is_none() {
+        // 有 clientId 就是 IDC 账号，否则是 Social 账号
+        let auth_method = if account_json.get("clientId").is_some() {
+            "IdC"
+        } else {
+            "social"
+        };
+        account_json["authMethod"] = serde_json::json!(auth_method);
+    }
+    
+    // 3. 确保 profileArn 字段存在（默认为空字符串）
+    if account_json.get("profileArn").is_none() {
+        account_json["profileArn"] = serde_json::json!("");
+    }
+    
+    // 4. 确保 region 字段存在（默认为 us-east-1）
+    if account_json.get("region").is_none() {
+        account_json["region"] = serde_json::json!("us-east-1");
+    }
+    
+    // 5. 设置默认 name（如果缺失）
+    if account_json.get("name").is_none() {
+        if let Some(email) = account_json.get("email").and_then(|v| v.as_str()) {
+            account_json["name"] = serde_json::json!(email);
+        } else if let Some(id) = account_json.get("id").and_then(|v| v.as_str()) {
+            account_json["name"] = serde_json::json!(id);
+        }
+    }
+    
     // 解析账号数据
-    let account: crate::account::Account = serde_json::from_value(account)
+    let account: crate::account::Account = serde_json::from_value(account_json)
         .map_err(|e| AppError::BadRequest(format!("账号数据格式错误: {}", e)))?;
 
     // 添加到账号列表（带去重检查）

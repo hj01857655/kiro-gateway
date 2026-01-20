@@ -249,11 +249,11 @@ export default function Accounts() {
     }
   }
 
-  const handleFileImport = (file: File | null) => {
+  const handleFileImport = async (file: File | null) => {
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string
         const data = JSON.parse(content)
@@ -267,56 +267,55 @@ export default function Accounts() {
           return
         }
 
-        // 去重检查 - 使用账号唯一标识（只检查有 email+provider 的账号）
-        const existingKeys = new Set(
-          (accounts || [])
-            .map(a => getAccountKey(a))
-            .filter((key): key is string => key !== null)
-        )
-
+        // 批量导入（让后端处理去重和格式转换）
         if (Array.isArray(data)) {
-          // 批量导入 - 过滤重复账号
-          const newAccounts = data.filter((account: Account) => {
-            const key = getAccountKey(account)
-            return key === null || !existingKeys.has(key)
-          })
+          let successCount = 0
+          let failCount = 0
+          const errors: string[] = []
 
-          if (newAccounts.length === 0) {
-            notifications.show({
-              title: '无需导入',
-              message: '所有账号已存在，无需重复导入',
-              color: 'blue',
-            })
-            setShowAddModal(false)
-            return
+          for (const account of data) {
+            try {
+              await addAccount(account)
+              successCount++
+            } catch (error) {
+              failCount++
+              const errorMsg = error instanceof Error ? error.message : '未知错误'
+              // 只记录前 3 个错误，避免通知过多
+              if (errors.length < 3) {
+                errors.push(errorMsg)
+              }
+            }
           }
 
-          newAccounts.forEach((account) => addAccount(account))
-          const skippedCount = data.length - newAccounts.length
-          notifications.show({
-            title: '成功',
-            message: `从文件导入 ${newAccounts.length} 个账号成功${skippedCount > 0 ? `，跳过 ${skippedCount} 个重复账号` : ''}`,
-            color: 'green',
-          })
+          if (successCount > 0) {
+            notifications.show({
+              title: '导入完成',
+              message: `成功导入 ${successCount} 个账号${failCount > 0 ? `，跳过 ${failCount} 个重复或无效账号` : ''}`,
+              color: successCount === data.length ? 'green' : 'yellow',
+            })
+          } else {
+            notifications.show({
+              title: '导入失败',
+              message: errors.length > 0 ? errors[0] : '所有账号都已存在或无效',
+              color: 'red',
+            })
+          }
         } else {
-          // 单个导入 - 检查是否重复
-          const key = getAccountKey(data)
-          if (key !== null && existingKeys.has(key)) {
+          // 单个导入
+          try {
+            await addAccount(data)
             notifications.show({
-              title: '账号已存在',
-              message: '该账号已存在，无需重复添加',
-              color: 'blue',
+              title: '成功',
+              message: '从文件导入账号成功',
+              color: 'green',
             })
-            setShowAddModal(false)
-            return
+          } catch (error) {
+            notifications.show({
+              title: '导入失败',
+              message: error instanceof Error ? error.message : '未知错误',
+              color: 'red',
+            })
           }
-
-          addAccount(data)
-          notifications.show({
-            title: '成功',
-            message: '从文件导入账号成功',
-            color: 'green',
-          })
         }
         setShowAddModal(false)
       } catch (error) {

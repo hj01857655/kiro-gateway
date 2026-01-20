@@ -13,10 +13,15 @@ export function cn(...inputs: ClassValue[]) {
  * @returns 唯一标识字符串，如果无法生成则返回 null
  */
 export function getAccountKey(account: Account): string | null {
-  // 只使用 email + provider 去重
-  if (account.quota?.userInfo?.email && account.provider) {
-    return `${account.quota.userInfo.email}-${account.provider}`
+  // 支持两种格式：
+  // 1. account.email (Kiro Account Manager 格式)
+  // 2. account.quota?.userInfo?.email (kiro-gateway 格式)
+  const email = account.email || account.quota?.userInfo?.email
+  
+  if (email && account.provider) {
+    return `${email}-${account.provider}`
   }
+  
   // 没有 email 或 provider，返回 null 表示不参与去重
   return null
 }
