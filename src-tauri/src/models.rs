@@ -19,6 +19,8 @@ pub struct ChatCompletionRequest {
     pub tools: Option<Vec<Tool>>,
     #[allow(dead_code)]
     pub tool_choice: Option<serde_json::Value>,
+    /// 会话 ID（可选）- 用于会话管理
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -374,9 +376,11 @@ pub struct AnthropicMessagesRequest {
     pub tool_choice: Option<serde_json::Value>,
     #[allow(dead_code)]
     pub metadata: Option<serde_json::Value>,
+    /// 会话 ID（可选）- 用于会话管理
+    pub session_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AnthropicMessage {
     pub role: String,
     pub content: serde_json::Value, // 可以是字符串或内容块数组

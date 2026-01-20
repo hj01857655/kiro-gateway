@@ -301,6 +301,7 @@ pub fn anthropic_to_openai(request: &AnthropicMessagesRequest) -> ChatCompletion
         stop: request.stop_sequences.clone(),
         tools,
         tool_choice: request.tool_choice.clone(),
+        session_id: request.session_id.clone(),
     }
 }
 

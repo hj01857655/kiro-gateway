@@ -441,9 +441,36 @@ async fn chat_completions(
 
     let is_stream = is_stream_request_openai(&request);
     let model = request.model.clone();
+    let session_id = request.session_id.clone();
 
     // 记录请求日志
-    crate::kirogate_info!("收到 OpenAI 请求: model={}, stream={}", model, is_stream);
+    crate::kirogate_info!("收到 OpenAI 请求: model={}, stream={}, session_id={:?}", model, is_stream, session_id);
+
+    // 如果有 session_id，尝试加载会话历史
+    let mut messages = request.messages.clone();
+    if let Some(ref sid) = session_id {
+        match state.sessions.load_session(sid, None).await {
+            Ok(session) => {
+                // 将会话历史合并到当前请求的 messages 前面
+                if !session.history.is_empty() {
+                    crate::kirogate_info!("从会话 {} 加载了 {} 条历史消息", sid, session.history.len());
+                    // 将历史消息转换为 ChatMessage 并插入到前面
+                    for history_msg in session.history {
+                        if let Ok(chat_msg) = serde_json::from_value(history_msg) {
+                            messages.insert(0, chat_msg);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                crate::kirogate_warn!("加载会话失败: {}", e);
+            }
+        }
+    }
+
+    // 使用合并后的 messages 构建请求
+    let mut modified_request = request.clone();
+    modified_request.messages = messages.clone();
 
     let account = state.accounts.get_account().await?;
     // 将空字符串的 profileArn 转换为 None
@@ -452,7 +479,7 @@ async fn chat_completions(
     } else {
         Some(account.profile_arn.clone())
     };
-    let kiro_request = build_kiro_payload(&request, profile_arn).map_err(AppError::BadRequest)?;
+    let kiro_request = build_kiro_payload(&modified_request, profile_arn).map_err(AppError::BadRequest)?;
 
     let stream = state
         .client
@@ -463,13 +490,37 @@ async fn chat_completions(
     if is_stream {
         let request_id_clone = request_id.clone();
         let model_clone = model.clone();
+        let session_manager = Arc::clone(&state.sessions);
+        let user_messages = messages.clone();
+        
         let openai_stream = async_stream::stream! {
             tokio::pin!(stream);
             let mut has_tool = false;
             let mut usage: Option<Usage> = None;
+            let mut assistant_content = String::new();
+            let mut tool_calls: Vec<serde_json::Value> = Vec::new();
 
             while let Some(Ok(event)) = stream.next().await {
-                if event.tool_use_id.is_some() { has_tool = true; }
+                if event.tool_use_id.is_some() { 
+                    has_tool = true;
+                    // 收集工具调用信息
+                    if let (Some(tool_use_id), Some(name)) = (&event.tool_use_id, &event.name) {
+                        tool_calls.push(serde_json::json!({
+                            "id": tool_use_id,
+                            "type": "function",
+                            "function": {
+                                "name": name,
+                                "arguments": event.input.as_ref().and_then(|v| v.as_str()).unwrap_or("")
+                            }
+                        }));
+                    }
+                }
+                
+                // 收集 assistant 响应内容
+                if let Some(content) = &event.content {
+                    assistant_content.push_str(content);
+                }
+                
                 if let Some(usage_val) = event.usage {
                     let total = (usage_val * 1000.0) as i32;
                     usage = Some(Usage {
@@ -486,6 +537,46 @@ async fn chat_completions(
             let end = create_openai_end_with_reason(&request_id_clone, has_tool, false, usage);
             yield Ok::<_, Infallible>(Event::default().data(serde_json::to_string(&end).unwrap_or_default()));
             yield Ok::<_, Infallible>(Event::default().data("[DONE]"));
+
+            // 流结束后，保存会话（如果有 session_id）
+            if let Some(sid) = session_id {
+                // 构建 assistant 消息
+                let assistant_msg = if !tool_calls.is_empty() {
+                    serde_json::json!({
+                        "role": "assistant",
+                        "content": if assistant_content.is_empty() { None } else { Some(assistant_content) },
+                        "tool_calls": tool_calls
+                    })
+                } else {
+                    serde_json::json!({
+                        "role": "assistant",
+                        "content": assistant_content
+                    })
+                };
+
+                // 保存会话
+                match session_manager.load_session(&sid, None).await {
+                    Ok(mut session) => {
+                        // 添加用户消息和 assistant 响应到历史
+                        for msg in user_messages {
+                            if let Ok(msg_value) = serde_json::to_value(&msg) {
+                                session.history.push(msg_value);
+                            }
+                        }
+                        session.history.push(assistant_msg);
+                        
+                        // 保存会话
+                        if let Err(e) = session_manager.save_session(&session).await {
+                            tracing::warn!("保存会话失败: {}", e);
+                        } else {
+                            tracing::info!("会话 {} 已保存，历史消息数: {}", sid, session.history.len());
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("加载会话失败，无法保存: {}", e);
+                    }
+                }
+            }
         };
 
         // 记录 Metrics
@@ -515,8 +606,10 @@ async fn messages(
 
     verify_api_key(&headers, &state.config, &state.api_keys)?;
 
+    let session_id = request.session_id.clone();
+
     // 记录请求日志
-    crate::kirogate_info!("收到 Anthropic 请求: model={}", request.model);
+    crate::kirogate_info!("收到 Anthropic 请求: model={}, session_id={:?}", request.model, session_id);
 
     // 检查是否为 WebSearch 请求
     if crate::websearch::is_web_search_request(&request) {
@@ -534,8 +627,34 @@ async fn messages(
     let is_stream = is_stream_request_anthropic(&request);
     let model = request.model.clone();
 
+    // 如果有 session_id，尝试加载会话历史
+    let mut messages = request.messages.clone();
+    if let Some(ref sid) = session_id {
+        match state.sessions.load_session(sid, None).await {
+            Ok(session) => {
+                // 将会话历史合并到当前请求的 messages 前面
+                if !session.history.is_empty() {
+                    crate::kirogate_info!("从会话 {} 加载了 {} 条历史消息", sid, session.history.len());
+                    // 将历史消息转换为 AnthropicMessage 并插入到前面
+                    for history_msg in session.history {
+                        if let Ok(anthropic_msg) = serde_json::from_value(history_msg) {
+                            messages.insert(0, anthropic_msg);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                crate::kirogate_warn!("加载会话失败: {}", e);
+            }
+        }
+    }
+
+    // 使用合并后的 messages 构建请求
+    let mut modified_request = request.clone();
+    modified_request.messages = messages.clone();
+
     let account = state.accounts.get_account().await?;
-    let openai_request = anthropic_to_openai(&request);
+    let openai_request = anthropic_to_openai(&modified_request);
     // 将空字符串的 profileArn 转换为 None
     let profile_arn = if account.profile_arn.is_empty() {
         None
@@ -554,8 +673,13 @@ async fn messages(
     if is_stream {
         let request_id_clone = request_id.clone();
         let model_clone = model.clone();
+        let session_manager = Arc::clone(&state.sessions);
+        let user_messages = messages.clone();
+        
         let anthropic_stream = async_stream::stream! {
             tokio::pin!(stream);
+            let mut assistant_content = String::new();
+            let mut tool_calls: Vec<serde_json::Value> = Vec::new();
 
             yield Ok::<_, Infallible>(Event::default().event("message_start").data(format!(
                 r#"{{"type":"message_start","message":{{"id":"msg_{}","type":"message","role":"assistant","content":[],"model":"claude","stop_reason":null}}}}"#,
@@ -567,6 +691,21 @@ async fn messages(
             ));
 
             while let Some(Ok(event)) = stream.next().await {
+                // 收集 assistant 响应内容
+                if let Some(content) = &event.content {
+                    assistant_content.push_str(content);
+                }
+                
+                // 收集工具调用信息
+                if let (Some(tool_use_id), Some(name)) = (&event.tool_use_id, &event.name) {
+                    tool_calls.push(serde_json::json!({
+                        "type": "tool_use",
+                        "id": tool_use_id,
+                        "name": name,
+                        "input": event.input.as_ref().unwrap_or(&serde_json::json!({}))
+                    }));
+                }
+                
                 if let Some(data) = kiro_to_anthropic(&event) {
                     yield Ok::<_, Infallible>(Event::default().event("content_block_delta").data(data));
                 }
@@ -583,6 +722,54 @@ async fn messages(
             yield Ok::<_, Infallible>(Event::default().event("message_stop").data(
                 r#"{"type":"message_stop"}"#
             ));
+
+            // 流结束后，保存会话（如果有 session_id）
+            if let Some(sid) = session_id {
+                // 构建 assistant 消息
+                let assistant_msg = if !tool_calls.is_empty() {
+                    serde_json::json!({
+                        "role": "assistant",
+                        "content": if assistant_content.is_empty() { 
+                            tool_calls.clone()
+                        } else {
+                            let mut content_blocks = vec![serde_json::json!({
+                                "type": "text",
+                                "text": assistant_content
+                            })];
+                            content_blocks.extend(tool_calls.clone());
+                            content_blocks
+                        }
+                    })
+                } else {
+                    serde_json::json!({
+                        "role": "assistant",
+                        "content": assistant_content
+                    })
+                };
+
+                // 保存会话
+                match session_manager.load_session(&sid, None).await {
+                    Ok(mut session) => {
+                        // 添加用户消息和 assistant 响应到历史
+                        for msg in user_messages {
+                            if let Ok(msg_value) = serde_json::to_value(&msg) {
+                                session.history.push(msg_value);
+                            }
+                        }
+                        session.history.push(assistant_msg);
+                        
+                        // 保存会话
+                        if let Err(e) = session_manager.save_session(&session).await {
+                            tracing::warn!("保存会话失败: {}", e);
+                        } else {
+                            tracing::info!("会话 {} 已保存，历史消息数: {}", sid, session.history.len());
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("加载会话失败，无法保存: {}", e);
+                    }
+                }
+            }
         };
 
         // 记录 Metrics
