@@ -49,7 +49,7 @@ pub enum AccountStatus {
     Error,
     Disabled,
     Banned,
-    QuotaExhausted,  // 配额用尽（100%）
+    Exhausted,  // 配额用尽（100%）
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

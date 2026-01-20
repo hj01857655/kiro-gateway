@@ -1075,7 +1075,7 @@ async fn admin_get_quota(
             if let Some(usage_percentage) = quota.get("usagePercentage").and_then(|v| v.as_f64()) {
                 if usage_percentage >= 100.0 {
                     warn!("账号 {} 配额已用尽 ({}%)", id, usage_percentage);
-                    state.accounts.mark_status(&id, crate::account::AccountStatus::QuotaExhausted);
+                    state.accounts.mark_status(&id, crate::account::AccountStatus::Exhausted);
                 } else if usage_percentage >= 95.0 {
                     warn!("账号 {} 配额即将用尽 ({}%)", id, usage_percentage);
                 }
@@ -1095,7 +1095,7 @@ async fn admin_get_quota(
             if let Some(usage_percentage) = quota.get("usagePercentage").and_then(|v| v.as_f64()) {
                 if usage_percentage >= 100.0 {
                     warn!("账号 {} 配额已用尽 ({}%)", id, usage_percentage);
-                    state.accounts.mark_status(&id, crate::account::AccountStatus::QuotaExhausted);
+                    state.accounts.mark_status(&id, crate::account::AccountStatus::Exhausted);
                 } else if usage_percentage >= 95.0 {
                     warn!("账号 {} 配额即将用尽 ({}%)", id, usage_percentage);
                 }
