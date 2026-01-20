@@ -37,8 +37,7 @@
     "windows": {
       "wix": {
         "language": "zh-CN"
-      },
-      "nsis": null
+      }
     },
     "createUpdaterArtifacts": true
   },
