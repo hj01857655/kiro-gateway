@@ -216,17 +216,77 @@ impl AccountManager {
         // 支持两种格式：
         // 1. 数组: [{...}, {...}]
         // 2. 单个对象: {...}
-        let accounts: Vec<Account> = if json_str.trim().starts_with('[') {
+        let mut accounts_json: Vec<serde_json::Value> = if json_str.trim().starts_with('[') {
             // 数组格式
             serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?
         } else if json_str.trim().starts_with('{') {
             // 单个对象格式，转为数组
-            let account: Account = serde_json::from_str(json_str)
+            let account: serde_json::Value = serde_json::from_str(json_str)
                 .map_err(|e| AppError::ParseError(e.to_string()))?;
             vec![account]
         } else {
             return Err(AppError::ParseError("无效的 JSON 格式".into()));
         };
+
+        // 如果有加密管理器，自动检测并解密敏感字段
+        if let Some(ref encryption) = self.encryption {
+            for acc_json in &mut accounts_json {
+                // 解密 refreshToken
+                if let Some(refresh_token) = acc_json.get("refreshToken").and_then(|v| v.as_str()) {
+                    if EncryptionManager::is_encrypted(refresh_token) {
+                        match encryption.decrypt(refresh_token) {
+                            Ok(decrypted) => {
+                                acc_json["refreshToken"] = serde_json::Value::String(decrypted);
+                            }
+                            Err(e) => {
+                                warn!("解密 refreshToken 失败: {}", e);
+                            }
+                        }
+                    }
+                }
+                
+                // 解密 accessToken
+                if let Some(access_token) = acc_json.get("accessToken").and_then(|v| v.as_str()) {
+                    if EncryptionManager::is_encrypted(access_token) {
+                        match encryption.decrypt(access_token) {
+                            Ok(decrypted) => {
+                                acc_json["accessToken"] = serde_json::Value::String(decrypted);
+                            }
+                            Err(e) => {
+                                warn!("解密 accessToken 失败: {}", e);
+                            }
+                        }
+                    }
+                }
+                
+                // 解密 clientSecret（IDC 账号）
+                if let Some(client_secret) = acc_json.get("clientSecret").and_then(|v| v.as_str()) {
+                    if EncryptionManager::is_encrypted(client_secret) {
+                        match encryption.decrypt(client_secret) {
+                            Ok(decrypted) => {
+                                acc_json["clientSecret"] = serde_json::Value::String(decrypted);
+                            }
+                            Err(e) => {
+                                warn!("解密 clientSecret 失败: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 反序列化为 Account 对象
+        let accounts: Vec<Account> = accounts_json
+            .into_iter()
+            .filter_map(|json| {
+                serde_json::from_value(json)
+                    .map_err(|e| {
+                        warn!("解析账号失败: {}", e);
+                        e
+                    })
+                    .ok()
+            })
+            .collect();
 
         // 检查 refreshToken 长度
         for acc in &accounts {
@@ -340,7 +400,7 @@ impl AccountManager {
         self.accounts_file.read().clone()
     }
 
-    /// 保存账号列表到文件
+    /// 保存账号列表到文件（自动加密敏感字段）
     pub fn save_accounts_to_file(&self, accounts: &[Account]) -> Result<(), AppError> {
         if let Some(ref file_path) = *self.accounts_file.read() {
             // 确保父目录存在
@@ -349,13 +409,63 @@ impl AccountManager {
                     .map_err(|e| AppError::BadRequest(format!("创建目录失败: {}", e)))?;
             }
 
-            // 直接保存为数组格式，不包装在 {"accounts": ...} 中
+            // 如果有加密管理器，加密敏感字段
+            let accounts_to_save: Vec<serde_json::Value> = if let Some(ref encryption) = self.encryption {
+                accounts
+                    .iter()
+                    .map(|acc| {
+                        let mut json = serde_json::to_value(acc).unwrap_or_default();
+                        
+                        // 加密 refreshToken
+                        if let Some(refresh_token) = json.get("refreshToken").and_then(|v| v.as_str()) {
+                            if !refresh_token.is_empty() && !EncryptionManager::is_encrypted(refresh_token) {
+                                if let Ok(encrypted) = encryption.encrypt(refresh_token) {
+                                    json["refreshToken"] = serde_json::Value::String(encrypted);
+                                }
+                            }
+                        }
+                        
+                        // 加密 accessToken
+                        if let Some(access_token) = json.get("accessToken").and_then(|v| v.as_str()) {
+                            if !access_token.is_empty() && !EncryptionManager::is_encrypted(access_token) {
+                                if let Ok(encrypted) = encryption.encrypt(access_token) {
+                                    json["accessToken"] = serde_json::Value::String(encrypted);
+                                }
+                            }
+                        }
+                        
+                        // 加密 clientSecret（IDC 账号）
+                        if let Some(client_secret) = json.get("clientSecret").and_then(|v| v.as_str()) {
+                            if !client_secret.is_empty() && !EncryptionManager::is_encrypted(client_secret) {
+                                if let Ok(encrypted) = encryption.encrypt(client_secret) {
+                                    json["clientSecret"] = serde_json::Value::String(encrypted);
+                                }
+                            }
+                        }
+                        
+                        json
+                    })
+                    .collect()
+            } else {
+                // 没有加密管理器，直接保存明文
+                accounts
+                    .iter()
+                    .map(|acc| serde_json::to_value(acc).unwrap_or_default())
+                    .collect()
+            };
+
+            // 保存到文件
             std::fs::write(
                 file_path,
-                serde_json::to_string_pretty(&accounts).unwrap_or_default(),
+                serde_json::to_string_pretty(&accounts_to_save).unwrap_or_default(),
             )
             .map_err(|e| AppError::BadRequest(format!("保存账号文件失败: {}", e)))?;
-            info!("账号已保存到文件: {}", file_path);
+            
+            if self.encryption.is_some() {
+                info!("账号已加密保存到文件: {}", file_path);
+            } else {
+                info!("账号已保存到文件（未加密）: {}", file_path);
+            }
         }
         Ok(())
     }
