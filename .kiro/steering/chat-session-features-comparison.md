@@ -242,7 +242,7 @@ if let Some(token_limits) = m.get("tokenLimits") {
 
 ---
 
-### 8. 上下文提供者系统 ❌
+### 8. 上下文提供者系统 ⚠️
 
 **Kiro IDE 实现**：
 ```json
@@ -262,19 +262,32 @@ if let Some(token_limits) = m.get("tokenLimits") {
 ```
 
 **kiro-gateway 实现**：
-- ❌ 未实现上下文提供者系统
+- ✅ **源码分析已完成**（`.kiro/steering/context-providers-analysis.md`）
+- ⚠️ 待实现（已有完整的实现方案）
 
 **优先级**：⭐⭐⭐ 中等
 
-**为什么要实现**：
-- 我们有 Tauri 前端管理界面
-- 可以提供更好的用户体验
-- 可以实现类似 Kiro IDE 的上下文管理功能
+**已完成的分析**：
+- 27 个 contextProvider 的完整源码分析
+- 实现优先级划分（必须/应该/可选/不推荐）
+- 架构设计和 API 端点设计
+- 分阶段实现建议
+- 技术依赖清单
+
+**核心 providers**（必须实现）：
+1. file - 文件引用（支持行范围）
+2. currentFile - 当前文件
+3. diff - Git Diff
+4. terminal - 终端内容
+5. problems - 代码问题
+6. steering - Steering 规则
+7. mcp - MCP 资源
 
 **说明**：
 - 不是 API 网关的核心功能
 - 可以在前端管理界面中实现
 - 可以作为增强功能
+- 已有完整的实现方案和技术路线
 
 ---
 
