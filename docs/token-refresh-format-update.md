@@ -99,14 +99,14 @@ POST https://oidc.{region}.amazonaws.com/token
 **新格式**（2026-01-20 后）：
 ```json
 {
-  "accessToken": "eyJraWd...",
-  "refreshToken": "aorAAAAA...",
-  "expiresIn": 3600,
-  "tokenType": "Bearer",
+  "accessToken": "aoaAAAAA...",
   "aws_sso_app_session_id": null,
+  "expiresIn": 3600,
   "idToken": null,
   "issuedTokenType": null,
-  "originSessionId": null
+  "originSessionId": null,
+  "refreshToken": "aorAAAAA...",
+  "tokenType": "Bearer"
 }
 ```
 
@@ -118,6 +118,7 @@ POST https://oidc.{region}.amazonaws.com/token
    - `issuedTokenType` - 发行的 Token 类型
    - `originSessionId` - 原始会话 ID
    - 这些字段通常为 `null`，但可能在某些情况下有值
+   - 字段顺序：插入在 `accessToken` 和 `expiresIn` 之间
 
 2. ❌ **不包含 `profileArn` 字段**
    - IDC 账号的 `profileArn` 在添加账号时设置
@@ -125,6 +126,10 @@ POST https://oidc.{region}.amazonaws.com/token
 
 3. ✅ **核心字段保持不变**
    - `accessToken`、`refreshToken`、`expiresIn`、`tokenType` 仍然存在
+
+4. ✅ **字段顺序变化**
+   - 旧格式：`accessToken` → `refreshToken` → `expiresIn` → `tokenType`
+   - 新格式：`accessToken` → `aws_sso_*` → `expiresIn` → `idToken` → `issuedTokenType` → `originSessionId` → `refreshToken` → `tokenType`
 
 ---
 
