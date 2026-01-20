@@ -412,27 +412,42 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 
 ## 功能特性
 
-### 已实现
+### 核心功能
 
-- ✅ OpenAI Chat Completions API 兼容
-- ✅ Anthropic Messages API 兼容
-- ✅ 多账号轮询和自动切换
-- ✅ 自动 Token 刷新（Social 和 IDC 账号）
-- ✅ 流式响应（SSE）
-- ✅ 工具调用支持
-- ✅ 图片上传支持
-- ✅ Thinking block 解析（支持 `<thinking>` 标签）
-- ✅ 动态模型列表加载（从 Kiro API 获取）
-- ✅ 日志系统（结构化存储、搜索、过滤）
-- ✅ 统计监控（请求数、响应时间、延迟百分位、24小时趋势）
-- ✅ 桌面管理界面（Mantine UI）
-- ✅ 账号健康检查
-- ✅ WebSearch 集成（Kiro MCP API）
-- ✅ API Key 管理系统（生成、验证、持久化）
-- ✅ Metrics 持久化（自动保存/加载）
-- ✅ **账号数据加密存储**（AES-256-GCM，机器特定密钥保护）
-- ✅ **Admin API 认证保护**（自动生成 Admin Token，统一 middleware 认证）
-- ✅ **XSS 防护**（聊天测试页集成 rehype-sanitize，过滤恶意脚本）
+- ✅ **API 兼容** - OpenAI Chat Completions 和 Anthropic Messages API 完全兼容
+- ✅ **多账号管理** - 支持 Social 和 IDC 账号，自动轮询和故障转移
+- ✅ **自动刷新** - Token 自动检测过期并刷新（Social 和 IDC 账号）
+- ✅ **流式响应** - 完整支持 SSE 流式输出
+- ✅ **工具调用** - 支持工具调用和图片上传
+- ✅ **Thinking 解析** - 解析和处理 `<thinking>` 标签
+- ✅ **动态模型** - 从 Kiro API 动态加载可用模型列表
+- ✅ **WebSearch 集成** - 集成 Kiro MCP WebSearch 功能
+
+### 管理功能
+
+- ✅ **桌面界面** - Tauri 2.0 桌面应用，React 19 + TypeScript + Mantine UI
+- ✅ **账号管理** - 添加/删除/更新账号，从 Kiro IDE 导入，批量导入 JSON
+- ✅ **健康检查** - 账号健康状态监控，自动标记异常账号
+- ✅ **配额查询** - 实时查询账号配额使用情况
+- ✅ **配置生成** - 一键生成 Claude Desktop/CLI/OpenAI 配置
+
+### 监控功能
+
+- ✅ **日志系统** - 结构化日志存储（最多 1000 条），支持搜索和过滤
+- ✅ **统计监控** - 请求计数、响应时间、延迟百分位（P50/P95/P99）
+- ✅ **24小时趋势** - 请求量和成功率趋势图
+- ✅ **API 类型统计** - OpenAI/Anthropic 使用量分析
+- ✅ **Metrics 持久化** - 统计数据自动保存/加载
+
+### 安全功能
+
+- ✅ **数据加密** - AES-256-GCM 加密存储敏感字段（refreshToken、accessToken、clientSecret）
+- ✅ **密钥保护** - 机器特定密钥保护主密钥（基于 hostname + username）
+- ✅ **Admin 认证** - 自动生成 64 位随机 Admin Token，统一 middleware 认证
+- ✅ **API Key 管理** - 生成 `sk-{48位十六进制}` 格式的 API Key，支持启用/禁用
+- ✅ **XSS 防护** - 聊天测试页集成 rehype-sanitize，过滤恶意脚本
+- ✅ **CSP 策略** - 严格的内容安全策略，防止未授权资源加载
+- ✅ **敏感信息脱敏** - 账号管理页对 Token 进行掩码处理
 
 ## 参考项目
 
