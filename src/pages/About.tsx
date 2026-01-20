@@ -90,9 +90,12 @@ export default function About() {
               QQ 交流群
             </Text>
             <Anchor href="https://qm.qq.com/q/oQbUA0cxO2" target="_blank" rel="noopener noreferrer" size="sm">
-              <Badge color="teal" variant="light">
-                Kiro GateWay交流群
-              </Badge>
+              <Group gap={4}>
+                <Text size="sm">1081058179</Text>
+                <Badge color="teal" variant="light" size="sm">
+                  Kiro GateWay交流群
+                </Badge>
+              </Group>
             </Anchor>
           </Group>
         </Stack>

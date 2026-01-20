@@ -15,7 +15,8 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，提供 OpenAI/Anthropic
 
 ## 💬 交流群
 
-**点击链接加入 QQ 群【Kiro GateWay交流群】**：https://qm.qq.com/q/oQbUA0cxO2
+**QQ 群**：1081058179（Kiro GateWay交流群）  
+[点击加入群聊](https://qm.qq.com/q/oQbUA0cxO2)
 
 ## 项目简介
 
