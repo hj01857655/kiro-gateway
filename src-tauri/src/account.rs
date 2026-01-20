@@ -857,6 +857,15 @@ impl AccountManager {
             access_token: String,
             refresh_token: Option<String>,
             expires_in: Option<i64>,
+            // AWS SSO 字段（可选，新格式中可能包含）
+            #[serde(default)]
+            aws_sso_app_session_id: Option<String>,
+            #[serde(default)]
+            id_token: Option<String>,
+            #[serde(default)]
+            issued_token_type: Option<String>,
+            #[serde(default)]
+            origin_session_id: Option<String>,
         }
 
         let data: RefreshResponse = serde_json::from_str(&text).map_err(|e| {
@@ -926,6 +935,15 @@ impl AccountManager {
             access_token: String,
             refresh_token: Option<String>,
             expires_in: Option<i64>,
+            // AWS SSO 字段（可选，新格式中可能包含）
+            #[serde(default)]
+            aws_sso_app_session_id: Option<String>,
+            #[serde(default)]
+            id_token: Option<String>,
+            #[serde(default)]
+            issued_token_type: Option<String>,
+            #[serde(default)]
+            origin_session_id: Option<String>,
         }
 
         let data: IdcRefreshResponse = serde_json::from_str(&text).map_err(|e| {
