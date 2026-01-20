@@ -825,17 +825,18 @@ impl KiroClient {
         &self,
         account: &Account,
     ) -> Result<Vec<serde_json::Value>, AppError> {
-        let url = format!("{}/ListAvailableModels", self.config.kiro_endpoint);
+        // reqwest 0.13 移除了 query() 方法，需要手动拼接 URL 参数
+        let url = format!(
+            "{}/ListAvailableModels?origin=AI_EDITOR&profileArn={}",
+            self.config.kiro_endpoint,
+            urlencoding::encode(&account.profile_arn)
+        );
 
         let resp = self
             .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
             .header("x-amz-user-agent", self.get_user_agent())
-            .query(&[
-                ("origin", "AI_EDITOR"),
-                ("profileArn", &account.profile_arn),
-            ])
             .timeout(std::time::Duration::from_secs(30))
             .send()
             .await

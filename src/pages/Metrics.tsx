@@ -265,7 +265,7 @@ export default function Metrics() {
         <Text size="lg" fw={600} mb="md">
           最近请求
         </Text>
-        <Table striped highlightOnHover withTableBorder withColumnBorders>
+        <Table striped highlightOnHover withTableBorder={false}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>时间</Table.Th>

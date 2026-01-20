@@ -2,287 +2,187 @@
 @import '@mantine/core/styles.css';
 @import '@mantine/notifications/styles.css';
 
-/* ============ 动画 ============ */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+:root {
+  /* ============ 核心变量 (浅色) ============ */
+  --kiro-primary: #6366f1;
+  --kiro-primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --kiro-bg: #f8fafc;
+  --kiro-bg-gradient: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 50%, #bcccdc 100%);
+  --kiro-card-bg: rgba(255, 255, 255, 0.7);
+  --kiro-card-border: rgba(0, 0, 0, 0.08);
+  --kiro-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --kiro-card-hover-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  --kiro-text-main: #1e293b;
+  --kiro-text-dimmed: #64748b;
+  --kiro-glass-blur: blur(12px);
+  --kiro-nav-bg: rgba(255, 255, 255, 0.85);
+  --kiro-border-radius: 12px;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.05);
-  }
+[data-mantine-color-scheme='dark'] {
+  /* ============ 核心变量 (深色) ============ */
+  --kiro-bg: #0a0b14;
+  --kiro-bg-gradient: linear-gradient(135deg, #0a0b14 0%, #0d0e1a 50%, #151625 100%);
+  --kiro-card-bg: rgba(30, 30, 45, 0.65);
+  --kiro-card-border: rgba(99, 102, 241, 0.2);
+  --kiro-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --kiro-card-hover-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.2);
+  --kiro-text-main: #f1f5f9;
+  --kiro-text-dimmed: #94a3b8;
+  --kiro-nav-bg: rgba(13, 14, 25, 0.85);
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* ============ 全局样式 ============ */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
+/* ============ 基础重置 ============ */
 body {
+  background-color: var(--kiro-bg);
+  color: var(--kiro-text-main);
+  background-image: var(--kiro-bg-gradient);
+  background-attachment: fixed;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
-/* ============ 卡片样式 ============ */
-.mantine-Card-root {
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ============ 通用透明卡片 ============ */
+.glass-effect {
+  background: var(--kiro-card-bg) !important;
+  backdrop-filter: var(--kiro-glass-blur);
+  -webkit-backdrop-filter: var(--kiro-glass-blur);
+  border: 1px solid var(--kiro-card-border) !important;
+  box-shadow: var(--kiro-card-shadow);
+  border-radius: var(--kiro-border-radius);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid transparent;
 }
 
-.mantine-Card-root:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12), 0 4px 8px -4px rgba(0, 0, 0, 0.08);
-  border-color: rgba(99, 102, 241, 0.2);
+.glass-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--kiro-card-hover-shadow);
+  border-color: rgba(99, 102, 241, 0.4) !important;
 }
 
-[data-mantine-color-scheme='dark'] .mantine-Card-root {
-  background: linear-gradient(135deg, rgba(30, 30, 40, 0.95) 0%, rgba(25, 25, 35, 0.95) 100%);
-  backdrop-filter: blur(10px);
+/* ============ 动画 ============ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-[data-mantine-color-scheme='dark'] .mantine-Card-root:hover {
-  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 4px 12px -4px rgba(99, 102, 241, 0.3);
-  border-color: rgba(99, 102, 241, 0.4);
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.02); }
 }
 
-/* ============ 按钮样式 ============ */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* ============ 文本样式 ============ */
+.gradient-text {
+  background: var(--kiro-primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+/* ============ Mantine 覆盖 ============ */
+.mantine-Card-root {
+  background: var(--kiro-card-bg) !important;
+  backdrop-filter: var(--kiro-glass-blur);
+  border: 1px solid var(--kiro-card-border);
+  border-radius: var(--kiro-border-radius);
+}
+
 .mantine-Button-root {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
-}
-
-.mantine-Button-root:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .mantine-Button-root:active {
-  transform: translateY(0);
+  transform: scale(0.96);
 }
 
-[data-mantine-color-scheme='dark'] .mantine-Button-root:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-/* ============ 输入框样式 ============ */
 .mantine-Input-input {
-  transition: all 0.2s ease;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.mantine-Input-input:focus {
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--kiro-card-border);
 }
 
 [data-mantine-color-scheme='dark'] .mantine-Input-input {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(30, 30, 40, 0.5);
+  background: rgba(0, 0, 0, 0.2);
 }
 
-[data-mantine-color-scheme='dark'] .mantine-Input-input:focus {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-}
-
-/* ============ Badge 样式 ============ */
-.mantine-Badge-root {
-  font-weight: 600;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  padding: 0.25rem 0.625rem;
-}
-
-/* ============ 进度条样式 ============ */
-.mantine-Progress-root {
-  overflow: hidden;
-  border-radius: 9999px;
-}
-
-.mantine-Progress-bar {
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
-  position: relative;
-}
-
-.mantine-Progress-bar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
-  animation: shimmer 2s infinite;
-}
-
-/* ============ 滚动条样式 ============ */
+/* ============ 滚动条 ============ */
 ::-webkit-scrollbar {
-  width: 14px;
-  height: 14px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
-  border-radius: 5px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.5) 0%, rgba(139, 92, 246, 0.5) 100%);
-  background-clip: padding-box;
+  background: rgba(99, 102, 241, 0.4);
 }
 
-[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.4) 100%);
-  background-clip: padding-box;
+/* ============ 聊天测试样式 ============ */
+.chat-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.6) 0%, rgba(139, 92, 246, 0.6) 100%);
-  background-clip: padding-box;
+.chat-bubble-user {
+  background: var(--kiro-primary-gradient);
+  color: white;
+  border-bottom-right-radius: 4px;
 }
 
-/* ============ Tooltip 样式 ============ */
-.mantine-Tooltip-tooltip {
-  backdrop-filter: blur(10px);
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.chat-bubble-assistant {
+  background: var(--kiro-card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--kiro-card-border);
+  color: var(--kiro-text-main);
+  border-bottom-left-radius: 4px;
 }
 
-[data-mantine-color-scheme='dark'] .mantine-Tooltip-tooltip {
-  background: rgba(30, 30, 40, 0.95);
-  border-color: rgba(99, 102, 241, 0.3);
+/* markdown 代码块样式 */
+.markdown-content pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
 }
 
-/* ============ Modal 样式 ============ */
-.mantine-Modal-content {
-  border-radius: 12px;
-  overflow: hidden;
+[data-mantine-color-scheme='dark'] .markdown-content pre {
+  background: rgba(0, 0, 0, 0.3);
 }
 
-[data-mantine-color-scheme='dark'] .mantine-Modal-content {
-  background: linear-gradient(135deg, rgba(30, 30, 40, 0.98) 0%, rgba(25, 25, 35, 0.98) 100%);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-}
-
-/* ============ 通知样式 ============ */
-.mantine-Notification-root {
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-[data-mantine-color-scheme='dark'] .mantine-Notification-root {
-  background: rgba(30, 30, 40, 0.95);
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-}
-
-/* ============ 表格样式 ============ */
-.mantine-Table-root {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.mantine-Table-root thead tr th {
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  padding: 1rem;
-  border-bottom: 2px solid rgba(99, 102, 241, 0.2);
-}
-
-.mantine-Table-root tbody tr {
-  transition: all 0.2s ease;
-}
-
-.mantine-Table-root tbody tr:hover {
-  background: rgba(99, 102, 241, 0.05);
-  transform: scale(1.01);
-}
-
-[data-mantine-color-scheme='dark'] .mantine-Table-root tbody tr:hover {
+.markdown-content code {
+  font-family: 'Fira Code', 'Monaco', monospace;
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
   background: rgba(99, 102, 241, 0.1);
 }
 
-/* ============ 加载动画 ============ */
-.mantine-Loader-root {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* ============ 自定义工具类 ============ */
-.glass-effect {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-[data-mantine-color-scheme='dark'] .glass-effect {
-  background: rgba(30, 30, 40, 0.7);
-  border-color: rgba(99, 102, 241, 0.3);
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.5s ease-out;
-}

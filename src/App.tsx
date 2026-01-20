@@ -96,22 +96,14 @@ export default function App() {
       padding="md"
       styles={{
         main: {
-          background: colorScheme === 'dark'
-            ? 'linear-gradient(135deg, #0a0b14 0%, #13141f 50%, #1a1b2e 100%)'
-            : 'linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 50%, #bcccdc 100%)',
           minHeight: '100vh',
+          paddingTop: rem(80), // 为 fixed header 留出空间
         },
         navbar: {
-          background: colorScheme === 'dark'
-            ? 'linear-gradient(180deg, rgba(19, 20, 31, 0.95) 0%, rgba(13, 14, 25, 0.95) 100%)'
-            : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%)',
-          backdropFilter: 'blur(20px)',
-          borderRight: colorScheme === 'dark'
-            ? '1px solid rgba(99, 102, 241, 0.2)'
-            : '1px solid rgba(0, 0, 0, 0.08)',
-          boxShadow: colorScheme === 'dark'
-            ? '4px 0 24px rgba(0, 0, 0, 0.5)'
-            : '4px 0 24px rgba(0, 0, 0, 0.08)',
+          background: 'var(--kiro-nav-bg)',
+          backdropFilter: 'var(--kiro-glass-blur)',
+          borderRight: '1px solid var(--kiro-card-border)',
+          boxShadow: 'var(--kiro-card-shadow)',
         },
       }}
     >
@@ -119,18 +111,15 @@ export default function App() {
         style={{
           position: 'fixed',
           top: rem(16),
-          left: navbarOpened ? rem(220 + 16) : rem(70 + 16),
+          left: navbarOpened ? rem(220 + 24) : rem(70 + 24),
           zIndex: 1000,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: colorScheme === 'dark'
-            ? 'linear-gradient(135deg, rgba(30, 30, 45, 0.95) 0%, rgba(25, 25, 40, 0.95) 100%)'
-            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
+          background: 'var(--kiro-card-bg)',
           borderRadius: rem(12),
-          padding: rem(10),
-          boxShadow: colorScheme === 'dark'
-            ? '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.3)'
-            : '0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-          backdropFilter: 'blur(20px)',
+          padding: rem(8),
+          boxShadow: 'var(--kiro-card-shadow)',
+          backdropFilter: 'var(--kiro-glass-blur)',
+          border: '1px solid var(--kiro-card-border)',
         }}
       >
         <Burger opened={navbarOpened} onClick={() => setNavbarOpened(!navbarOpened)} size="sm" />
@@ -144,15 +133,11 @@ export default function App() {
                 width: rem(48),
                 height: rem(48),
                 borderRadius: rem(14),
-                background: colorScheme === 'dark'
-                  ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)'
-                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+                background: 'var(--kiro-primary-gradient)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: colorScheme === 'dark'
-                  ? '0 8px 24px rgba(99, 102, 241, 0.4)'
-                  : '0 8px 24px rgba(102, 126, 234, 0.3)',
+                boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
                 position: 'relative',
                 overflow: 'hidden',
               }}
@@ -227,14 +212,10 @@ export default function App() {
               style={{
                 padding: rem(14),
                 borderRadius: rem(14),
-                background: colorScheme === 'dark'
-                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)'
-                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
-                border: `1px solid ${colorScheme === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)'}`,
-                backdropFilter: 'blur(10px)',
-                boxShadow: colorScheme === 'dark'
-                  ? '0 4px 16px rgba(16, 185, 129, 0.2)'
-                  : '0 4px 16px rgba(16, 185, 129, 0.15)',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                backdropFilter: 'var(--kiro-glass-blur)',
+                boxShadow: 'var(--kiro-card-shadow)',
               }}
             >
               <Group gap="xs" wrap="nowrap">

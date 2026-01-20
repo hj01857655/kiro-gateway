@@ -452,13 +452,13 @@ export default function Accounts() {
     <Stack gap="md" className="animate-fade-in">
       {/* 健康状态概览 */}
       {healthData && (
-        <Card withBorder>
+        <Card withBorder className="glass-effect">
           <Group mb="md">
-            <Activity size={20} />
+            <Activity size={20} color="var(--kiro-primary)" />
             <Text fw={600}>健康状态</Text>
           </Group>
           <Group grow>
-            <Card withBorder p="sm">
+            <Card withBorder p="sm" className="glass-effect" style={{ background: 'rgba(99, 102, 241, 0.05) !important' }}>
               <Text size="xs" c="dimmed">
                 总账号数
               </Text>
@@ -466,7 +466,7 @@ export default function Accounts() {
                 {healthData.total}
               </Text>
             </Card>
-            <Card withBorder p="sm">
+            <Card withBorder p="sm" className="glass-effect" style={{ background: 'rgba(16, 185, 129, 0.05) !important' }}>
               <Text size="xs" c="dimmed">
                 可用账号
               </Text>
@@ -474,7 +474,7 @@ export default function Accounts() {
                 {healthData.available}
               </Text>
             </Card>
-            <Card withBorder p="sm">
+            <Card withBorder p="sm" className="glass-effect" style={{ background: 'rgba(250, 82, 82, 0.05) !important' }}>
               <Text size="xs" c="dimmed">
                 不可用账号
               </Text>
@@ -482,7 +482,7 @@ export default function Accounts() {
                 {healthData.total - healthData.available}
               </Text>
             </Card>
-            <Card withBorder p="sm">
+            <Card withBorder p="sm" className="glass-effect">
               <Text size="xs" c="dimmed">
                 可用率
               </Text>
@@ -623,9 +623,9 @@ export default function Accounts() {
                   <Group grow>
                     {/* 配额卡片 */}
                     {quota ? (
-                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                      <Card withBorder p="sm" radius="sm" className="glass-effect" style={{ background: 'rgba(99, 102, 241, 0.03) !important' }}>
                         <Group gap="xs" mb={4}>
-                          <CreditCard size={16} />
+                          <CreditCard size={16} color="var(--kiro-primary)" />
                           <Text size="sm" fw={500}>配额使用</Text>
                         </Group>
                         <Group justify="space-between" align="flex-end">
@@ -652,7 +652,7 @@ export default function Accounts() {
                         />
                       </Card>
                     ) : isLoadingQuota ? (
-                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                      <Card withBorder p="sm" radius="sm" className="glass-effect">
                         <Center h={80}>
                           <Stack align="center" gap={4}>
                             <Loader size="sm" />
@@ -661,7 +661,7 @@ export default function Accounts() {
                         </Center>
                       </Card>
                     ) : (
-                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                      <Card withBorder p="sm" radius="sm" className="glass-effect">
                         <Group gap="xs" mb={4}>
                           <CreditCard size={16} />
                           <Text size="sm" fw={500}>配额使用</Text>
@@ -674,9 +674,9 @@ export default function Accounts() {
 
                     {/* 健康状态卡片 */}
                     {health ? (
-                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                      <Card withBorder p="sm" radius="sm" className="glass-effect" style={{ background: 'rgba(16, 185, 129, 0.03) !important' }}>
                         <Group gap="xs" mb={4}>
-                          <Activity size={16} />
+                          <Activity size={16} color="#10b981" />
                           <Text size="sm" fw={500}>健康状态</Text>
                         </Group>
                         <Group justify="space-between" align="flex-end">
@@ -708,7 +708,7 @@ export default function Accounts() {
                         )}
                       </Card>
                     ) : (
-                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                      <Card withBorder p="sm" radius="sm" className="glass-effect">
                         <Group gap="xs" mb={4}>
                           <Activity size={16} />
                           <Text size="sm" fw={500}>健康状态</Text>

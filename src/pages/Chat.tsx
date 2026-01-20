@@ -13,11 +13,18 @@ import {
   ScrollArea,
   Code,
   Alert,
+  ActionIcon,
+  Tooltip,
+  rem,
 } from '@mantine/core'
-import { MessageSquare, Send, AlertCircle, Sparkles } from 'lucide-react'
+import { MessageSquare, Send, AlertCircle, Sparkles, Trash2, Copy, Check } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
 import { modelsApi, type Model } from '@/api/models'
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useThemeStore } from '@/stores/themeStore'
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
@@ -39,6 +46,7 @@ export default function Chat() {
   const [model, setModel] = useState('claude-sonnet-4.5')
   const [models, setModels] = useState<Model[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
+  const colorScheme = useThemeStore((state) => state.colorScheme)
   const viewport = useRef<HTMLDivElement>(null)
 
   // 加载模型列表
@@ -145,18 +153,33 @@ export default function Chat() {
   }
 
   const handleClear = () => {
-    setMessages([])
+    if (confirm('确定要清空所有聊天记录吗？')) {
+      setMessages([])
+    }
   }
 
   return (
-    <Stack gap="md" style={{ height: 'calc(100vh - 120px)' }}>
+    <Stack gap="md" style={{ height: 'calc(100vh - 120px)' }} className="animate-fade-in">
       <Group justify="space-between">
         <Group>
-          <MessageSquare size={24} color="#228be6" />
+          <div
+            style={{
+              width: rem(44),
+              height: rem(44),
+              borderRadius: rem(12),
+              background: 'var(--kiro-primary-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 16px rgba(99, 102, 241, 0.25)',
+            }}
+          >
+            <MessageSquare size={24} color="white" />
+          </div>
           <div>
             <Title order={2}>聊天测试</Title>
             <Text size="sm" c="dimmed">
-              测试 Kiro API 网关的聊天功能
+              测试 Kiro API 网关的 OpenAI 兼容性接口
             </Text>
           </div>
         </Group>
@@ -171,68 +194,117 @@ export default function Chat() {
             style={{ width: 220 }}
             disabled={modelsLoading || models.length === 0}
             placeholder={modelsLoading ? '加载中...' : '选择模型'}
+            size="sm"
           />
-          <Button variant="light" onClick={handleClear} disabled={messages.length === 0}>
-            清空对话
-          </Button>
+          <Tooltip label="清空记录">
+            <ActionIcon variant="light" color="red" size="lg" onClick={handleClear} disabled={messages.length === 0}>
+              <Trash2 size={18} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </Group>
 
-      <Alert icon={<AlertCircle size={16} />} color="blue" variant="light">
-        此功能调用本地网关的 <Code>/v1/chat/completions</Code> 接口，用于测试 OpenAI 兼容性
+      <Alert
+        icon={<AlertCircle size={16} />}
+        color="blue"
+        variant="light"
+        radius="md"
+        styles={{ root: { border: '1px solid rgba(34, 139, 230, 0.2)' } }}
+      >
+        <Text size="xs">
+          此功能调用本地网关的 <Code size="xs">/v1/chat/completions</Code> 接口。已支持 <strong>Markdown</strong> 解析与代码高亮。
+        </Text>
       </Alert>
 
       <Card
-        shadow="sm"
-        padding="lg"
+        p={0}
         radius="md"
         withBorder
-        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        className="glass-effect"
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
-        <ScrollArea style={{ flex: 1 }} viewportRef={viewport}>
+        <ScrollArea style={{ flex: 1 }} viewportRef={viewport} type="auto">
           {messages.length === 0 ? (
-            <Center h="100%">
+            <Center h="100%" style={{ minHeight: 400 }}>
               <Stack align="center" gap="md">
-                <Sparkles size={64} color="#adb5bd" />
-                <Text c="dimmed">开始对话吧</Text>
-                <Text size="xs" c="dimmed">
-                  支持流式响应，实时显示 AI 回复
+                <div style={{ position: 'relative' }}>
+                  <Sparkles size={64} color="var(--kiro-primary)" style={{ opacity: 0.3 }} />
+                  <Sparkles size={32} color="var(--kiro-primary)" style={{ position: 'absolute', top: -10, right: -10, animation: 'pulse 2s infinite' }} />
+                </div>
+                <Text fw={600} c="dimmed">即刻开始对话</Text>
+                <Text size="xs" c="dimmed" ta="center">
+                  支持流式响应与 Markdown 渲染
                 </Text>
               </Stack>
             </Center>
           ) : (
-            <Stack gap="md" p="md">
+            <Stack gap="xl" p="xl">
               {messages.map((msg, idx) => (
-                <Group key={idx} justify={msg.role === 'user' ? 'flex-end' : 'flex-start'}>
-                  <Paper
-                    p="md"
-                    radius="md"
-                    style={{
-                      maxWidth: '70%',
-                      background:
-                        msg.role === 'user'
-                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                          : '#f1f3f5',
-                    }}
-                  >
-                    <Text
-                      size="sm"
+                <Group key={idx} justify={msg.role === 'user' ? 'flex-end' : 'flex-start'} align="flex-start" wrap="nowrap">
+                  {msg.role === 'assistant' && (
+                    <div
                       style={{
-                        color: msg.role === 'user' ? 'white' : 'black',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
+                        minWidth: rem(32),
+                        height: rem(32),
+                        borderRadius: '50%',
+                        background: 'var(--kiro-primary-gradient)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: rem(4)
                       }}
                     >
-                      {msg.content}
-                    </Text>
-                  </Paper>
+                      <Sparkles size={16} color="white" />
+                    </div>
+                  )}
+                  <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
+                    <div className="markdown-content">
+                      <ReactMarkdown
+                        components={{
+                          code({ node, inline, className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(className || '')
+                            return !inline && match ? (
+                              <div style={{ position: 'relative', marginTop: rem(12), marginBottom: rem(12) }}>
+                                <SyntaxHighlighter
+                                  {...props}
+                                  children={String(children).replace(/\n$/, '')}
+                                  style={colorScheme === 'dark' ? vscDarkPlus : vs}
+                                  language={match[1]}
+                                  PreTag="div"
+                                  customStyle={{
+                                    borderRadius: rem(8),
+                                    fontSize: '0.85rem',
+                                    margin: 0,
+                                    background: colorScheme === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.03)',
+                                  }}
+                                />
+                                <div style={{ position: 'absolute', top: rem(8), right: rem(8) }}>
+                                  <CopyButton value={String(children)}>
+                                    {({ copied, copy }) => (
+                                      <ActionIcon size="sm" variant="subtle" onClick={copy} color={copied ? 'teal' : 'gray'}>
+                                        {copied ? <Check size={14} /> : <Copy size={14} />}
+                                      </ActionIcon>
+                                    )}
+                                  </CopyButton>
+                                </div>
+                              </div>
+                            ) : (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            )
+                          }
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
                 </Group>
               ))}
               {isLoading && messages[messages.length - 1]?.role === 'user' && (
-                <Group justify="flex-start">
-                  <Paper p="md" radius="md" style={{ background: '#f1f3f5' }}>
-                    <Loader size="sm" />
-                  </Paper>
+                <Group justify="flex-start" align="flex-start" wrap="nowrap">
+                  <div style={{ minWidth: rem(32) }}><Loader size="sm" type="dots" /></div>
                 </Group>
               )}
             </Stack>
@@ -240,30 +312,46 @@ export default function Chat() {
         </ScrollArea>
       </Card>
 
-      <Card shadow="sm" padding="md" radius="md" withBorder>
+      <Card padding="md" radius="md" withBorder className="glass-effect">
         <Group>
           <TextInput
-            placeholder="输入消息..."
+            placeholder="输入消息，开启精彩对话..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
             style={{ flex: 1 }}
             disabled={isLoading}
+            variant="unstyled"
+            styles={{ input: { paddingLeft: rem(12), fontSize: rem(15) } }}
           />
           <Button
-            leftSection={isLoading ? <Loader size={16} /> : <Send size={16} />}
+            leftSection={isLoading ? <Loader size={16} color="white" /> : <Send size={16} />}
             onClick={handleSend}
             disabled={!message.trim() || isLoading}
             loading={isLoading}
+            variant="filled"
           >
             发送
           </Button>
         </Group>
-        <Text size="xs" c="dimmed" mt="xs">
-          按 Enter 发送，Shift+Enter 换行
-        </Text>
+        <Group justify="flex-end" mt={4}>
+          <Text size="10px" c="dimmed">
+            按 Enter 发送，Shift+Enter 换行
+          </Text>
+        </Group>
       </Card>
     </Stack>
   )
 }
+
+function CopyButton({ value, children }: { value: string; children: (props: { copied: boolean; copy: () => void }) => React.ReactNode }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return <>{children({ copied, copy: handleCopy })}</>
+}
+
 
