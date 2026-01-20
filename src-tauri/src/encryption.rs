@@ -29,7 +29,7 @@ pub struct EncryptionManager {
 impl EncryptionManager {
     /// 初始化加密管理器
     /// 如果密钥文件不存在，会自动生成新密钥
-    pub fn new(data_dir: &PathBuf) -> Result<Self, AppError> {
+    pub fn new(data_dir: &Path) -> Result<Self, AppError> {
         let key_file = data_dir.join(".encryption_key");
 
         let key = if key_file.exists() {
@@ -72,7 +72,7 @@ impl EncryptionManager {
 
         let encrypted = EncryptedData {
             ciphertext: general_purpose::STANDARD.encode(&ciphertext),
-            nonce: general_purpose::STANDARD.encode(&nonce_bytes),
+            nonce: general_purpose::STANDARD.encode(nonce_bytes),
         };
 
         // 确保父目录存在
@@ -190,7 +190,7 @@ impl EncryptionManager {
 
         let encrypted = EncryptedData {
             ciphertext: general_purpose::STANDARD.encode(&ciphertext),
-            nonce: general_purpose::STANDARD.encode(&nonce_bytes),
+            nonce: general_purpose::STANDARD.encode(nonce_bytes),
         };
 
         serde_json::to_string(&encrypted)

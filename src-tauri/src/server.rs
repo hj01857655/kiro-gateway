@@ -6,7 +6,7 @@ use axum::{
         sse::{Event, Sse},
         IntoResponse, Response,
     },
-    routing::{get, post},
+    routing::{get, post, patch},
     Json, Router,
 };
 use std::convert::Infallible;
@@ -225,7 +225,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         .route("/accounts/import", post(admin_import_accounts))
         .route(
             "/accounts/:id",
-            axum::routing::patch(admin_update_account).delete(admin_delete_account),
+            patch(admin_update_account).delete(admin_delete_account),
         )
         .route("/accounts/:id/refresh", post(admin_refresh_account))
         .route("/accounts/:id/quota", get(admin_get_quota))
@@ -240,14 +240,18 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         )
         .route(
             "/api-keys/:id",
-            axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key),
+            patch(admin_update_api_key).delete(admin_delete_api_key),
         )
         .route("/config/generate", post(admin_generate_config))
         .route(
             "/config/server",
             get(admin_get_server_config).post(admin_update_server_config),
         )
-        .route("/token", get(admin_get_token));
+        .route("/token", get(admin_get_token))
+        .layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            admin_auth_middleware,
+        ));
 
     let app = Router::new()
         .route("/v1/chat/completions", post(chat_completions))
