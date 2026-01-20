@@ -118,3 +118,21 @@ export interface Bonus {
   expiresAt: number
   status: string
 }
+
+// 会话类型
+export interface Session {
+  sessionId: string
+  title: string
+  workspaceDirectory?: string
+  history: any[]  // 对话历史消息
+  hidden?: boolean
+}
+
+// 会话元数据类型
+export interface SessionInfo {
+  sessionId: string
+  title: string
+  dateCreated: string  // Unix 时间戳字符串
+  workspaceDirectory?: string
+  hidden?: boolean
+}

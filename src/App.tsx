@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center, Burger, Container } from '@mantine/core'
-import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
+import { Users, BarChart3, FileText, Settings, MessageSquare, Info, History } from 'lucide-react'
 import { useThemeStore } from './stores/themeStore'
 import { UpdateNotification } from './components/UpdateNotification'
 
@@ -9,9 +9,10 @@ const Metrics = lazy(() => import('./pages/Metrics'))
 const Logs = lazy(() => import('./pages/Logs'))
 const SettingsPage = lazy(() => import('./pages/Settings'))
 const Chat = lazy(() => import('./pages/Chat'))
+const Sessions = lazy(() => import('./pages/Sessions'))
 const About = lazy(() => import('./pages/About'))
 
-type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'about'
+type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'sessions' | 'about'
 
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -59,6 +60,7 @@ export default function App() {
 
   const navigation = [
     { id: 'accounts' as Page, name: '账号管理', icon: Users, color: 'violet' },
+    { id: 'sessions' as Page, name: '会话管理', icon: History, color: 'indigo' },
     { id: 'metrics' as Page, name: '统计监控', icon: BarChart3, color: 'blue' },
     { id: 'logs' as Page, name: '日志查看', icon: FileText, color: 'teal' },
     { id: 'chat' as Page, name: '聊天测试', icon: MessageSquare, color: 'orange' },
@@ -102,6 +104,8 @@ export default function App() {
     switch (currentPage) {
       case 'accounts':
         return <Accounts />
+      case 'sessions':
+        return <Sessions />
       case 'metrics':
         return <Metrics />
       case 'logs':
