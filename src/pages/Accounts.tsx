@@ -859,7 +859,6 @@ export default function Accounts() {
                     fontFamily: 'monospace',
                     fontSize: '0.85em',
                     lineHeight: '1.5',
-                    minHeight: '450px'
                   }
                 }}
               />
