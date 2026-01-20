@@ -17,6 +17,7 @@ pub mod logger;
 pub mod metrics;
 pub mod models;
 pub mod server;
+pub mod session;
 pub mod thinking_parser;
 pub mod token_allocator;
 pub mod websearch;

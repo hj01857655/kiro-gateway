@@ -44,6 +44,9 @@ pub enum AppError {
 
     #[error("文件操作错误: {0}")]
     FileError(String),
+
+    #[error("资源不存在: {0}")]
+    NotFound(String),
 }
 
 impl IntoResponse for AppError {

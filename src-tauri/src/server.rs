@@ -31,6 +31,7 @@ use crate::error::AppError;
 use crate::health_checker::HealthChecker;
 use crate::kiro_client::KiroClient;
 use crate::models::{AnthropicRequest, OpenAIRequest, Usage};
+use crate::session::SessionManager;
 
 // Windows 文件权限设置（使用 ACL）
 #[cfg(windows)]
@@ -70,6 +71,7 @@ pub struct AppState {
     pub app_handle: AppHandle,
     pub encryption: Arc<EncryptionManager>,
     pub admin_token: Arc<RwLock<Option<String>>>,
+    pub sessions: Arc<SessionManager>,
 }
 
 // 获取应用数据目录
@@ -242,6 +244,11 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
     });
     info!("Metrics 持久化任务已启动");
 
+    // 初始化 SessionManager
+    let sessions_dir = data_dir.join("sessions");
+    let sessions = Arc::new(SessionManager::new(sessions_dir)?);
+    info!("会话管理器已初始化");
+
     let state = Arc::new(AppState {
         config: config.clone(),
         client,
@@ -253,6 +260,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         app_handle,
         encryption,
         admin_token: Arc::new(RwLock::new(admin_token)),
+        sessions,
     });
 
     // 创建 Admin 子路由（带认证中间件）
@@ -284,6 +292,10 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
             get(admin_get_server_config).post(admin_update_server_config),
         )
         .route("/token", get(admin_get_token))
+        // 会话管理 API
+        .route("/sessions", get(admin_list_sessions).post(admin_create_session))
+        .route("/sessions/:id", get(admin_get_session).delete(admin_delete_session).patch(admin_update_session))
+        .route("/sessions/search", get(admin_search_sessions))
         .layer(middleware::from_fn_with_state(
             Arc::clone(&state),
             admin_auth_middleware,
@@ -1547,3 +1559,108 @@ async fn admin_get_token(
     })))
 }
 
+
+
+// ==================== 会话管理 API ====================
+
+// 列出所有会话
+async fn admin_list_sessions(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let sessions = state.sessions.list_sessions().await;
+    Ok(Json(serde_json::json!({
+        "sessions": sessions,
+        "total": sessions.len()
+    })))
+}
+
+// 创建新会话
+async fn admin_create_session(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let model = payload
+        .get("model")
+        .and_then(|v| v.as_str())
+        .unwrap_or("claude-sonnet-4.5")
+        .to_string();
+
+    let session = state.sessions.create_session(model).await?;
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "session": session
+    })))
+}
+
+// 获取会话详情
+async fn admin_get_session(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let session = state.sessions.get_session(&id).await?;
+    Ok(Json(serde_json::to_value(session).unwrap_or_default()))
+}
+
+// 更新会话
+async fn admin_update_session(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut session = state.sessions.get_session(&id).await?;
+
+    // 更新标题
+    if let Some(title) = payload.get("title").and_then(|v| v.as_str()) {
+        session.title = title.to_string();
+    }
+
+    // 更新上下文使用率
+    if let Some(usage) = payload.get("contextUsagePercentage").and_then(|v| v.as_f64()) {
+        session.update_context_usage(usage);
+    }
+
+    // 更新 token 使用量
+    if let Some(tokens) = payload.get("tokens").and_then(|v| v.as_u64()) {
+        session.update_tokens(tokens);
+    }
+
+    // 添加消息到历史
+    if let Some(message) = payload.get("message") {
+        if let Ok(chat_message) = serde_json::from_value::<crate::models::ChatMessage>(message.clone()) {
+            session.add_message(chat_message);
+        }
+    }
+
+    // 保存更新
+    state.sessions.update_session(&session).await?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "session": session
+    })))
+}
+
+// 删除会话
+async fn admin_delete_session(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    state.sessions.delete_session(&id).await?;
+    Ok(Json(serde_json::json!({
+        "success": true
+    })))
+}
+
+// 搜索会话
+async fn admin_search_sessions(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let query = params.get("q").map(|s| s.as_str()).unwrap_or("");
+    let sessions = state.sessions.search_sessions(query).await;
+    Ok(Json(serde_json::json!({
+        "sessions": sessions,
+        "total": sessions.len(),
+        "query": query
+    })))
+}
