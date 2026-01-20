@@ -31,11 +31,11 @@ Kiro 支持两种认证方式：
 ### IDC 账号（3个字段）
 - **Client ID** - 客户端 ID
 - **Client Secret** - 客户端密钥
-- **Profile ARN** - 配置文件 ARN
+- **Refresh Token** - 刷新令牌
 
 **注意**：
 - Social 账号不需要 Access Token（会自动通过 Refresh Token 获取）
-- IDC 账号不需要 Region（默认使用 us-east-1）
+- IDC 账号的 Profile ARN 和 Region 会在首次刷新时自动获取
 
 ---
 
