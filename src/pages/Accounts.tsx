@@ -5,6 +5,7 @@ import { accountsApi } from '@/api/accounts'
 import { fetchWithTimeout } from '@/api/utils'
 import { logger } from '@/lib/logger'
 import { getAccountKey } from '@/lib/utils'
+import { maskToken } from '@/lib/masking'
 import {
   Button,
   Card,
@@ -26,6 +27,7 @@ import {
   Progress,
   Tooltip,
   PasswordInput,
+  Code,
   rem,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
@@ -774,9 +776,23 @@ export default function Accounts() {
 
                   {/* 底部：详细信息 */}
                   <Stack gap={4}>
-                    <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
-                      ID: {account.id}
-                    </Text>
+                    <Group gap="xs">
+                      <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
+                        ID: {account.id}
+                      </Text>
+                    </Group>
+                    <Group gap="xs">
+                      <Text size="xs" c="dimmed">Token:</Text>
+                      <Tooltip label="点击复制完整 Token (功能待完善)">
+                        <Code style={{ cursor: 'pointer', fontSize: rem(11) }}>{maskToken(account.refreshToken)}</Code>
+                      </Tooltip>
+                    </Group>
+                    {account.clientSecret && (
+                      <Group gap="xs">
+                        <Text size="xs" c="dimmed">Secret:</Text>
+                        <Code style={{ fontSize: rem(11) }}>{maskToken(account.clientSecret)}</Code>
+                      </Group>
+                    )}
                     {account.expiresAt && (
                       <Text size="xs" c="dimmed">
                         Token 过期: {format(new Date(account.expiresAt), 'yyyy-MM-dd HH:mm:ss')}

@@ -6,7 +6,6 @@ import {
   TextInput,
   Button,
   Group,
-  Paper,
   Center,
   Select,
   Loader,
@@ -22,6 +21,7 @@ import { useState, useRef, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
 import { modelsApi, type Model } from '@/api/models'
 import ReactMarkdown from 'react-markdown'
+import rehypeSanitize from 'rehype-sanitize'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useThemeStore } from '@/stores/themeStore'
@@ -212,7 +212,7 @@ export default function Chat() {
         styles={{ root: { border: '1px solid rgba(34, 139, 230, 0.2)' } }}
       >
         <Text size="xs">
-          此功能调用本地网关的 <Code size="xs">/v1/chat/completions</Code> 接口。已支持 <strong>Markdown</strong> 解析与代码高亮。
+          此功能调用本地网关的 <Code style={{ fontSize: rem(12) }}>/v1/chat/completions</Code> 接口。已支持 <strong>Markdown</strong> 解析与代码高亮。
         </Text>
       </Alert>
 
@@ -260,6 +260,7 @@ export default function Chat() {
                   <div className={`chat-bubble ${msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}`}>
                     <div className="markdown-content">
                       <ReactMarkdown
+                        rehypePlugins={[rehypeSanitize]}
                         components={{
                           code({ node, inline, className, children, ...props }: any) {
                             const match = /language-(\w+)/.exec(className || '')
