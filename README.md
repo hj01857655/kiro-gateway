@@ -192,6 +192,16 @@ cd src-tauri && cargo fmt
 - 自动过滤 AI 生成的 Markdown 内容中的恶意脚本
 - 确保渲染内容安全无害
 
+**内容安全策略（CSP）**：
+- 在 `tauri.conf.json` 中配置严格的 CSP
+- 有效防止未授权资源加载
+- 阻止内联脚本执行
+
+**敏感信息脱敏**：
+- 账号管理页对 Refresh Token 和 Client Secret 进行掩码处理
+- 显示格式：`pk-abc...789`（只显示前后各 3 位）
+- 防止意外泄露，支持通过 Tooltip 识别状态
+
 ### 环境变量
 
 在 `src-tauri/.env` 或系统环境变量中配置：
