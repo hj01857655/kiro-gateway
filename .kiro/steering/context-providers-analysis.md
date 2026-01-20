@@ -11,7 +11,139 @@
 
 Context Providers 是 Kiro IDE 的核心功能之一，允许用户通过 `#` 符号引用各种上下文信息（文件、代码、终端、Git Diff 等）。
 
-**完整列表**（27 个）：
+---
+
+## 在 Kiro IDE 中的使用方式
+
+### 用户交互流程
+
+**源码位置**：`extension.js` 行 579274-579310
+
+1. **用户输入 `#` 符号**
+   - 在聊天输入框中输入 `#`
+   - 触发 Context Provider 选择器（QuickPick）
+
+2. **选择 Context Provider**
+   ```javascript
+   // 创建 QuickPick 选择器
+   const quickPick = vscode.window.createQuickPick();
+   quickPick.items = contextProviderItems;  // 所有可用的 providers
+   quickPick.title = "Context providers";
+   quickPick.placeholder = "Select a context provider to add to your prompt";
+   quickPick.canSelectMany = true;  // 可以选择多个
+   quickPick.show();
+   ```
+
+3. **获取上下文内容**
+   ```javascript
+   // 用户选择后，调用 getContextItems() 获取内容
+   const contextItems = await Promise.all(
+     selectedProviders.map(provider => 
+       provider.getContextItems("", {
+         config, ide, embeddingsProvider, reranker, llm,
+         fullInput: "", selectedCode: [], fetch
+       })
+     )
+   );
+   ```
+
+4. **拼接到消息中**
+   ```javascript
+   // 将所有上下文内容拼接成字符串
+   const contextString = contextItems
+     .map(item => item.content)
+     .join("\n\n") + "\n\n---\n\n";
+   
+   // 添加到用户消息前面
+   const fullMessage = contextString + userInput;
+   ```
+
+5. **发送给 API**
+   - 完整消息（包含上下文）发送给 Kiro API
+   - API 服务器接收的是标准的文本消息
+   - 不需要特殊的 context 字段
+
+### 实际使用示例
+
+**场景 1：引用文件**
+```
+用户输入：帮我分析这个文件 #file
+         ↓
+选择文件：src/main.rs
+         ↓
+实际发送的消息：
+```
+\`\`\`src/main.rs
+fn main() {
+    println!("Hello, world!");
+}
+\`\`\`
+
+---
+
+帮我分析这个文件
+```
+
+**场景 2：引用 Git Diff**
+```
+用户输入：帮我审查这些改动 #diff
+         ↓
+实际发送的消息：
+```
+\`\`\`git diff
+diff --git a/src/main.rs b/src/main.rs
+index 1234567..abcdefg 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,4 @@
+ fn main() {
++    // 新增注释
+     println!("Hello, world!");
+ }
+\`\`\`
+
+---
+
+帮我审查这些改动
+```
+
+**场景 3：引用终端内容**
+```
+用户输入：这个错误怎么解决 #terminal
+         ↓
+实际发送的消息：
+```
+Current terminal contents:
+
+error[E0425]: cannot find value `x` in this scope
+ --> src/main.rs:2:5
+  |
+2 |     x
+  |     ^ not found in this scope
+
+---
+
+这个错误怎么解决
+```
+
+### 关键发现
+
+**Context Providers 的本质**：
+- ✅ 是一个**内容获取和格式化系统**
+- ✅ 在**客户端**完成所有处理
+- ✅ 最终输出是**纯文本**
+- ✅ 以 Markdown 格式添加到消息中
+- ✅ API 服务器无需特殊处理
+
+**为什么这样设计？**
+1. **简化 API** - 服务器只需要处理文本消息
+2. **灵活性** - 客户端可以自由实现各种 providers
+3. **安全性** - 文件访问在客户端完成，服务器无需访问本地文件
+4. **兼容性** - 任何支持文本消息的 API 都可以使用
+
+---
+
+## 完整列表（27 个）
 1. file - Files（submenu，支持行范围）
 2. spec - Spec（submenu）
 3. code - Code（submenu，依赖索引）
