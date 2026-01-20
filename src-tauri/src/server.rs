@@ -727,17 +727,23 @@ async fn list_models(
                                 // 移除 qdev:: 前缀
                                 let clean_id = id.strip_prefix("qdev::").unwrap_or(id);
                                 
+                                // 生成模型标题
+                                let title = generate_model_title(clean_id);
+                                
                                 // 提取 tokenLimits 信息
                                 let mut model_info = serde_json::json!({
                                     "id": clean_id,
                                     "object": "model",
-                                    "owned_by": "anthropic"
+                                    "owned_by": "anthropic",
+                                    "provider": "anthropic",
+                                    "title": title
                                 });
                                 
                                 // 如果有 tokenLimits，添加到响应中
                                 if let Some(token_limits) = m.get("tokenLimits") {
                                     if let Some(max_input) = token_limits.get("maxInputTokens") {
                                         model_info["max_input_tokens"] = max_input.clone();
+                                        model_info["context_length"] = max_input.clone();
                                     }
                                     if let Some(max_output) = token_limits.get("maxOutputTokens") {
                                         model_info["max_output_tokens"] = max_output.clone();
@@ -767,17 +773,23 @@ async fn list_models(
                                                 let clean_id =
                                                     id.strip_prefix("qdev::").unwrap_or(id);
                                                 
+                                                // 生成模型标题
+                                                let title = generate_model_title(clean_id);
+                                                
                                                 // 提取 tokenLimits 信息
                                                 let mut model_info = serde_json::json!({
                                                     "id": clean_id,
                                                     "object": "model",
-                                                    "owned_by": "anthropic"
+                                                    "owned_by": "anthropic",
+                                                    "provider": "anthropic",
+                                                    "title": title
                                                 });
                                                 
                                                 // 如果有 tokenLimits，添加到响应中
                                                 if let Some(token_limits) = m.get("tokenLimits") {
                                                     if let Some(max_input) = token_limits.get("maxInputTokens") {
                                                         model_info["max_input_tokens"] = max_input.clone();
+                                                        model_info["context_length"] = max_input.clone();
                                                     }
                                                     if let Some(max_output) = token_limits.get("maxOutputTokens") {
                                                         model_info["max_output_tokens"] = max_output.clone();
@@ -819,14 +831,67 @@ async fn list_models(
     }
 }
 
+// 生成模型标题
+fn generate_model_title(model_id: &str) -> String {
+    match model_id {
+        "claude-sonnet-4.5" => "Claude Sonnet 4.5".to_string(),
+        "claude-sonnet-4" => "Claude Sonnet 4".to_string(),
+        "claude-haiku-4.5" => "Claude Haiku 4.5".to_string(),
+        "claude-opus-4" => "Claude Opus 4".to_string(),
+        _ => {
+            // 自动生成标题：claude-sonnet-4.5 -> Claude Sonnet 4.5
+            model_id
+                .split('-')
+                .map(|word| {
+                    let mut chars = word.chars();
+                    match chars.next() {
+                        None => String::new(),
+                        Some(first) => {
+                            first.to_uppercase().collect::<String>() + chars.as_str()
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
+    }
+}
+
 // 默认模型列表（当无法从 Kiro API 获取时使用）
 fn get_default_models() -> serde_json::Value {
     serde_json::json!({
         "object": "list",
         "data": [
-            {"id": "claude-haiku-4.5", "object": "model", "owned_by": "anthropic"},
-            {"id": "claude-sonnet-4", "object": "model", "owned_by": "anthropic"},
-            {"id": "claude-sonnet-4.5", "object": "model", "owned_by": "anthropic"},
+            {
+                "id": "claude-sonnet-4.5",
+                "object": "model",
+                "owned_by": "anthropic",
+                "provider": "anthropic",
+                "title": "Claude Sonnet 4.5",
+                "max_input_tokens": 200000,
+                "max_output_tokens": 8192,
+                "context_length": 200000
+            },
+            {
+                "id": "claude-sonnet-4",
+                "object": "model",
+                "owned_by": "anthropic",
+                "provider": "anthropic",
+                "title": "Claude Sonnet 4",
+                "max_input_tokens": 200000,
+                "max_output_tokens": 8192,
+                "context_length": 200000
+            },
+            {
+                "id": "claude-haiku-4.5",
+                "object": "model",
+                "owned_by": "anthropic",
+                "provider": "anthropic",
+                "title": "Claude Haiku 4.5",
+                "max_input_tokens": 200000,
+                "max_output_tokens": 8192,
+                "context_length": 200000
+            }
         ]
     })
 }
