@@ -449,7 +449,7 @@ export default function Accounts() {
   }
 
   return (
-    <Stack gap="md" maw={1400} mx="auto" className="animate-fade-in">
+    <Stack gap="md" maw={1400} style={{ margin: '0 auto' }} className="animate-fade-in">
       {/* 健康状态概览 */}
       {healthData && (
         <Card withBorder>
