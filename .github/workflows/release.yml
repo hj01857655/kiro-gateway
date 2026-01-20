@@ -114,5 +114,5 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          # 只在 macOS aarch64 上传 updater 文件，避免冲突
-          includeUpdaterJson: ${{ matrix.platform == 'macos-latest' && contains(matrix.args, 'aarch64') }}
+          # 在最后一个平台（Windows）生成 updater 文件
+          includeUpdaterJson: ${{ matrix.platform == 'windows-latest' }}
