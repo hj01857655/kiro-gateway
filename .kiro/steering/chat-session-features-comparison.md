@@ -262,7 +262,7 @@ if let Some(token_limits) = m.get("tokenLimits") {
 ```
 
 **kiro-gateway 实现**：
-- ✅ **源码分析已完成**（`.kiro/steering/context-providers-analysis.md`）
+- ✅ **源码分析已完成**（`E:\VSCodeSpace\Kiro\kiro-source-analysis\systems\agent\context-providers.md`）
 - ⚠️ 待实现（已有完整的实现方案）
 
 **优先级**：⭐⭐⭐ 中等
