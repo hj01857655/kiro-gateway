@@ -783,7 +783,7 @@ impl AccountManager {
                     if let Some(stored) = accounts.iter_mut().find(|a| a.id == account.id) {
                         stored.access_token = account.access_token.clone();
                         stored.refresh_token = account.refresh_token.clone();
-                        stored.expires_at = account.expires_at;
+                        stored.expires_at = account.expires_at.clone();
                         stored.status = AccountStatus::Active;
                         stored.throttled_until = None;
                     }
