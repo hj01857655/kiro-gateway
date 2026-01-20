@@ -8,6 +8,8 @@
 
 ## 核心发现
 
+### 1. Context Providers 的工作流程
+
 通过分析 Kiro IDE 源码（行 579274-579292），发现 Context Providers 的工作流程：
 
 ```javascript
@@ -31,6 +33,75 @@ const contextString = contextItems
 
 // 4. 添加到用户消息中（在客户端完成）
 ```
+
+### 2. `#` 触发机制（聊天输入框）
+
+**源码位置**：`chat-input.md`（行 520-550）
+
+用户在聊天输入框中输入 `#` 字符时，会触发 Context Provider 选择器：
+
+```typescript
+// # 触发的 Mention 节点配置
+{
+  suggestion: {
+    char: "#",                    // 触发字符
+    pluginKey: R8e,               // 插件唯一标识
+    command: ({ editor, range, props }) => {
+      // 支持文件行号范围 (如 #file.ts:10-20)
+      let lineRange = ""
+      if (props.itemType === "file" && text) {
+        const colonIndex = text.lastIndexOf(":")
+        if (colonIndex !== -1) {
+          const suffix = text.substring(colonIndex)
+          if (/^:\d+(-\d+)?$/.test(suffix)) {
+            lineRange = suffix
+          }
+        }
+      }
+
+      const label = props.label + lineRange
+      const query = (props.query || props.id) + lineRange
+
+      // 插入 mention 节点
+      editor.chain()
+        .focus()
+        .insertContentAt(range, [
+          { type: this.name, attrs: { ...props, label, query } },
+          { type: "text", text: " " }
+        ])
+        .run()
+    },
+
+    // 只在行首或空格后允许触发
+    allow: ({ state, range }) => {
+      const resolved = state.doc.resolve(range.from)
+      const nodeType = state.schema.nodes[this.name]
+      const canInsert = !!resolved.parent.type.contentMatch.matchType(nodeType)
+      const from = range.from
+      const to = state.selection.$to.pos
+      const hasSpace = state.doc.textBetween(from, to).includes(" ")
+      return canInsert && !hasSpace
+    }
+  }
+}
+```
+
+**工作流程**：
+
+1. **用户输入 `#`** → 触发 Suggestion 插件
+2. **显示 Context Provider 菜单** → 使用 MiniSearch 模糊搜索
+3. **用户选择 Provider** → 插入 mention 节点到编辑器
+4. **提交消息时** → 调用 `getContextItems()` 获取内容
+5. **拼接到消息** → 使用 `\n\n---\n\n` 分隔符
+6. **发送给 API** → 标准文本消息（包含上下文）
+
+**支持的格式**：
+- `#file` - 引用整个文件
+- `#file.ts:10` - 引用第 10 行
+- `#file.ts:10-20` - 引用第 10-20 行
+- `#diff` - 引用 Git Diff
+- `#terminal` - 引用终端内容
+- `#steering` - 引用 Steering 规则
 
 **关键结论**：
 - ✅ Context Providers 在**客户端**处理
