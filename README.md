@@ -10,37 +10,66 @@
 [![GitHub downloads](https://img.shields.io/github/downloads/hj01857655/kiro-gateway/total)](https://github.com/hj01857655/kiro-gateway/releases)
 [![QQ Group](https://img.shields.io/badge/QQ%20Group-1081058179-blue)](https://qm.qq.com/q/oQbUA0cxO2)
 
-Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，提供 OpenAI/Anthropic 兼容的 Kiro API 网关服务。
+> 🚀 Kiro API 网关 - 提供 OpenAI/Anthropic 兼容接口的桌面应用
+
+Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
+
+## ✨ 核心特性
+
+| 特性 | 说明 |
+|------|------|
+| 🔄 **API 兼容** | 完全兼容 OpenAI Chat Completions 和 Anthropic Messages API |
+| 👥 **多账号管理** | 支持 Social 和 IDC 账号，自动轮询和故障转移 |
+| 🔐 **安全加密** | AES-256-GCM 加密存储敏感数据，机器特定密钥保护 |
+| 🔄 **自动刷新** | Token 自动检测过期并刷新，无需手动维护 |
+| 📊 **实时监控** | 请求统计、延迟分析、成功率追踪 |
+| 🖥️ **桌面界面** | 友好的管理界面，支持深色/浅色主题 |
+| 🛠️ **工具调用** | 完整支持工具调用和图片上传 |
+| 💭 **Thinking 解析** | 与 Kiro IDE 一致的 thinking block 解析 |
+| 🎯 **动态模型** | 从 Kiro API 动态加载可用模型列表 |
 
 ## 📥 下载
 
-**最新版本**（永久链接）：https://github.com/hj01857655/kiro-gateway/releases/latest
+**最新版本**：[GitHub Releases](https://github.com/hj01857655/kiro-gateway/releases/latest)
 
-**各平台下载**（自动下载最新版本）：
-- **Windows**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64-setup.exe
-- **macOS (Intel)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64.dmg
-- **macOS (Apple Silicon)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_aarch64.dmg
-- **Linux (AppImage)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.AppImage
-- **Linux (deb)**：https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.deb
+| 平台 | 下载链接 |
+|------|---------|
+| 🪟 **Windows** | [kiro-gateway_x64-setup.exe](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64-setup.exe) |
+| 🍎 **macOS (Intel)** | [kiro-gateway_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_x64.dmg) |
+| 🍎 **macOS (Apple Silicon)** | [kiro-gateway_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_aarch64.dmg) |
+| 🐧 **Linux (AppImage)** | [kiro-gateway_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.AppImage) |
+| 🐧 **Linux (deb)** | [kiro-gateway_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.deb) |
 
 ## 💬 交流群
 
 **QQ 群**：1081058179（Kiro GateWay交流群）  
 [点击加入群聊](https://qm.qq.com/q/oQbUA0cxO2)
 
+## 🚀 快速开始
+
+### 1. 下载安装
+
+从 [Releases](https://github.com/hj01857655/kiro-gateway/releases/latest) 下载对应平台的安装包并安装。
+
+### 2. 添加账号
+
+打开应用后，在"账号管理"页面添加 Kiro 账号：
+- **从 Kiro IDE 导入**：自动读取 `~/.aws/sso/cache/kiro-auth-token.json`
+- **手动添加**：输入 Access Token 和 Refresh Token
+- **批量导入**：支持 JSON 文件导入
+
+### 3. 配置客户端
+
+在"设置"页面生成配置文件：
+- **Claude Desktop**：一键生成并应用配置
+- **Claude CLI**：复制配置到 `~/.config/claude/config.json`
+- **OpenAI 兼容**：使用 `http://127.0.0.1:8080` 作为 Base URL
+
+### 4. 开始使用
+
+配置完成后，即可通过 Claude Desktop、Claude CLI 或其他 OpenAI 兼容客户端使用。
+
 ## 项目简介
-
-Kiro Gateway 将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
-
-**核心特性**：
-- 🔄 OpenAI/Anthropic API 完全兼容
-- 👥 多账号轮询和自动切换
-- 🔐 自动 Token 刷新和管理
-- 📊 实时统计和日志监控
-- 🖥️ 友好的桌面管理界面
-- 🛠️ 工具调用和图片支持
-- 💭 Thinking block 解析
-- 🎯 动态模型列表加载
 
 ## 技术栈
 
