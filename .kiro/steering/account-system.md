@@ -34,8 +34,9 @@ Kiro 支持两种认证方式：
 - **Refresh Token** - 刷新令牌
 
 **注意**：
-- Social 账号不需要 Access Token（会自动通过 Refresh Token 获取）
-- IDC 账号的 Profile ARN 和 Region 会在首次刷新时自动获取
+- Social 账号的 Profile ARN 为空字符串
+- IDC 账号的 Profile ARN 会在首次刷新时自动获取
+- 两种账号都不需要手动输入 Access Token（会自动通过 Refresh Token 获取）
 
 ---
 
