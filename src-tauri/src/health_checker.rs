@@ -2,19 +2,22 @@
 // 后台任务，定期检查所有账号的有效性
 
 use crate::account::{AccountManager, AccountStatus};
+use crate::kiro_client::KiroClient;
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 
 pub struct HealthChecker {
     accounts: Arc<AccountManager>,
+    client: Arc<KiroClient>,
     check_interval: Duration,
 }
 
 impl HealthChecker {
-    pub fn new(accounts: Arc<AccountManager>, check_interval_secs: u64) -> Self {
+    pub fn new(accounts: Arc<AccountManager>, client: Arc<KiroClient>, check_interval_secs: u64) -> Self {
         Self {
             accounts,
+            client,
             check_interval: Duration::from_secs(check_interval_secs),
         }
     }
@@ -124,24 +127,38 @@ impl HealthChecker {
         let account = accounts.iter().find(|a| a.id == account_id);
 
         if let Some(acc) = account {
-            // 检查 accessToken 是否过期
+            // 先检查 Token 是否过期
             if acc.is_expired() {
-                debug!("账号 {} accessToken 已过期，尝试刷新", account_id);
+                debug!("账号 {} Token 已过期，尝试刷新", account_id);
                 match self.accounts.refresh_account(account_id).await {
-                    Ok(_) => {
-                        debug!("账号 {} Token 刷新成功", account_id);
-                        Ok(true)
+                    Ok(refreshed_acc) => {
+                        debug!("账号 {} Token 刷新成功，进行健康检查", account_id);
+                        // 刷新成功后，使用 dryRun 验证账号是否真的可用
+                        let is_healthy = self.client.health_check(&refreshed_acc).await;
+                        if is_healthy {
+                            debug!("账号 {} 健康检查通过", account_id);
+                            Ok(true)
+                        } else {
+                            warn!("账号 {} Token 刷新成功但健康检查失败", account_id);
+                            Ok(false)
+                        }
                     }
                     Err(e) => {
-                        warn!("账号 {} Token 刷新失败: {}，标记为 expired", account_id, e);
-                        // 刷新失败才标记为不可用
+                        warn!("账号 {} Token 刷新失败: {}", account_id, e);
                         Ok(false)
                     }
                 }
             } else {
-                // accessToken 还有效，账号可用
-                debug!("账号 {} accessToken 有效，无需刷新", account_id);
-                Ok(true)
+                // Token 未过期，使用 dryRun 验证账号健康
+                debug!("账号 {} Token 有效，进行健康检查", account_id);
+                let is_healthy = self.client.health_check(acc).await;
+                if is_healthy {
+                    debug!("账号 {} 健康检查通过", account_id);
+                    Ok(true)
+                } else {
+                    warn!("账号 {} 健康检查失败", account_id);
+                    Ok(false)
+                }
             }
         } else {
             Err(format!("账号 {} 不存在", account_id))
