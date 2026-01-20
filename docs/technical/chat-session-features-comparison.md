@@ -20,8 +20,8 @@
 | tokenLimits (模型列表) | ✅ | ✅ | 完全实现 | - |
 | 模型配置 (contextLength/maxTokens) | ✅ | ✅ | **完全实现** | - |
 | 会话管理 (持久化) | ✅ | ✅ | **完全实现** | - |
-| 上下文提供者系统 | ✅ | ❌ | 未实现 | ⭐⭐⭐ |
-| Embeddings (代码搜索) | ✅ | ❌ | 未实现 | ⭐⭐ |
+| 上下文提供者系统 | ✅ | ❌ | 分析完成 | ⭐⭐⭐ |
+| Embeddings (代码搜索) | ✅ | ❌ | 分析完成 | ⭐⭐ |
 | 自主模式 (Autopilot/Supervised) | ✅ | ❌ | 未实现 | ⭐ |
 
 ---
@@ -370,7 +370,7 @@ const contextString = contextItems
 
 ---
 
-### 10. Embeddings (代码搜索) ❌
+### 10. Embeddings (代码搜索) ✅
 
 **Kiro IDE 实现**：
 ```json
@@ -379,21 +379,94 @@ const contextString = contextItems
 }
 ```
 
+**工作原理**（源码分析：行 267760-294750）：
+```javascript
+// 1. 使用 TransformersJS 的 all-MiniLM-L6-v2 模型
+class TransformersJsEmbeddingsProvider {
+  static model = "all-MiniLM-L6-v2";
+  static maxGroupSize = 4;  // 每次处理 4 个 chunk
+  
+  async embed(chunks) {
+    const extractor = await EmbeddingsPipeline.getInstance();
+    const outputs = [];
+    
+    // 分组处理（每次 4 个）
+    for (let i = 0; i < chunks.length; i += maxGroupSize) {
+      const chunkGroup = chunks.slice(i, i + maxGroupSize);
+      const output = await extractor(chunkGroup, {
+        pooling: "mean",      // 平均池化
+        normalize: true       // 归一化
+      });
+      outputs.push(...output.tolist());
+    }
+    return outputs;  // 384 维向量
+  }
+}
+
+// 2. 存储到 LanceDB 向量数据库
+class LanceDbIndex {
+  async update(tag, results) {
+    const dbRows = await this.computeRows(results.compute);
+    await lanceDb.createTable(tableName, dbRows);
+  }
+}
+
+// 3. 多源检索
+class NoRerankerRetrievalPipeline {
+  async run() {
+    // 向量相似度搜索
+    const embeddingsChunks = await this.retrieveEmbeddings(input, n);
+    
+    // 全文搜索（FTS5 BM25）
+    const ftsChunks = await this.retrieveFts(input, n);
+    
+    // 最近编辑文件
+    const recentChunks = await this.retrieveRecentlyEdited(n);
+    
+    // 合并去重
+    return deduplicateChunks([...embeddingsChunks, ...ftsChunks, ...recentChunks]);
+  }
+}
+```
+
 **kiro-gateway 实现**：
-- ❌ 未实现 Embeddings 功能
-- ❌ 未实现代码搜索功能
+- ✅ **源码分析已完成**
+  - 详细分析：`docs/technical/embeddings-analysis.md`
+  - 源码分析项目：`E:\VSCodeSpace\Kiro\kiro-source-analysis\internals\embedding.md`
+
+**核心发现**：
+- ✅ Embeddings 是**客户端功能**
+- ✅ 用于本地代码库的语义搜索
+- ✅ 不涉及 Kiro API 调用
+- ✅ **kiro-gateway 不需要实现**
+
+**技术架构**：
+- **模型**：TransformersJS + all-MiniLM-L6-v2（384 维向量）
+- **存储**：LanceDB（向量） + SQLite（元数据）
+- **检索**：向量相似度 + 全文搜索（FTS5） + 最近编辑
 
 **优先级**：⭐⭐ 中低
 
-**为什么可以实现**：
-- 如果要实现代码搜索功能，需要 Embeddings
-- 可以增强用户体验
-- 可以作为独立的微服务
+**实现建议**：
+- **方案 A**：独立微服务（推荐）⭐⭐⭐⭐⭐
+  - 单独部署 Embeddings 服务
+  - 提供 HTTP API
+  - kiro-gateway 可选集成
 
-**说明**：
-- 不是 API 网关的核心功能
-- 可以作为独立服务实现
-- 可以使用 TransformersJS 的 all-MiniLM-L6-v2 模型
+- **方案 B**：桌面应用集成
+  - 在 Tauri 桌面应用中实现
+  - 使用 Rust 的 ML 库（如 `candle`）
+  - 本地运行，不依赖网络
+
+- **方案 C**：使用第三方服务
+  - 集成 GitHub Copilot 的代码搜索
+  - 使用 OpenAI Embeddings API
+  - 使用其他第三方服务
+
+**结论**：
+- Embeddings 应该作为**独立服务**实现
+- kiro-gateway 的 API 层**不需要修改**
+- 这样既保持了 kiro-gateway 的简洁性，又提供了扩展能力
 
 ---
 
@@ -478,10 +551,15 @@ const contextString = contextItems
 ### ✅ 已完成分析的功能
 
 1. **上下文提供者系统** - 完整的源码分析和实现方案
-   - 实现指南：`.kiro/steering/context-providers-implementation-plan.md`
-   - 详细分析：`.kiro/steering/context-providers-analysis.md`
+   - 实现指南：`docs/technical/context-providers-implementation-plan.md`
+   - 详细分析：`docs/technical/context-providers-analysis.md`
    - 核心发现：Context Providers 是客户端功能，在前端实现
    - 推荐方案：桌面应用前端集成（使用 Tauri 命令）
+
+2. **Embeddings 系统** - 完整的源码分析和实现方案
+   - 详细分析：`docs/technical/embeddings-analysis.md`
+   - 核心发现：Embeddings 是客户端功能，用于本地代码搜索
+   - 推荐方案：独立微服务（不在 API 网关中实现）
 
 ### ⚠️ 可选功能（非核心）
 
@@ -494,7 +572,10 @@ const contextString = contextItems
    - 不影响 API 网关核心功能
    - 已有完整的实现方案
 
-2. **Embeddings** ⭐⭐ - 增强代码搜索功能（可选）
+2. **Embeddings 系统** ⭐⭐ - 作为独立微服务实现（可选）
+   - 提供代码语义搜索功能
+   - 使用 TransformersJS + all-MiniLM-L6-v2
+   - 不在 API 网关中实现
 
 ### ❌ 不需要实现的功能
 
@@ -511,7 +592,8 @@ const contextString = contextItems
 **扩展功能**：✅ **分析完成**
 - 上下文提供者系统：完整的源码分析和实现方案
 - 推荐在桌面应用前端实现（不影响 API 网关）
-- Embeddings 功能待实现（可选）
+- Embeddings 系统：完整的源码分析和实现方案
+- 推荐作为独立微服务实现（不在 API 网关中实现）
 
 **总体评估**：✅ **核心功能 100% 完成，扩展功能分析完成**
 
@@ -572,8 +654,12 @@ const contextString = contextItems
 
 **作为独立微服务实现**：
 - 使用 TransformersJS 的 all-MiniLM-L6-v2 模型
-- 实现代码搜索功能
-- 集成到会话管理中
+- 实现代码语义搜索功能
+- 提供 HTTP API
+- 不在 kiro-gateway 中实现
+
+**参考文档**：
+- 详细分析：`docs/technical/embeddings-analysis.md`
 
 ---
 
@@ -582,4 +668,6 @@ const contextString = contextItems
 - Kiro IDE 源码：`C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js`
 - 聊天会话文件分析：`E:\VSCodeSpace\Kiro\kiro-source-analysis\chat-session-analysis.md`
 - Kiro API 规范：`docs/kiro-gate/kiro-api.md`
+- Context Providers 分析：`docs/technical/context-providers-analysis.md`
+- Embeddings 分析：`docs/technical/embeddings-analysis.md`
 - 当前实现：`src-tauri/src/` 目录下的所有 Rust 文件
