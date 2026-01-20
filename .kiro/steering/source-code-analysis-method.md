@@ -1,5 +1,17 @@
 # 源码分析方法规范
 
+## 术语说明
+
+**"Kiro 源码"** 或 **"源码"** 在本项目中特指：
+- **Kiro IDE 的源码**（`C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js`）
+- **不是** kiro-gateway 自己的源码
+
+**我们的代码** 或 **"当前实现"** 指：
+- kiro-gateway 项目的 Rust 代码（`src-tauri/src/`）
+- kiro-gateway 项目的前端代码（`src/`）
+
+---
+
 ## 核心原则
 
 **按行号精确读取源码**是最正确、最准确的分析方式。
@@ -11,7 +23,7 @@
 
 ## 正确的分析流程
 
-### 第一步：搜索关键词定位行号
+### 第一步：搜索关键词定位行号（Kiro IDE 源码）
 
 ```powershell
 Select-String -Path "C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js" -Pattern "function saveSession" -Context 0,3
@@ -24,7 +36,7 @@ Select-String -Path "C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\ex
 
 **得到行号**：569994
 
-### 第二步：按行号读取完整代码 ⭐ 最重要
+### 第二步：按行号读取完整代码 ⭐ 最重要（Kiro IDE 源码）
 
 ```powershell
 $lines = Get-Content "C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js"
@@ -38,7 +50,7 @@ $lines[569994..570040] -join "`n"
 - ✅ 边界条件
 - ✅ 上下文关系
 
-### 第三步：分析代码逻辑
+### 第三步：分析代码逻辑（理解 Kiro IDE 的实现）
 
 理解代码的：
 - 输入输出
@@ -47,15 +59,15 @@ $lines[569994..570040] -join "`n"
 - 错误处理
 - 设计思路
 
-### 第四步：记录到文档
+### 第四步：记录到文档（或实现到 kiro-gateway）
 
-提取核心逻辑，添加注释，记录到分析文档。
+提取核心逻辑，添加注释，记录到分析文档或实现到我们的代码中。
 
 ---
 
 ## 实际示例
 
-### 示例 1：分析会话管理的 load 函数
+### 示例 1：分析会话管理的 load 函数（Kiro IDE 源码）
 
 **第一步：搜索定位**
 ```powershell
@@ -97,7 +109,7 @@ load(sessionId, workspaceDir) {
 - 确保 sessionId 字段存在
 - 失败时返回默认结构
 
-### 示例 2：分析会话管理的 save 函数
+### 示例 2：分析会话管理的 save 函数（Kiro IDE 源码）
 
 **第一步：搜索定位**
 ```powershell
@@ -184,15 +196,15 @@ save(session) {
 
 ### ✅ 优势
 
-1. **看到完整逻辑** - 不会遗漏任何细节
+1. **看到完整逻辑** - 不会遗漏任何细节（Kiro IDE 的实现）
 2. **理解上下文** - 知道函数的输入输出和调用关系
 3. **发现边界条件** - 看到所有的 if/else 分支
 4. **学习错误处理** - 看到如何处理异常情况
-5. **准确实现** - 可以完全按照源码实现
+5. **准确实现** - 可以完全按照 Kiro IDE 的源码实现到 kiro-gateway
 
 ### ❌ 只搜索关键词的问题
 
-1. **只看到片段** - 看不到完整逻辑
+1. **只看到片段** - 看不到完整逻辑（Kiro IDE 的）
 2. **遗漏细节** - 可能错过重要的边界条件
 3. **理解不深** - 不知道为什么这样实现
 4. **实现不准** - 容易漏掉关键步骤
@@ -202,21 +214,21 @@ save(session) {
 
 ## 常用命令模板
 
-### 读取指定行范围
+### 读取指定行范围（Kiro IDE 源码）
 
 ```powershell
 $lines = Get-Content "C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js"
 $lines[起始行..结束行] -join "`n"
 ```
 
-### 读取单行
+### 读取单行（Kiro IDE 源码）
 
 ```powershell
 $lines = Get-Content "C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js"
 $lines[行号]
 ```
 
-### 读取多个不连续的行范围
+### 读取多个不连续的行范围（Kiro IDE 源码）
 
 ```powershell
 $lines = Get-Content "C:\Users\12925\AppData\Local\Programs\Kiro\resources\app\extensions\kiro.kiro-agent\dist\extension.js"
@@ -231,12 +243,12 @@ $lines[200..250] -join "`n"
 ```markdown
 ## 函数名 - 功能描述 (行 起始-结束)
 
-### 源码位置
+### 源码位置（Kiro IDE）
 - 文件：extension.js
 - 行号：569973-569990
 - 函数：load(sessionId, workspaceDir)
 
-### 完整代码
+### 完整代码（Kiro IDE 源码）
 \`\`\`javascript
 // 粘贴按行号读取的完整代码
 \`\`\`
@@ -256,7 +268,7 @@ $lines[200..250] -join "`n"
 - 如何处理 JSON 解析失败
 - 返回什么默认值
 
-### Rust 实现建议
+### Rust 实现建议（kiro-gateway）
 \`\`\`rust
 // 对应的 Rust 实现
 \`\`\`
@@ -268,10 +280,11 @@ $lines[200..250] -join "`n"
 
 **记住**：
 - ❌ 不要只搜索关键词就说分析完了
-- ✅ 必须按行号读取完整代码
+- ✅ 必须按行号读取完整代码（Kiro IDE 源码）
 - ✅ 理解每一行的作用
 - ✅ 记录关键逻辑和边界条件
 - ✅ 这才是真正的源码分析
+- ✅ 然后实现到 kiro-gateway 中
 
 **这种方式叫什么？**
 - **按行号精确读取源码分析法**
@@ -279,5 +292,10 @@ $lines[200..250] -join "`n"
 - **深度源码研读法**
 
 **核心思想**：
-> 不要只看搜索结果的片段，要看完整的函数实现。
+> 不要只看搜索结果的片段，要看完整的函数实现（Kiro IDE 的）。
 > 只有看到完整代码，才能真正理解实现逻辑。
+> 然后才能准确地实现到 kiro-gateway 中。
+
+**术语区分**：
+- **"Kiro 源码"** = Kiro IDE 的源码（extension.js）
+- **"我们的代码"** = kiro-gateway 的源码（src-tauri/src/）

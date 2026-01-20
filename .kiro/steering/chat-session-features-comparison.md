@@ -18,7 +18,7 @@
 | messageId | ✅ | ✅ | 完全实现 | - |
 | contextUsagePercentage | ✅ | ✅ | 完全实现 | - |
 | tokenLimits (模型列表) | ✅ | ✅ | 完全实现 | - |
-| 模型配置 (contextLength/maxTokens) | ✅ | ❌ | 未实现 | ⭐⭐⭐⭐ |
+| 模型配置 (contextLength/maxTokens) | ✅ | ✅ | **完全实现** | - |
 | 会话管理 (持久化) | ✅ | ✅ | **完全实现** | - |
 | 上下文提供者系统 | ✅ | ❌ | 未实现 | ⭐⭐⭐ |
 | Embeddings (代码搜索) | ✅ | ❌ | 未实现 | ⭐⭐ |
@@ -177,7 +177,7 @@ if let Some(token_limits) = m.get("tokenLimits") {
 
 ---
 
-### 7. 模型配置 (contextLength/maxTokens) ❌
+### 7. 模型配置 (contextLength/maxTokens) ✅
 
 **Kiro IDE 实现**：
 ```json
@@ -209,34 +209,36 @@ if let Some(token_limits) = m.get("tokenLimits") {
 
 **kiro-gateway 实现**：
 ```rust
-// src-tauri/src/server.rs:713-750
-// 当前只返回基本信息
+// src-tauri/src/server.rs:920-960
+// 完整的模型配置实现
 {
     "id": "claude-sonnet-4.5",
     "object": "model",
     "owned_by": "anthropic",
-    "max_input_tokens": 200000,  // ✅ 刚刚添加
-    "max_output_tokens": 8192    // ✅ 刚刚添加
+    "provider": "anthropic",           // ✅ 已实现
+    "title": "Claude Sonnet 4.5",      // ✅ 已实现（通过 generate_model_title）
+    "max_input_tokens": 200000,        // ✅ 已实现
+    "max_output_tokens": 8192,         // ✅ 已实现
+    "context_length": 200000           // ✅ 已实现
 }
 ```
 
-**缺失功能**：
-- ❌ `provider` 字段
-- ❌ `title` 字段
-- ❌ `contextLength` 字段（与 max_input_tokens 类似）
-- ❌ `completionOptions` 对象
+**实现详情**：
 
-**优先级**：⭐⭐⭐⭐ 高
+1. **generate_model_title 函数**（`src-tauri/src/server.rs:1033-1056`）：
+   - 为常见模型提供预定义标题
+   - 自动生成标题（如 `claude-sonnet-4.5` → `Claude Sonnet 4.5`）
 
-**为什么要实现**：
-- 客户端需要知道模型的 token 限制
-- OpenAI API 标准要求返回完整的模型信息
-- 前端需要显示模型的详细配置
+2. **默认模型列表**（`src-tauri/src/server.rs:1059-1095`）：
+   - 包含完整的模型配置信息
+   - 当无法从 Kiro API 获取时使用
 
-**建议**：
-- 必须添加 `provider` 和 `title` 字段
-- 必须添加 `context_length` 字段（使用 max_input_tokens）
-- 可选添加 `completionOptions` 对象
+3. **动态模型列表**（`src-tauri/src/server.rs:920-1000`）：
+   - 从 Kiro API 获取模型列表
+   - 自动提取 tokenLimits 信息
+   - 添加 provider、title、context_length 字段
+
+**结论**：✅ 完全实现，与 Kiro IDE 功能对等
 
 ---
 
@@ -430,11 +432,12 @@ if let Some(token_limits) = m.get("tokenLimits") {
 4. **messageId** - 消息 ID 追踪
 5. **contextUsagePercentage** - 上下文使用率计算
 6. **tokenLimits** - 模型 token 限制信息
-7. **会话管理** - 完整的会话持久化、恢复、管理功能（后端 + 前端）
+7. **模型配置** - 完整的模型配置（provider、title、contextLength、maxTokens）
+8. **会话管理** - 完整的会话持久化、恢复、管理功能（后端 + 前端）
 
-### ⚠️ 应该实现的功能
+### ⚠️ 可选功能（非核心）
 
-1. **模型配置** ⭐⭐⭐⭐ - 客户端需要完整的模型信息（provider、title、contextLength）
+无 - 所有核心功能已完成！
 
 ### 📝 可以实现的功能
 
