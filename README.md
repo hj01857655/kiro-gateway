@@ -62,11 +62,40 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 打开应用后，在"账号管理"页面添加 Kiro 账号：
 
-- **从 Kiro IDE 导入**：自动读取 `~/.aws/sso/cache/kiro-auth-token.json`
-- **手动添加**：
-  - Social 账号：只需填写 Refresh Token
-  - IDC 账号：需填写 Client ID、Client Secret、Refresh Token
-- **批量导入**：支持 JSON 文件导入（格式见下方"配置说明"章节）
+**方式 1：从 Kiro IDE 导入**（推荐）
+- 自动读取 `~/.aws/sso/cache/kiro-auth-token.json`
+
+**方式 2：手动添加**
+- Social 账号：只需填写 Refresh Token
+- IDC 账号：需填写 Client ID、Client Secret、Refresh Token
+
+**方式 3：批量导入 JSON 文件**
+
+创建 JSON 文件，格式如下：
+
+Social 账号：
+```json
+[
+  {
+    "authMethod": "social",
+    "refreshToken": "eyJ..."
+  }
+]
+```
+
+IDC 账号：
+```json
+[
+  {
+    "authMethod": "IdC",
+    "clientId": "MkAG97...",
+    "clientSecret": "eyJraWQ...",
+    "refreshToken": "aorAAAAA..."
+  }
+]
+```
+
+然后在"账号管理"页面点击"批量导入"按钮选择文件即可。
 
 ### 3. 配置客户端
 
