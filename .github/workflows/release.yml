@@ -45,9 +45,14 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
       - name: Setup Rust build optimization
         run: |
           echo "CARGO_BUILD_JOBS=$(nproc)" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
         shell: bash
 
       - name: Install dependencies (ubuntu only)
