@@ -404,6 +404,8 @@ export CONTINUE_GLOBAL_DIR="$HOME/.local/share/Kiro"
 
 ## 相关文档
 
+- Kiro IDE `.kiro` 目录分析：`docs/technical/kiro-dot-kiro-directory-analysis.md`
+- Kiro IDE 路径使用分析：`docs/technical/kiro-paths-usage-analysis.md`
 - Kiro IDE 日志分析：`.kiro/steering/kiro-ide-logs.md`
 - 会话管理源码分析：`docs/technical/kiro-session-management-source-analysis.md`
 - Kiro API 规范：`docs/technical/kiro-api.md`
