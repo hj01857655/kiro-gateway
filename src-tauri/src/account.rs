@@ -170,6 +170,8 @@ pub struct AccountManager {
     save_task_running: Arc<Mutex<bool>>,
     // 智能 Token 分配器
     allocator: Arc<SmartTokenAllocator>,
+    // Token 刷新锁（防止竞态条件）
+    refresh_locks: Arc<parking_lot::Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
 }
 
 impl Default for AccountManager {
@@ -187,6 +189,7 @@ impl AccountManager {
             pending_saves: Arc::new(Mutex::new(HashSet::new())),
             save_task_running: Arc::new(Mutex::new(false)),
             allocator: Arc::new(SmartTokenAllocator::new()),
+            refresh_locks: Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new())),
         }
     }
 

@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/error*.{rs,ts}"
+---
+
 # 错误处理规范
 
 ## Kiro 错误类型

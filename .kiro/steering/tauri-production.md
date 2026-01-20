@@ -1,6 +1,6 @@
 ---
-title: Tauri 生产环境规范
-inclusion: always
+inclusion: fileMatch
+fileMatchPattern: "src-tauri/**/*"
 ---
 
 # Tauri 生产环境规范

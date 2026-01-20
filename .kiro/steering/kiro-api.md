@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/kiro_client*.{rs,ts}"
+---
+
 # Kiro API 规范
 
 ## 端点

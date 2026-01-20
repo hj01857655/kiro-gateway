@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/models*.{rs,ts}"
+---
+
 # 模型映射规范
 
 ## Kiro 支持的模型

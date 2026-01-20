@@ -9,6 +9,7 @@ pub mod auth;
 pub mod config;
 pub mod config_generator;
 pub mod converter;
+pub mod encryption;
 pub mod error;
 pub mod health_checker;
 pub mod kiro_client;
@@ -23,33 +24,47 @@ pub mod websearch;
 // Tauri 命令：代理 HTTP 请求到本地 Axum 服务器
 #[tauri::command]
 async fn proxy_request(
+    app: tauri::AppHandle,
     method: String,
     path: String,
     body: Option<String>,
 ) -> Result<String, String> {
     let url = format!("http://127.0.0.1:8080{}", path);
     let client = reqwest::Client::new();
-    
+
+    // 读取 Admin Token
+    let data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("获取数据目录失败: {}", e))?;
+    let admin_token_file = data_dir.join(".admin_token");
+    let admin_token = if admin_token_file.exists() {
+        std::fs::read_to_string(&admin_token_file)
+            .map_err(|e| format!("读取 Admin Token 失败: {}", e))?
+            .trim()
+            .to_string()
+    } else {
+        return Err("Admin Token 未初始化".to_string());
+    };
+
     let request = match method.as_str() {
-        "GET" => client.get(&url),
+        "GET" => client.get(&url).header("x-admin-token", &admin_token),
         "POST" => {
-            let mut req = client.post(&url);
+            let mut req = client.post(&url).header("x-admin-token", &admin_token);
             if let Some(body_str) = body {
                 req = req.header("Content-Type", "application/json").body(body_str);
             }
             req
         }
         "PATCH" => {
-            let mut req = client.patch(&url);
+            let mut req = client.patch(&url).header("x-admin-token", &admin_token);
             if let Some(body_str) = body {
                 req = req.header("Content-Type", "application/json").body(body_str);
             }
             req
         }
-        "DELETE" => client.delete(&url),
+        "DELETE" => client.delete(&url).header("x-admin-token", &admin_token),
         _ => return Err("Unsupported method".to_string()),
     };
-    
+
     match request.send().await {
         Ok(response) => {
             match response.text().await {

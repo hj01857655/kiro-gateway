@@ -12,6 +12,7 @@ use axum::{
 use std::convert::Infallible;
 use std::path::PathBuf;
 use std::sync::Arc;
+use parking_lot::RwLock;
 use tauri::{AppHandle, Manager};
 use tokio_stream::StreamExt;
 use tower_http::cors::CorsLayer;
@@ -25,6 +26,7 @@ use crate::converter::{
     anthropic_to_openai, build_kiro_payload, create_openai_end_with_reason,
     is_stream_request_anthropic, is_stream_request_openai, kiro_to_anthropic, kiro_to_openai,
 };
+use crate::encryption::EncryptionManager;
 use crate::error::AppError;
 use crate::health_checker::HealthChecker;
 use crate::kiro_client::KiroClient;
@@ -39,6 +41,8 @@ pub struct AppState {
     pub api_keys: api_key::ApiKeyManager,
     pub health_checker: Arc<HealthChecker>,
     pub app_handle: AppHandle,
+    pub encryption: Arc<EncryptionManager>,
+    pub admin_token: Arc<RwLock<Option<String>>>,
 }
 
 // 获取应用数据目录
@@ -58,6 +62,42 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
     // 获取应用数据目录
     let data_dir = get_app_data_dir(&app_handle)?;
     info!("应用数据目录: {:?}", data_dir);
+
+    // 初始化加密管理器
+    let encryption = Arc::new(EncryptionManager::new(&data_dir)?);
+    info!("加密管理器已初始化");
+
+    // 生成或加载 Admin Token
+    let admin_token_file = data_dir.join(".admin_token");
+    let admin_token = if admin_token_file.exists() {
+        let token_str = std::fs::read_to_string(&admin_token_file)?;
+        Some(token_str.trim().to_string())
+    } else {
+        // 首次启动，生成新的 Admin Token
+        use rand::Rng;
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let mut rng = rand::thread_rng();
+        let token: String = (0..64)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+
+        std::fs::write(&admin_token_file, &token)?;
+
+        // 设置文件权限（仅当前用户可读写）
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&admin_token_file)?.permissions();
+            perms.set_mode(0o600);
+            std::fs::set_permissions(&admin_token_file, perms)?;
+        }
+
+        info!("已生成新的 Admin Token，保存在: {:?}", admin_token_file);
+        Some(token)
+    };
 
     let config = AppConfig::from_env();
     let client = KiroClient::new(config.clone());
@@ -170,6 +210,8 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         api_keys,
         health_checker,
         app_handle,
+        encryption,
+        admin_token: Arc::new(RwLock::new(admin_token)),
     });
 
     let app = Router::new()
@@ -207,6 +249,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
                     "/config/server",
                     get(admin_get_server_config).post(admin_update_server_config),
                 )
+                .route("/token", get(admin_get_token))
                 .layer(middleware::from_fn_with_state(
                     Arc::clone(&state),
                     admin_auth_middleware,
@@ -215,13 +258,19 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         .with_state(state)
         .layer(
             CorsLayer::new()
-                .allow_origin([
-                    "http://localhost:5173".parse().expect("Invalid CORS origin"),
-                    "http://127.0.0.1:5173".parse().expect("Invalid CORS origin"),
-                    "http://localhost:8080".parse().expect("Invalid CORS origin"),
-                    "http://127.0.0.1:8080".parse().expect("Invalid CORS origin"),
-                    "tauri://localhost".parse().expect("Invalid CORS origin"),
-                ])
+                .allow_origin(if cfg!(debug_assertions) {
+                    // 开发模式：允许多个 origin
+                    vec![
+                        "http://localhost:5173".parse().expect("Invalid CORS origin"),
+                        "http://127.0.0.1:5173".parse().expect("Invalid CORS origin"),
+                        "http://localhost:8080".parse().expect("Invalid CORS origin"),
+                        "http://127.0.0.1:8080".parse().expect("Invalid CORS origin"),
+                        "tauri://localhost".parse().expect("Invalid CORS origin"),
+                    ]
+                } else {
+                    // 生产模式：仅允许 Tauri 协议
+                    vec!["tauri://localhost".parse().expect("Invalid CORS origin")]
+                })
                 .allow_methods([
                     axum::http::Method::GET,
                     axum::http::Method::POST,
@@ -233,6 +282,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
                     axum::http::header::CONTENT_TYPE,
                     axum::http::header::AUTHORIZATION,
                     "x-api-key".parse().expect("Invalid header name"),
+                    "x-admin-token".parse().expect("Invalid header name"),
                 ])
                 .allow_credentials(true),
         );
@@ -278,15 +328,46 @@ fn verify_api_key(
     Ok(())
 }
 
-// Admin API 认证中间件（桌面应用无需认证）
+// Admin API 认证中间件
 async fn admin_auth_middleware(
-    _state: State<Arc<AppState>>,
-    _headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, AppError> {
-    // 桌面应用的 Admin API 无需认证，直接放行
-    Ok(next.run(request).await)
+    // 从请求头获取 token
+    let provided_token = headers
+        .get("x-admin-token")
+        .and_then(|v| v.to_str().ok())
+        .or_else(|| {
+            headers
+                .get("authorization")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.strip_prefix("Bearer "))
+        });
+
+    // 获取存储的 admin token
+    let stored_token = state.admin_token.read();
+
+    match (&*stored_token, provided_token) {
+        (Some(stored), Some(provided)) if stored == provided => {
+            // Token 验证通过
+            Ok(next.run(request).await)
+        }
+        (Some(_), Some(_)) => {
+            // Token 不匹配
+            Err(AppError::BadRequest("无效的 Admin Token".into()))
+        }
+        (Some(_), None) => {
+            // 未提供 Token
+            Err(AppError::BadRequest("缺少 Admin Token".into()))
+        }
+        (None, _) => {
+            // 未设置 Admin Token（不应该发生）
+            warn!("Admin Token 未设置，拒绝访问");
+            Err(AppError::BadRequest("Admin Token 未配置".into()))
+        }
+    }
 }
 
 async fn chat_completions(
@@ -1221,4 +1302,12 @@ async fn admin_update_server_config(
         "message": "配置已保存，请重启应用使其生效",
         "needRestart": true
     })))
+}
+
+// 获取 Admin Token（用于前端显示）
+async fn admin_get_token(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let token = state.admin_token.read();
+    Json(serde_json::json!({
+        "token": token.as_ref().unwrap_or(&String::new())
+    }))
 }
