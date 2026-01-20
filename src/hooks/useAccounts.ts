@@ -10,6 +10,8 @@ export const useAccounts = () => {
   const query = useQuery({
     queryKey: ['accounts'],
     queryFn: accountsApi.getAll,
+    staleTime: 0, // 数据立即过期，每次都重新请求
+    gcTime: 5 * 60 * 1000, // 缓存保留 5 分钟（用于后台刷新）
   })
 
   // 同步数据到 store
