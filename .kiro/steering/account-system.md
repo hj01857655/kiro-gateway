@@ -154,7 +154,9 @@ Kiro 支持两种认证方式：
 }
 ```
 
-**响应**:
+**响应格式演变**：
+
+**旧格式**（兼容）:
 ```json
 {
   "accessToken": "eyJraWQ...",
@@ -162,6 +164,25 @@ Kiro 支持两种认证方式：
   "expiresIn": 3600
 }
 ```
+
+**新格式**（2026-01-20 后）:
+```json
+{
+  "accessToken": "eyJraWQ...",
+  "refreshToken": "aorAAAAA...",
+  "expiresIn": 3600,
+  "aws_sso_app_session_id": null,
+  "idToken": null,
+  "issuedTokenType": null,
+  "originSessionId": null
+}
+```
+
+**格式变更说明**：
+- Kiro API 新增了 4 个 AWS SSO 字段
+- 这些字段通常为 `null`，但可能在某些情况下有值
+- kiro-gateway 已更新解析逻辑，兼容两种格式
+- 核心字段（`accessToken`、`refreshToken`、`expiresIn`）保持不变
 
 ### IDC 账号刷新
 
@@ -177,7 +198,9 @@ Kiro 支持两种认证方式：
 }
 ```
 
-**响应**:
+**响应格式演变**：
+
+**旧格式**（兼容）:
 ```json
 {
   "accessToken": "eyJraWQ...",
@@ -186,6 +209,25 @@ Kiro 支持两种认证方式：
   "tokenType": "Bearer"
 }
 ```
+
+**新格式**（2026-01-20 后）:
+```json
+{
+  "accessToken": "eyJraWQ...",
+  "refreshToken": "aorAAAAA...",
+  "expiresIn": 3600,
+  "tokenType": "Bearer",
+  "aws_sso_app_session_id": null,
+  "idToken": null,
+  "issuedTokenType": null,
+  "originSessionId": null
+}
+```
+
+**格式变更说明**：
+- AWS SSO OIDC 端点也新增了相同的 4 个字段
+- kiro-gateway 已更新解析逻辑，兼容两种格式
+- 核心字段保持不变
 
 **IDC 刷新需要额外信息**：
 - `clientId` 和 `clientSecret`（从客户端注册缓存获取）
@@ -454,7 +496,37 @@ fn is_idc(account: &Account) -> bool {
 
 ---
 
-## 注意事项
+## 变更日志
+
+### 2026-01-20：Token 刷新响应格式更新
+
+**背景**：Kiro API 更新了 Token 刷新响应格式，新增了 AWS SSO 相关字段。
+
+**变更内容**：
+- Social 和 IDC 账号的刷新响应都新增了 4 个可选字段：
+  - `aws_sso_app_session_id` - AWS SSO 应用会话 ID
+  - `idToken` - ID Token（OpenID Connect）
+  - `issuedTokenType` - 发行的 Token 类型
+  - `originSessionId` - 原始会话 ID
+- 这些字段通常为 `null`，但可能在某些情况下有值
+
+**兼容性**：
+- ✅ kiro-gateway 已更新解析逻辑，兼容新旧两种格式
+- ✅ 核心字段（`accessToken`、`refreshToken`、`expiresIn`）保持不变
+- ✅ 现有账号无需重新配置，自动适配新格式
+
+**实现细节**：
+- 文件：`src-tauri/src/account.rs`
+- 更新了 `RefreshResponse` 和 `IdcRefreshResponse` 结构体
+- 新增字段使用 `#[serde(default)]` 标记，确保向后兼容
+- 日志中记录 AWS SSO 字段（如果存在），便于调试
+
+**用户影响**：
+- 无需任何操作
+- Token 刷新继续正常工作
+- 如果 AWS SSO 字段有值，会在日志中记录
+
+---
 
 1. **IDC 需要保存 clientRegistration**
    - 没有它无法刷新 Token
