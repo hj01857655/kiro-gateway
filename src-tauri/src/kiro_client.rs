@@ -615,8 +615,51 @@ impl KiroClient {
                 .bytes()
                 .await
                 .map_err(|e| AppError::NetworkError(e.to_string()))?;
-            let value: serde_json::Value = serde_cbor::from_slice(&bytes)
+            let mut value: serde_json::Value = serde_cbor::from_slice(&bytes)
                 .map_err(|e| AppError::ParseError(format!("CBOR 解析失败: {}", e)))?;
+            
+            // 计算配额使用率（基础配额 + 试用配额）
+            if let Some(usage_breakdown_list) = value.get("usageBreakdownList").and_then(|v| v.as_array()) {
+                if let Some(first_item) = usage_breakdown_list.first() {
+                    // 获取基础配额使用情况
+                    let current_usage = first_item.get("currentUsage").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let usage_limit = first_item.get("usageLimit").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    
+                    // 获取试用配额使用情况
+                    let (trial_usage, trial_limit) = if let Some(free_trial_info) = first_item.get("freeTrialInfo") {
+                        let trial_current = free_trial_info.get("currentUsage").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let trial_limit = free_trial_info.get("usageLimit").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        (trial_current, trial_limit)
+                    } else {
+                        (0.0, 0.0)
+                    };
+                    
+                    // 计算总使用量和总限额
+                    let total_usage = current_usage + trial_usage;
+                    let total_limit = usage_limit + trial_limit;
+                    
+                    // 计算使用率百分比
+                    let usage_percentage = if total_limit > 0.0 {
+                        (total_usage / total_limit) * 100.0
+                    } else {
+                        0.0
+                    };
+                    
+                    // 添加 usagePercentage 字段到响应中
+                    if let Some(obj) = value.as_object_mut() {
+                        obj.insert("usagePercentage".to_string(), serde_json::json!(usage_percentage));
+                    }
+                    
+                    debug!(
+                        "配额计算: 基础 {}/{}, 试用 {}/{}, 总计 {}/{} ({}%)",
+                        current_usage, usage_limit,
+                        trial_usage, trial_limit,
+                        total_usage, total_limit,
+                        usage_percentage
+                    );
+                }
+            }
+            
             return Ok(value);
         }
 
