@@ -1073,12 +1073,21 @@ async fn admin_get_quota(
         Ok(quota) => {
             // 检查配额使用率，如果达到 100% 则标记为配额用尽
             if let Some(usage_percentage) = quota.get("usagePercentage").and_then(|v| v.as_f64()) {
+                info!("账号 {} 配额使用率: {}%", id, usage_percentage);
                 if usage_percentage >= 100.0 {
-                    warn!("账号 {} 配额已用尽 ({}%)", id, usage_percentage);
+                    warn!("账号 {} 配额已用尽 ({}%)，标记为 Exhausted", id, usage_percentage);
                     state.accounts.mark_status(&id, crate::account::AccountStatus::Exhausted);
+                    
+                    // 验证状态是否已更新
+                    let accounts = state.accounts.list_accounts();
+                    if let Some(updated_acc) = accounts.iter().find(|a| a.id == id) {
+                        info!("账号 {} 状态已更新为: {:?}", id, updated_acc.status);
+                    }
                 } else if usage_percentage >= 95.0 {
                     warn!("账号 {} 配额即将用尽 ({}%)", id, usage_percentage);
                 }
+            } else {
+                warn!("账号 {} 配额响应中没有 usagePercentage 字段", id);
             }
             
             // 缓存配额数据（5 分钟）
