@@ -29,11 +29,11 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Checkout private repository
+      - name: Checkout source code
         uses: actions/checkout@v4
         with:
-          repository: hj01857655/kiro-gateway_dev
-          ref: dev
+          repository: ${{ secrets.SOURCE_REPO }}
+          ref: ${{ secrets.SOURCE_BRANCH }}
           token: ${{ secrets.DEV_REPO_TOKEN }}
 
       - name: Setup Node.js
