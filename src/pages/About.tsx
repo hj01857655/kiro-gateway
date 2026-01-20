@@ -1,4 +1,4 @@
-import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor } from '@mantine/core'
+import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor, rem } from '@mantine/core'
 import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
@@ -16,7 +16,20 @@ export default function About() {
   return (
     <Stack gap="md" className="animate-fade-in">
       <Group>
-        <Info size={24} color="#228be6" />
+        <div
+          style={{
+            width: rem(44),
+            height: rem(44),
+            borderRadius: rem(12),
+            background: 'var(--kiro-primary-gradient)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 16px rgba(99, 102, 241, 0.25)',
+          }}
+        >
+          <Info size={24} color="white" />
+        </div>
         <div>
           <Title order={2}>关于 Kiro Gateway</Title>
           <Text size="sm" c="dimmed">

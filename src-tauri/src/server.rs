@@ -820,13 +820,13 @@ async fn admin_add_account(
 ) -> Result<Json<serde_json::Value>, AppError> {
     // 格式兼容处理：支持 Kiro Account Manager 导出的格式
     
-    // 1. 转换 expiresAt 字符串格式为毫秒时间戳
+    // 1. 转换 expiresAt 字符串格式为 ISO 8601
     if let Some(expires_at_str) = account_json.get("expiresAt").and_then(|v| v.as_str()) {
         // 尝试解析 "2026/01/20 16:00:40" 格式
         if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(expires_at_str, "%Y/%m/%d %H:%M:%S") {
-            // 转换为 UTC 时间戳（毫秒）
-            let timestamp_ms = dt.and_utc().timestamp_millis();
-            account_json["expiresAt"] = serde_json::json!(timestamp_ms);
+            // 转换为 ISO 8601 字符串
+            let iso_string = dt.and_utc().to_rfc3339();
+            account_json["expiresAt"] = serde_json::json!(iso_string);
         }
     }
     
@@ -1139,11 +1139,15 @@ async fn admin_import_accounts(
 
     let access_token = token_data["accessToken"].as_str().unwrap_or("");
 
+    // 按 IDE 的方式转换 expiresAt：毫秒时间戳 → ISO 8601 字符串
     let expires_at = token_data["expiresAt"]
-        .as_str()
-        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-        .map(|dt| dt.timestamp_millis() as u64)
-        .unwrap_or(0);
+        .as_i64()
+        .map(|ms| {
+            let dt = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms)
+                .unwrap_or_else(|| chrono::Utc::now());
+            dt.to_rfc3339()
+        })
+        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
 
     // 判断账号类型
     let auth_method = token_data["authMethod"]

@@ -41,7 +41,10 @@ const MODEL_LABELS: Record<string, string> = {
 
 export default function Chat() {
   const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem('chat_messages')
+    return saved ? JSON.parse(saved) : []
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [model, setModel] = useState('claude-sonnet-4.5')
   const [models, setModels] = useState<Model[]>([])
@@ -68,6 +71,7 @@ export default function Chat() {
 
   // 自动滚动到底部
   useEffect(() => {
+    localStorage.setItem('chat_messages', JSON.stringify(messages))
     if (viewport.current) {
       viewport.current.scrollTo({ top: viewport.current.scrollHeight, behavior: 'smooth' })
     }
@@ -155,6 +159,7 @@ export default function Chat() {
   const handleClear = () => {
     if (confirm('确定要清空所有聊天记录吗？')) {
       setMessages([])
+      localStorage.removeItem('chat_messages')
     }
   }
 

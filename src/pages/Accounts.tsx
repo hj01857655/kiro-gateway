@@ -28,6 +28,7 @@ import {
   Tooltip,
   PasswordInput,
   Code,
+  CopyButton,
   rem,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
@@ -155,7 +156,7 @@ export default function Accounts() {
       clientSecret: formData.clientSecret || undefined,
       enabled: true,
     }
-    
+
     try {
       await addAccount(accountData)
       setShowAddModal(false)
@@ -788,14 +789,36 @@ export default function Accounts() {
                     </Group>
                     <Group gap="xs">
                       <Text size="xs" c="dimmed">Token:</Text>
-                      <Tooltip label="点击复制完整 Token (功能待完善)">
-                        <Code style={{ cursor: 'pointer', fontSize: rem(11) }}>{maskToken(account.refreshToken)}</Code>
-                      </Tooltip>
+                      <CopyButton value={account.refreshToken}>
+                        {({ copied, copy }) => (
+                          <Tooltip label={copied ? '已复制' : '复制完整 Token'}>
+                            <Code
+                              style={{ cursor: 'pointer', fontSize: rem(11) }}
+                              onClick={copy}
+                              color={copied ? 'teal' : undefined}
+                            >
+                              {maskToken(account.refreshToken)}
+                            </Code>
+                          </Tooltip>
+                        )}
+                      </CopyButton>
                     </Group>
                     {account.clientSecret && (
                       <Group gap="xs">
                         <Text size="xs" c="dimmed">Secret:</Text>
-                        <Code style={{ fontSize: rem(11) }}>{maskToken(account.clientSecret)}</Code>
+                        <CopyButton value={account.clientSecret}>
+                          {({ copied, copy }) => (
+                            <Tooltip label={copied ? '已复制' : '复制完整 Secret'}>
+                              <Code
+                                style={{ cursor: 'pointer', fontSize: rem(11) }}
+                                onClick={copy}
+                                color={copied ? 'teal' : undefined}
+                              >
+                                {maskToken(account.clientSecret)}
+                              </Code>
+                            </Tooltip>
+                          )}
+                        </CopyButton>
                       </Group>
                     )}
                     {account.expiresAt && (

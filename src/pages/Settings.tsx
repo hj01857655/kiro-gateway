@@ -19,7 +19,7 @@ import {
   Center,
   rem,
 } from '@mantine/core'
-import { Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff, Download, Wand2, AlertCircle, Moon } from 'lucide-react'
+import { Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff, Download, Wand2, AlertCircle, Moon, Settings as SettingsIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
 import { apiKeysApi, type ApiKey } from '@/api/apiKeys'
@@ -226,7 +226,30 @@ export default function Settings() {
 
   return (
     <Stack gap="md" className="animate-fade-in">
-      <Title order={2}>设置</Title>
+      <Group justify="space-between">
+        <Group>
+          <div
+            style={{
+              width: rem(44),
+              height: rem(44),
+              borderRadius: rem(12),
+              background: 'var(--kiro-primary-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 16px rgba(99, 102, 241, 0.25)',
+            }}
+          >
+            <SettingsIcon size={24} color="white" />
+          </div>
+          <div>
+            <Title order={2}>系统设置</Title>
+            <Text size="sm" c="dimmed">
+              配置 API 密钥、服务器参数及界面首选项
+            </Text>
+          </div>
+        </Group>
+      </Group>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
         <Group mb="md">

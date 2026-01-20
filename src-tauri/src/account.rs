@@ -42,7 +42,7 @@ pub struct Account {
     pub profile_arn: String,
     pub region: Option<String>,
     #[serde(default)]
-    pub expires_at: Option<i64>,
+    pub expires_at: Option<String>,
     #[serde(default)]
     pub expire: Option<String>,
     pub client_id: Option<String>,
@@ -69,19 +69,18 @@ impl Account {
         let buffer_ms = 5 * 60 * 1000;
         let now = Utc::now().timestamp_millis();
 
+        // 优先检查 expire 字段（ISO 8601 字符串）
         if let Some(ref expire_str) = self.expire {
             if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(expire_str) {
                 return now >= dt.timestamp_millis() - buffer_ms;
             }
         }
 
-        if let Some(expires_at) = self.expires_at {
-            let expires_ms = if expires_at < 10_000_000_000 {
-                expires_at * 1000
-            } else {
-                expires_at
-            };
-            return now >= expires_ms - buffer_ms;
+        // 检查 expires_at 字段（ISO 8601 字符串）
+        if let Some(ref expires_at_str) = self.expires_at {
+            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(expires_at_str) {
+                return now >= dt.timestamp_millis() - buffer_ms;
+            }
         }
 
         // 没有过期时间信息：
@@ -703,19 +702,19 @@ impl AccountManager {
                                     .get("refreshToken")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("");
-                                let old_expires_at = acc.get("expiresAt").and_then(|v| v.as_i64());
+                                let old_expires_at = acc.get("expiresAt").and_then(|v| v.as_str());
 
                                 if old_access_token != account.access_token
                                     || old_refresh_token != account.refresh_token
-                                    || old_expires_at != account.expires_at
+                                    || old_expires_at != account.expires_at.as_deref()
                                 {
                                     acc["accessToken"] =
                                         serde_json::Value::String(account.access_token.clone());
                                     acc["refreshToken"] =
                                         serde_json::Value::String(account.refresh_token.clone());
-                                    if let Some(expires_at) = account.expires_at {
+                                    if let Some(expires_at) = &account.expires_at {
                                         acc["expiresAt"] =
-                                            serde_json::Value::Number(expires_at.into());
+                                            serde_json::Value::String(expires_at.clone());
                                     }
                                     acc["status"] = serde_json::to_value(&account.status)
                                         .unwrap_or(serde_json::json!("active"));
@@ -845,8 +844,11 @@ impl AccountManager {
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;
         }
-        account.expires_at =
-            Some(Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000));
+        // 按 IDE 的方式设置 expiresAt：转换为 ISO 8601 字符串
+        let expires_at_ms = Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000);
+        let expires_at_dt = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(expires_at_ms)
+            .unwrap_or_else(|| Utc::now());
+        account.expires_at = Some(expires_at_dt.to_rfc3339());
 
         info!("Social Token 刷新成功: {}", account.id);
         Ok(())
@@ -911,8 +913,11 @@ impl AccountManager {
         if let Some(rt) = data.refresh_token {
             account.refresh_token = rt;
         }
-        account.expires_at =
-            Some(Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000));
+        // 按 IDE 的方式设置 expiresAt：转换为 ISO 8601 字符串
+        let expires_at_ms = Utc::now().timestamp_millis() + (data.expires_in.unwrap_or(3600) * 1000);
+        let expires_at_dt = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(expires_at_ms)
+            .unwrap_or_else(|| Utc::now());
+        account.expires_at = Some(expires_at_dt.to_rfc3339());
 
         info!("IDC Token 刷新成功: {}", account.id);
         Ok(())
