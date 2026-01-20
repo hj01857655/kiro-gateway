@@ -21,15 +21,6 @@ export function useAutoUpdate() {
     setError(null)
 
     try {
-      // 开发版本不检查更新
-      if (import.meta.env.DEV) {
-        setUpdateInfo({
-          available: false,
-          currentVersion: 'dev',
-        })
-        return false
-      }
-
       // 获取当前版本
       const currentVersion = await invoke<string>('get_app_version')
 
@@ -53,8 +44,11 @@ export function useAutoUpdate() {
         return false
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      setError(errorMsg)
+      // 开发版本不显示错误
+      if (!import.meta.env.DEV) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        setError(errorMsg)
+      }
       console.error('检查更新失败:', err)
       return false
     } finally {
