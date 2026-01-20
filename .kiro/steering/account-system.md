@@ -176,7 +176,7 @@ Kiro 支持两种认证方式：
 ```
 
 **格式变更说明**：
-- ✅ 新增了 `profileArn` 字段（之前认为 Social 账号没有 profileArn，现在确认有）
+- ✅ 刷新响应新增了 `profileArn` 字段（Social 账号一直有 profileArn，只是之前刷新响应中不返回，现在返回了）
 - ✅ Social 账号的 `profileArn` 格式：`arn:aws:codewhisperer:{region}:{accountId}:profile/{profileId}`
 - ✅ 字段顺序变化：`accessToken` → `expiresIn` → `profileArn` → `refreshToken`
 - ❌ **没有** AWS SSO 字段（`aws_sso_app_session_id`、`idToken` 等）
@@ -503,7 +503,7 @@ fn is_idc(account: &Account) -> bool {
 **背景**：Kiro API 更新了 Token 刷新响应格式。
 
 **Social 账号变更**：
-- ✅ 新增了 `profileArn` 字段（之前认为 Social 账号没有，现在确认有）
+- ✅ 刷新响应新增了 `profileArn` 字段（Social 账号一直有 profileArn，只是之前刷新响应中不返回，现在返回了）
 - ✅ `profileArn` 格式：`arn:aws:codewhisperer:{region}:{accountId}:profile/{profileId}`
 - ✅ 字段顺序变化：`accessToken` → `expiresIn` → `profileArn` → `refreshToken`
 - ❌ **没有** AWS SSO 字段（`aws_sso_app_session_id`、`idToken` 等）

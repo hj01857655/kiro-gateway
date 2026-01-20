@@ -49,19 +49,23 @@ POST https://prod.us-east-1.auth.desktop.kiro.dev/refreshToken
 
 ### 主要变化
 
-1. ✅ **新增 `profileArn` 字段**
+1. ✅ **刷新响应新增 `profileArn` 字段**
    - 格式：`arn:aws:codewhisperer:{region}:{accountId}:profile/{profileId}`
-   - 之前认为 Social 账号没有 profileArn，现在确认响应中包含
+   - **重要说明**：Social 账号一直有 `profileArn`，只是之前刷新响应中不返回，现在新格式返回了
+   - 这样可以在刷新时自动更新 `profileArn`，无需手动维护
+   - 示例：`"arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK"`
 
 2. ✅ **字段顺序变化**
    - 旧格式：`accessToken` → `refreshToken` → `expiresIn`
    - 新格式：`accessToken` → `expiresIn` → `profileArn` → `refreshToken`
 
-3. ❌ **没有 AWS SSO 字段**
+3. ❌ **Social 账号没有 AWS SSO 字段**
    - 不包含 `aws_sso_app_session_id`、`idToken`、`issuedTokenType`、`originSessionId`
+   - 这些字段只出现在 IDC 账号的刷新响应中
 
 4. ✅ **核心字段保持不变**
    - `accessToken`、`refreshToken`、`expiresIn` 仍然存在
+   - 字段类型和含义不变
 
 ---
 
@@ -113,23 +117,24 @@ POST https://oidc.{region}.amazonaws.com/token
 ### 主要变化
 
 1. ✅ **新增 4 个 AWS SSO 字段**（可选）
-   - `aws_sso_app_session_id` - AWS SSO 应用会话 ID
-   - `idToken` - ID Token（OpenID Connect）
-   - `issuedTokenType` - 发行的 Token 类型
-   - `originSessionId` - 原始会话 ID
-   - 这些字段通常为 `null`，但可能在某些情况下有值
-   - 字段顺序：插入在 `accessToken` 和 `expiresIn` 之间
+   - `aws_sso_app_session_id` - AWS SSO 应用会话 ID（通常为 `null`）
+   - `idToken` - ID Token（OpenID Connect，通常为 `null`）
+   - `issuedTokenType` - 发行的 Token 类型（通常为 `null`）
+   - `originSessionId` - 原始会话 ID（通常为 `null`）
+   - 这些字段在实际响应中通常为 `null`，但可能在某些情况下有值
+   - 字段位置：插入在 `accessToken` 之后
 
-2. ❌ **不包含 `profileArn` 字段**
+2. ❌ **IDC 刷新响应不包含 `profileArn` 字段**
    - IDC 账号的 `profileArn` 在添加账号时设置
-   - 刷新响应中不返回此字段
+   - 刷新响应中不返回此字段（与 Social 账号不同）
 
 3. ✅ **核心字段保持不变**
    - `accessToken`、`refreshToken`、`expiresIn`、`tokenType` 仍然存在
+   - 字段类型和含义不变
 
 4. ✅ **字段顺序变化**
    - 旧格式：`accessToken` → `refreshToken` → `expiresIn` → `tokenType`
-   - 新格式：`accessToken` → `aws_sso_*` → `expiresIn` → `idToken` → `issuedTokenType` → `originSessionId` → `refreshToken` → `tokenType`
+   - 新格式：`accessToken` → `aws_sso_app_session_id` → `expiresIn` → `idToken` → `issuedTokenType` → `originSessionId` → `refreshToken` → `tokenType`
 
 ---
 
@@ -137,10 +142,16 @@ POST https://oidc.{region}.amazonaws.com/token
 
 | 特性 | Social 账号 | IDC 账号 |
 |------|------------|----------|
-| 新增 `profileArn` | ✅ 有 | ❌ 无 |
-| 新增 AWS SSO 字段 | ❌ 无 | ✅ 有（4个） |
+| 新增 `profileArn` | ✅ 有（新增） | ❌ 无（不在刷新响应中） |
+| 新增 AWS SSO 字段 | ❌ 无 | ✅ 有（4个，通常为 null） |
 | 核心字段 | 保持不变 | 保持不变 |
-| 字段顺序 | 有变化 | 无变化 |
+| 字段顺序 | 有变化 | 有变化 |
+| `tokenType` 字段 | ❌ 无 | ✅ 有（固定为 "Bearer"） |
+
+**关键区别**：
+- Social 账号刷新响应**有** `profileArn`，**没有** AWS SSO 字段
+- IDC 账号刷新响应**有** AWS SSO 字段，**没有** `profileArn`
+- 两种账号的刷新响应格式完全不同
 
 ---
 
@@ -165,11 +176,12 @@ POST https://oidc.{region}.amazonaws.com/token
 
 ### 用户影响
 
-- ✅ **无需任何操作**
-- ✅ **现有账号自动适配新格式**
-- ✅ **Token 刷新继续正常工作**
-- ✅ **Social 账号会自动获取和保存 `profileArn`**
-- ✅ **如果 AWS SSO 字段有值，会在日志中记录**
+- ✅ **无需任何操作** - 现有账号自动适配新格式
+- ✅ **Token 刷新继续正常工作** - 兼容新旧两种格式
+- ✅ **Social 账号自动获取 `profileArn`** - 刷新成功后自动保存
+- ✅ **IDC 账号的 `profileArn` 保持不变** - 不会被刷新响应覆盖
+- ✅ **AWS SSO 字段自动处理** - 如果有值会在日志中记录
+- ✅ **向后兼容** - 旧版本的账号配置仍然有效
 
 ---
 
@@ -237,15 +249,23 @@ if let Some(profile_arn) = data.profile_arn {
 
 ### Q: 为什么 Social 账号现在有 `profileArn` 了？
 
-A: 之前的理解有误。实际上 Social 账号的刷新响应中一直包含 `profileArn`，只是之前没有正确处理。
+A: Social 账号一直有 `profileArn`，只是之前刷新响应中不返回这个字段。现在 Kiro API 更新后，刷新响应中也会返回 `profileArn`，方便自动更新。现在 kiro-gateway 会自动提取并保存这个字段。
 
 ### Q: IDC 账号的 `profileArn` 从哪里来？
 
-A: IDC 账号的 `profileArn` 在添加账号时由用户提供或从 Kiro IDE 导入，不会从刷新响应中获取。
+A: IDC 账号的 `profileArn` 在添加账号时由用户提供或从 Kiro IDE 导入，**不会从刷新响应中获取**。这是 Social 和 IDC 账号的关键区别之一。
 
 ### Q: AWS SSO 字段有什么用？
 
-A: 这些字段是 AWS SSO 相关的元数据，通常为 `null`。kiro-gateway 会记录这些字段（如果有值），但不会使用它们。
+A: 这些字段是 AWS SSO 相关的元数据，在实际响应中通常为 `null`。kiro-gateway 会在日志中记录这些字段（如果有值），但不会使用它们。这些字段的存在是为了兼容 AWS SSO 的完整 OIDC 流程。
+
+### Q: 为什么 Social 和 IDC 的响应格式这么不同？
+
+A: 因为它们使用不同的认证端点：
+- Social 账号使用 Kiro 自己的认证服务（`prod.us-east-1.auth.desktop.kiro.dev`）
+- IDC 账号使用 AWS SSO OIDC 端点（`oidc.us-east-1.amazonaws.com`）
+
+两个端点的响应格式遵循不同的规范，所以字段不同。
 
 ### Q: 旧版本的 kiro-gateway 能处理新格式吗？
 
