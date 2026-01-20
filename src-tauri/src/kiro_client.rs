@@ -732,38 +732,31 @@ impl KiroClient {
         }
     }
 
-    /// 健康检查（使用 dryRun）
+    /// 健康检查（使用配额查询）
+    /// 
+    /// 参考 KiroGate 的实现，使用配额查询来验证账号健康
+    /// 这比 dryRun 更可靠，因为：
+    /// 1. 配额查询是必须的功能，肯定可用
+    /// 2. 可以同时获取配额信息
+    /// 3. 避免了 dryRun 的格式问题
     pub async fn health_check(&self, account: &Account) -> bool {
-        let url = format!("{}/SendMessageStreaming", self.config.kiro_endpoint);
-
-        let body = serde_json::json!({
-            "conversationState": {
-                "conversationId": uuid::Uuid::new_v4().to_string(),
-                "currentMessage": {
-                    "userInputMessage": {
-                        "content": ["ping"],
-                        "userIntent": "CODE_GENERATION"
-                    }
-                }
-            },
-            "profileArn": &account.profile_arn,
-            "dryRun": true,
-            "source": "AGENT"
-        });
-
-        let result = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", account.access_token))
-            .header("Content-Type", "application/json")
-            .header("x-amz-user-agent", self.get_user_agent())
-            .json(&body)
-            .send()
-            .await;
-
-        match result {
-            Ok(resp) => resp.status().is_success(),
-            Err(_) => false,
+        match self.get_usage_limits(account).await {
+            Ok(_) => {
+                tracing::debug!("[健康检查] 账号 {} 健康", account.id);
+                true
+            }
+            Err(AppError::TokenExpired) => {
+                tracing::warn!("[健康检查] 账号 {} Token 过期", account.id);
+                false
+            }
+            Err(AppError::AccountBanned(_)) => {
+                tracing::warn!("[健康检查] 账号 {} 已被封禁", account.id);
+                false
+            }
+            Err(e) => {
+                tracing::warn!("[健康检查] 账号 {} 检查失败: {}", account.id, e);
+                false
+            }
         }
     }
 

@@ -792,34 +792,53 @@ export default function Accounts() {
                         ID: {account.id}
                       </Text>
                     </Group>
-                    <Group gap="xs">
-                      <Text size="xs" c="dimmed">Token:</Text>
-                      <CopyButton value={account.refreshToken}>
-                        {({ copied, copy }) => (
-                          <Tooltip label={copied ? '已复制' : '复制完整 Token'}>
-                            <Code
-                              style={{ cursor: 'pointer', fontSize: rem(11) }}
-                              onClick={copy}
-                              color={copied ? 'teal' : undefined}
-                            >
-                              {maskToken(account.refreshToken)}
-                            </Code>
-                          </Tooltip>
-                        )}
-                      </CopyButton>
-                    </Group>
-                    {account.clientSecret && (
+                    {account.authMethod === 'IdC' ? (
+                      <>
+                        <Group gap="xs">
+                          <Text size="xs" c="dimmed">Client ID:</Text>
+                          <CopyButton value={account.clientId || ''}>
+                            {({ copied, copy }) => (
+                              <Tooltip label={copied ? '已复制' : '复制 Client ID'}>
+                                <Code
+                                  style={{ cursor: 'pointer', fontSize: rem(11) }}
+                                  onClick={copy}
+                                  color={copied ? 'teal' : undefined}
+                                >
+                                  {maskToken(account.clientId || '')}
+                                </Code>
+                              </Tooltip>
+                            )}
+                          </CopyButton>
+                        </Group>
+                        <Group gap="xs">
+                          <Text size="xs" c="dimmed">Client Secret:</Text>
+                          <CopyButton value={account.clientSecret || ''}>
+                            {({ copied, copy }) => (
+                              <Tooltip label={copied ? '已复制' : '复制 Client Secret'}>
+                                <Code
+                                  style={{ cursor: 'pointer', fontSize: rem(11) }}
+                                  onClick={copy}
+                                  color={copied ? 'teal' : undefined}
+                                >
+                                  {maskToken(account.clientSecret || '')}
+                                </Code>
+                              </Tooltip>
+                            )}
+                          </CopyButton>
+                        </Group>
+                      </>
+                    ) : (
                       <Group gap="xs">
-                        <Text size="xs" c="dimmed">Secret:</Text>
-                        <CopyButton value={account.clientSecret}>
+                        <Text size="xs" c="dimmed">Refresh Token:</Text>
+                        <CopyButton value={account.refreshToken}>
                           {({ copied, copy }) => (
-                            <Tooltip label={copied ? '已复制' : '复制完整 Secret'}>
+                            <Tooltip label={copied ? '已复制' : '复制 Refresh Token'}>
                               <Code
                                 style={{ cursor: 'pointer', fontSize: rem(11) }}
                                 onClick={copy}
                                 color={copied ? 'teal' : undefined}
                               >
-                                {maskToken(account.clientSecret)}
+                                {maskToken(account.refreshToken)}
                               </Code>
                             </Tooltip>
                           )}
