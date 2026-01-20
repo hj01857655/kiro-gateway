@@ -1,7 +1,6 @@
 use axum::{
     extract::State,
-    http::{HeaderMap, Request},
-    middleware::{self, Next},
+    http::HeaderMap,
     response::{
         sse::{Event, Sse},
         IntoResponse, Response,
@@ -214,47 +213,46 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         admin_token: Arc::new(RwLock::new(admin_token)),
     });
 
+    // 创建 Admin 子路由（带认证中间件）
+    let admin_routes = Router::new()
+        .route("/accounts", get(admin_get_accounts).post(admin_add_account))
+        .route("/accounts/import", post(admin_import_accounts))
+        .route(
+            "/accounts/:id",
+            axum::routing::patch(admin_update_account).delete(admin_delete_account),
+        )
+        .route("/accounts/:id/refresh", post(admin_refresh_account))
+        .route("/accounts/:id/quota", get(admin_get_quota))
+        .route("/health", get(admin_get_health).post(admin_check_health))
+        .route("/allocator/stats", get(admin_get_allocator_stats))
+        .route("/metrics", get(admin_get_metrics))
+        .route("/logs", get(admin_get_logs))
+        .route("/logs/clear", post(admin_clear_logs))
+        .route(
+            "/api-keys",
+            get(admin_list_api_keys).post(admin_generate_api_key),
+        )
+        .route(
+            "/api-keys/:id",
+            axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key),
+        )
+        .route("/config/generate", post(admin_generate_config))
+        .route(
+            "/config/server",
+            get(admin_get_server_config).post(admin_update_server_config),
+        )
+        .route("/token", get(admin_get_token))
+        .route_layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            admin_auth_middleware,
+        ));
+
     let app = Router::new()
         .route("/v1/chat/completions", post(chat_completions))
         .route("/v1/messages", post(messages))
         .route("/v1/models", get(list_models))
         .route("/health", get(health))
-        // Admin API - 需要认证
-        .nest(
-            "/admin",
-            Router::new()
-                .route("/accounts", get(admin_get_accounts).post(admin_add_account))
-                .route("/accounts/import", post(admin_import_accounts))
-                .route(
-                    "/accounts/:id",
-                    axum::routing::patch(admin_update_account).delete(admin_delete_account),
-                )
-                .route("/accounts/:id/refresh", post(admin_refresh_account))
-                .route("/accounts/:id/quota", get(admin_get_quota))
-                .route("/health", get(admin_get_health).post(admin_check_health))
-                .route("/allocator/stats", get(admin_get_allocator_stats))
-                .route("/metrics", get(admin_get_metrics))
-                .route("/logs", get(admin_get_logs))
-                .route("/logs/clear", post(admin_clear_logs))
-                .route(
-                    "/api-keys",
-                    get(admin_list_api_keys).post(admin_generate_api_key),
-                )
-                .route(
-                    "/api-keys/:id",
-                    axum::routing::patch(admin_update_api_key).delete(admin_delete_api_key),
-                )
-                .route("/config/generate", post(admin_generate_config))
-                .route(
-                    "/config/server",
-                    get(admin_get_server_config).post(admin_update_server_config),
-                )
-                .route("/token", get(admin_get_token))
-                .layer(middleware::from_fn_with_state(
-                    Arc::clone(&state),
-                    admin_auth_middleware,
-                )),
-        )
+        .nest("/admin", admin_routes)
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -328,14 +326,8 @@ fn verify_api_key(
     Ok(())
 }
 
-// Admin API 认证中间件
-async fn admin_auth_middleware(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-    request: Request<axum::body::Body>,
-    next: Next,
-) -> Result<Response, AppError> {
-    // 从请求头获取 token
+// 验证 Admin Token（在每个 admin handler 中调用）
+fn verify_admin_token(headers: &HeaderMap, state: &AppState) -> Result<(), AppError> {
     let provided_token = headers
         .get("x-admin-token")
         .and_then(|v| v.to_str().ok())
@@ -346,24 +338,13 @@ async fn admin_auth_middleware(
                 .and_then(|v| v.strip_prefix("Bearer "))
         });
 
-    // 获取存储的 admin token
     let stored_token = state.admin_token.read();
 
     match (&*stored_token, provided_token) {
-        (Some(stored), Some(provided)) if stored == provided => {
-            // Token 验证通过
-            Ok(next.run(request).await)
-        }
-        (Some(_), Some(_)) => {
-            // Token 不匹配
-            Err(AppError::BadRequest("无效的 Admin Token".into()))
-        }
-        (Some(_), None) => {
-            // 未提供 Token
-            Err(AppError::BadRequest("缺少 Admin Token".into()))
-        }
+        (Some(stored), Some(provided)) if stored == provided => Ok(()),
+        (Some(_), Some(_)) => Err(AppError::BadRequest("无效的 Admin Token".into())),
+        (Some(_), None) => Err(AppError::BadRequest("缺少 Admin Token".into())),
         (None, _) => {
-            // 未设置 Admin Token（不应该发生）
             warn!("Admin Token 未设置，拒绝访问");
             Err(AppError::BadRequest("Admin Token 未配置".into()))
         }
@@ -760,9 +741,13 @@ async fn health() -> Json<serde_json::Value> {
 }
 
 // Admin API handlers
-async fn admin_get_accounts(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+async fn admin_get_accounts(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    verify_admin_token(&headers, &state)?;
     let accounts = state.accounts.list_accounts();
-    Json(serde_json::json!({ "accounts": accounts }))
+    Ok(Json(serde_json::json!({ "accounts": accounts })))
 }
 
 async fn admin_add_account(

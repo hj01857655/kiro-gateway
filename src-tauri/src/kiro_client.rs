@@ -278,15 +278,16 @@ impl KiroClient {
         let url = format!("{}/generateAssistantResponse", self.config.kiro_endpoint);
         let invocation_id = uuid::Uuid::new_v4().to_string();
 
-        // 调试：打印完整请求体
-        debug!(
-            "调用 Kiro API，conversationId: {}",
-            request.conversation_state.conversation_id
-        );
-        debug!(
-            "完整请求体: {}",
-            serde_json::to_string_pretty(&request).unwrap_or_default()
-        );
+        // 调试：打印完整请求体（生产环境应禁用）
+        #[cfg(debug_assertions)]
+        {
+            debug!(
+                "调用 Kiro API，conversationId: {}",
+                request.conversation_state.conversation_id
+            );
+            // 不打印完整请求体，避免泄露敏感信息
+            debug!("请求体大小: {} bytes", serde_json::to_string(&request).unwrap_or_default().len());
+        }
 
         debug!("调用 Kiro API: {}", url);
 
@@ -308,7 +309,16 @@ impl KiroClient {
 
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            error!("Kiro API 错误: {} - {}", status, error_text);
+
+            // 生产环境不记录完整错误信息
+            #[cfg(debug_assertions)]
+            {
+                error!("Kiro API 错误: {} - {}", status, error_text);
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                error!("Kiro API 错误: {}", status);
+            }
 
             if let Ok(error_json) = serde_json::from_str::<serde_json::Value>(&error_text) {
                 let error_type = error_json
@@ -345,10 +355,21 @@ impl KiroClient {
                 return Err(AppError::RateLimited);
             }
 
-            return Err(AppError::KiroApiError(format!(
-                "{}: {}",
-                status, error_text
-            )));
+            // 生产环境返回通用错误消息
+            #[cfg(debug_assertions)]
+            {
+                return Err(AppError::KiroApiError(format!(
+                    "{}: {}",
+                    status, error_text
+                )));
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                return Err(AppError::KiroApiError(format!(
+                    "API 请求失败: {}",
+                    status
+                )));
+            }
         }
 
         let (tx, rx) = mpsc::channel::<Result<KiroEvent, AppError>>(100);

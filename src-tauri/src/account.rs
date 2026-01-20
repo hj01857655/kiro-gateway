@@ -626,6 +626,32 @@ impl AccountManager {
     }
 
     async fn refresh_token(&self, mut account: Account) -> Result<Account, AppError> {
+        // 获取或创建该账号的刷新锁
+        let lock = {
+            let mut locks = self.refresh_locks.lock();
+            locks
+                .entry(account.id.clone())
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+                .clone()
+        };
+
+        // 获取锁，确保同一账号的刷新操作串行化
+        let _guard = lock.lock().await;
+
+        // 再次检查 token 是否已被其他线程刷新
+        {
+            let accounts = self.accounts.read();
+            if let Some(stored) = accounts.iter().find(|a| a.id == account.id) {
+                if !stored.is_expired() {
+                    // Token 已被其他线程刷新，直接返回
+                    info!("账号 {} 的 Token 已被其他线程刷新", account.id);
+                    return Ok(stored.clone());
+                }
+                // 使用最新的账号数据
+                account = stored.clone();
+            }
+        }
+
         let result = if account.is_idc() {
             self.refresh_idc_token(&mut account).await
         } else {
