@@ -709,17 +709,22 @@ pub fn build_kiro_payload(
         current_content = format!("{}\n\n{}", system_prompt, current_content);
     }
 
-    // 如果当前消息是 assistant，需要特殊处理
-    if current_msg.role == "assistant" {
-        current_content = CONTINUE_MESSAGE_CONTENT.to_string();
-    }
-
-    if current_content.is_empty() {
-        current_content = CONTINUE_MESSAGE_CONTENT.to_string();
-    }
-
-    // 构建 context
+    // 构建 context（需要先提取 tool_results 来判断）
     let tool_results = extract_tool_results(&current_msg.content);
+
+    // 根据消息类型和 tool_results 设置 content
+    // 参考 Kiro IDE 日志：有 tool_results 时 content 为空字符串
+    if !tool_results.is_empty() {
+        // 有工具结果时，content 必须为空字符串（不是 "Continue"）
+        current_content = "".to_string();
+        tracing::debug!("[kiro-gateway] 检测到 tool_results，设置 content 为空字符串");
+    } else if current_msg.role == "assistant" {
+        // Assistant 消息且没有工具结果，使用 "Continue"
+        current_content = CONTINUE_MESSAGE_CONTENT.to_string();
+    } else if current_content.is_empty() {
+        // 其他情况下 content 为空，使用 "Continue"
+        current_content = CONTINUE_MESSAGE_CONTENT.to_string();
+    }
 
     // 处理长 description 的工具
     tracing::debug!(
