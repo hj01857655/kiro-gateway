@@ -465,40 +465,40 @@ fn get_app_data_dir(app_handle: &AppHandle) -> Result<PathBuf, Box<dyn std::erro
 
 ## Git 仓库规则
 
-### 🚨 禁忌事项（必须遵守）
+### 🚨 核心原则（必须遵守）
 
-**私有仓库地址是禁忌，不能在公开仓库提及**
+**公开仓库禁止有源码，只用于发布 Release**
 
-- ❌ **禁止在公开仓库的任何地方提及私有仓库地址**
-  - 不能在 README.md 中提及
-  - 不能在 Release 说明中提及
-  - 不能在 GitHub Actions 工作流中提及
-  - 不能在任何文档中提及
-  - 不能在代码注释中提及
+- ❌ **严禁在公开仓库推送源码**
+  - 不能推送 `src/` 目录
+  - 不能推送 `src-tauri/` 目录
+  - 不能推送 `.kiro/` 目录
+  - 不能推送任何开发配置文件
+  - **Git 历史记录中也不能有源码**（已有的无法删除，但不能再推送新的）
 
-- ❌ **禁止在公开仓库推送源码**
-  - 只推送 tag，不推送代码
-  - 源码保持在私有仓库
+- ❌ **禁止在公开仓库暴露敏感信息**
+  - 不能提及私有仓库地址（`kiro-gateway_dev`）
+  - 不能提交 API Key、Token、密钥等敏感信息
+  - 不能提交内部开发文档（`.kiro/steering/` 目录）
+  - 不能在 README.md、Release 说明、Actions 配置中提及私有仓库
 
 - ✅ **正确做法**
-  - 公开仓库仅用于发布 Release
-  - 所有源码开发在私有仓库进行
-  - 通过 tag 触发自动构建
+  - 公开仓库：只保留 `.github/workflows/`、`README.md`、`LICENSE`
+  - 私有仓库：所有源码开发在此进行
+  - 发布时：手动构建后上传到 GitHub Release，或使用其他方式触发构建
 
 ### 仓库架构
 
 - **私有仓库** (`kiro-gateway_dev`): 
   - 所有开发代码提交到 `dev` 分支
-  - **没有** `.github/workflows/` 配置文件
-  - 不触发 GitHub Actions，节省私有仓库额度
-  - 源码保持私有，不对外公开
+  - 保护源码和敏感信息
+  - 日常开发在此进行
 
 - **公开仓库** (`kiro-gateway`): 
-  - 仅用于发布 Release
-  - **有** `.github/workflows/release.yml` 配置
-  - 通过 tag 触发 Actions 自动构建
-  - 使用公开仓库的免费 Actions 额度
-  - **完全独立的仓库**，不与私有仓库共享提交历史
+  - **只用于发布 Release，不保留源码**
+  - 只包含 `.github/workflows/`、`README.md`、`LICENSE`
+  - 通过其他方式触发 Actions 构建（待定）
+  - **严禁推送源码到此仓库**
 
 ### 远程仓库配置
 
@@ -516,9 +516,9 @@ origin  https://github.com/hj01857655/kiro-gateway_dev.git (push)
 - ❌ 不要执行 `git push release <branch>` 或 `git push release <tag>`
 
 **原因**：
-- 当执行 `git push release v0.4.0` 时，Git 会把 tag 指向的整个提交历史都推送到公开仓库
-- 这会导致源码泄露到公开仓库
-- 公开仓库应该完全独立管理，不从本地推送
+- 推送时会把整个提交历史都推送到公开仓库
+- 导致源码泄露
+- 公开仓库应该完全独立管理
 
 ### 发布流程
 
