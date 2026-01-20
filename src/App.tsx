@@ -40,7 +40,7 @@ export default function App() {
           ? '0 4px 12px rgba(99, 102, 241, 0.2)'
           : '0 4px 12px rgba(0, 0, 0, 0.08)',
       },
-      '&[data-active]': {
+      '&[dataActive]': {
         background: colorScheme === 'dark'
           ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)'
           : 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
