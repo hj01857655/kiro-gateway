@@ -157,8 +157,8 @@ body {
 
 /* ============ 滚动条样式 ============ */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
 }
 
 ::-webkit-scrollbar-track {
