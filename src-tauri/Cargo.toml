@@ -52,3 +52,16 @@ regex = "1.10"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+# Release 优化配置（防反编译）
+[profile.release]
+# 优化级别：z = 优化二进制大小（同时增加混淆）
+opt-level = "z"
+# 链接时优化（LTO）：增加编译时间，但提高优化和混淆
+lto = true
+# 代码生成单元：1 = 最大优化（但编译慢）
+codegen-units = 1
+# 移除符号信息：减小体积，增加逆向难度
+strip = "symbols"
+# Panic 处理：abort = 更小的二进制，移除 unwinding 代码
+panic = "abort"
