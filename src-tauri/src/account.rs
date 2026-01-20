@@ -885,7 +885,19 @@ impl AccountManager {
             .unwrap_or_else(|| Utc::now());
         account.expires_at = Some(expires_at_dt.to_rfc3339());
 
-        info!("Social Token 刷新成功: {}", account.id);
+        // 记录 AWS SSO 字段（如果存在）
+        if data.aws_sso_app_session_id.is_some()
+            || data.id_token.is_some()
+            || data.issued_token_type.is_some()
+            || data.origin_session_id.is_some()
+        {
+            info!(
+                "Social Token 刷新成功（包含 AWS SSO 字段）: {} - session_id: {:?}, token_type: {:?}",
+                account.id, data.aws_sso_app_session_id, data.issued_token_type
+            );
+        } else {
+            info!("Social Token 刷新成功: {}", account.id);
+        }
         Ok(())
     }
 
@@ -963,7 +975,19 @@ impl AccountManager {
             .unwrap_or_else(|| Utc::now());
         account.expires_at = Some(expires_at_dt.to_rfc3339());
 
-        info!("IDC Token 刷新成功: {}", account.id);
+        // 记录 AWS SSO 字段（如果存在）
+        if data.aws_sso_app_session_id.is_some()
+            || data.id_token.is_some()
+            || data.issued_token_type.is_some()
+            || data.origin_session_id.is_some()
+        {
+            info!(
+                "IDC Token 刷新成功（包含 AWS SSO 字段）: {} - session_id: {:?}, token_type: {:?}",
+                account.id, data.aws_sso_app_session_id, data.issued_token_type
+            );
+        } else {
+            info!("IDC Token 刷新成功: {}", account.id);
+        }
         Ok(())
     }
 }
