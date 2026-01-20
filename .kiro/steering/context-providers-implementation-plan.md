@@ -10,7 +10,7 @@
 
 ### 1. Context Providers 的工作流程
 
-通过分析 Kiro IDE 源码（行 579274-579292），发现 Context Providers 的工作流程：
+通过分析 Kiro IDE 源码（行 579274-579292）和实际会话文件，发现 Context Providers 的工作流程：
 
 ```javascript
 // 1. 用户选择 Context Provider
@@ -33,6 +33,48 @@ const contextString = contextItems
 
 // 4. 添加到用户消息中（在客户端完成）
 ```
+
+### 2. 实际使用方式（从会话文件中发现）
+
+**Steering 文件的引用格式**：
+
+当用户通过 `#steering` 引用文件时，Kiro IDE 会将文件内容包裹在特殊格式中：
+
+```
+## Included Rules (文件名) [Workspace/Global]
+
+  说明文字...
+
+<user-rule id=文件名>
+```
+文件完整内容
+```
+</user-rule>
+```
+
+**示例**（从实际会话中提取）：
+
+```
+## Included Rules (kiro-gateway/context-providers-implementation-plan.md) [Workspace]
+
+  I am providing you some additional guidance that you should follow for your entire execution...
+
+<user-rule id=kiro-gateway/context-providers-implementation-plan.md>
+```
+# Context Providers 实现方案
+
+## 版本信息
+- 创建日期：2026-01-20
+...（完整文件内容）
+```
+</user-rule>
+```
+
+**关键结论**：
+- ✅ 文件内容被完整拼接到消息中
+- ✅ 使用 `<user-rule>` 标签包裹
+- ✅ 添加到系统提示词（不是用户消息）
+- ✅ 没有特殊的 API 参数，就是标准文本
 
 ### 2. `#` 触发机制（聊天输入框）
 
@@ -355,15 +397,30 @@ function Chat() {
 
 ## 推荐方案
 
-**方案 C：桌面应用集成** ⭐⭐⭐⭐⭐
+### 方案 D：作为 Tools 实现（最简单）⭐⭐⭐⭐⭐
 
-**理由**：
-1. ✅ 完全符合 Kiro IDE 的设计理念
-2. ✅ 用户体验最好（类似 Kiro IDE）
-3. ✅ 不需要修改 kiro-gateway 的 API 层
-4. ✅ 可以访问本地文件系统（通过 Tauri）
-5. ✅ 前端可以灵活实现各种 Context Providers
-6. ✅ 保持 kiro-gateway 的核心定位（API 网关）
+**适用场景**：
+- 用户希望在对话过程中 AI 主动调用
+- 不需要搭建 UI 界面
+- 像 tools 一样自动触发
+
+**实现方式**：
+
+将 Context Providers 实现为标准的 Tool Calling 工具：
+
+```rust
+// src-tauri/src/context_tools.rs
+
+pub fn get_context_tools() -> Vec<Tool> {
+    vec![
+        Tool {
+            name: "read_file".to_string(),
+            description: "读取文件内容（支持行范围）".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "文件路径" },
+         
 
 **实现优先级**：
 

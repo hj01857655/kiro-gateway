@@ -126,6 +126,52 @@ error[E0425]: cannot find value `x` in this scope
 这个错误怎么解决
 ```
 
+**场景 4：引用 Steering 文件（特殊格式）**
+
+**从 Kiro IDE 会话文件中发现的实际格式**：
+
+当用户通过 `#steering` 引用 Steering 文件时，Kiro IDE 会使用特殊的格式包裹文件内容：
+
+```
+## Included Rules (文件名) [Workspace/Global]
+
+  说明文字...
+
+<user-rule id=文件名>
+```
+文件完整内容
+```
+</user-rule>
+```
+
+**实际示例**（从会话文件中提取）：
+
+```
+## Included Rules (kiro-gateway/context-providers-implementation-plan.md) [Workspace]
+
+  I am providing you some additional guidance that you should follow for your entire execution. These are intended to steer you in the right direction.
+  They have been automatically suggested by the system and may be unrelated to my specific request which follows after them. Consider them, but your number one priority is my request.
+  Workspace-level rules take precedence over global-level rules when conflicts exist.
+
+<user-rule id=kiro-gateway/context-providers-implementation-plan.md>
+```
+# Context Providers 实现方案
+
+## 版本信息
+- 创建日期：2026-01-20
+...（完整文件内容）
+```
+</user-rule>
+```
+
+**关键发现**：
+- ✅ Steering 文件使用 `<user-rule>` 标签包裹
+- ✅ 标签包含 `id` 属性（文件路径）
+- ✅ 添加到系统提示词（不是用户消息）
+- ✅ 包含作用域标识（`[Workspace]` 或 `[Global]`）
+- ✅ 包含优先级说明（Workspace > Global）
+- ✅ 使用三个反引号包裹文件内容
+
 ### 关键发现
 
 **Context Providers 的本质**：
