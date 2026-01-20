@@ -1,6 +1,6 @@
 use chrono::Utc;
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -10,6 +10,32 @@ use tracing::{info, warn};
 use crate::encryption::EncryptionManager;
 use crate::error::AppError;
 use crate::token_allocator::SmartTokenAllocator;
+
+// 自定义反序列化函数：将数字时间戳转换为 ISO 8601 字符串
+fn deserialize_expires_at<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    use serde_json::Value;
+
+    let value = Value::deserialize(deserializer)?;
+    match value {
+        Value::Null => Ok(None),
+        Value::String(s) => Ok(Some(s)),
+        Value::Number(n) => {
+            // 将数字时间戳转换为 ISO 8601 字符串
+            if let Some(millis) = n.as_i64() {
+                let dt = chrono::DateTime::<Utc>::from_timestamp_millis(millis)
+                    .ok_or_else(|| Error::custom("invalid timestamp"))?;
+                Ok(Some(dt.to_rfc3339()))
+            } else {
+                Err(Error::custom("invalid timestamp format"))
+            }
+        }
+        _ => Err(Error::custom("expected string or number for expires_at")),
+    }
+}
 
 // 账号状态
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -41,7 +67,7 @@ pub struct Account {
     #[serde(default)]
     pub profile_arn: String,
     pub region: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_expires_at")]
     pub expires_at: Option<String>,
     #[serde(default)]
     pub expire: Option<String>,

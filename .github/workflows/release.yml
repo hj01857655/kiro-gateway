@@ -110,5 +110,39 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          # 在最后一个平台（Windows）生成 updater 文件
-          includeUpdaterJson: ${{ matrix.platform == 'windows-latest' }}
+          # 不在矩阵构建中生成 updater 文件，在后续单独生成
+          includeUpdaterJson: false
+
+  # 所有平台构建完成后，生成 latest.json
+  generate-updater-json:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Generate updater JSON
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npx tauri build --ci --target x86_64-pc-windows-msvc --bundles updater-json
+
+      - name: Upload latest.json to Release
+        run: |
+          gh release upload ${{ github.ref_name }} src-tauri/target/release/bundle/msi/latest.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

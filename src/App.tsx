@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center, Burger, Container } from '@mantine/core'
 import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import { useThemeStore } from './stores/themeStore'
@@ -23,6 +23,33 @@ export default function App() {
     return (saved as Page) || 'accounts'
   })
   const [navbarOpened, setNavbarOpened] = useState(true)
+
+  // 等待后端服务器启动
+  useEffect(() => {
+    const checkServer = async () => {
+      let retries = 0
+      const maxRetries = 30 // 最多等待 30 秒
+
+      while (retries < maxRetries) {
+        try {
+          const response = await fetch('http://127.0.0.1:8080/health', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          })
+          if (response.ok) {
+            return
+          }
+        } catch (err) {
+          // 服务器还未启动，继续重试
+        }
+
+        retries++
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+    }
+
+    checkServer()
+  }, [])
 
   // 切换页面并保存到 localStorage
   const handlePageChange = (page: Page) => {
