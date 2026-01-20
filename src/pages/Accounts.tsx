@@ -618,7 +618,7 @@ export default function Accounts() {
                         {account.status}
                       </Badge>
                       <Badge color="gray" variant="outline" size="sm">
-                        {account.authMethod?.toLowerCase() === 'social' ? 'Social' : 'IDC'}
+                        {account.authMethod === 'social' ? 'social' : 'IDC'}
                       </Badge>
                     </Group>
                     <Group gap="xs">
