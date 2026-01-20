@@ -1,5 +1,5 @@
 import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor, rem } from '@mantine/core'
-import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
+import { Info, Github, Heart, Zap, Shield, Globe, BookOpen } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 
@@ -95,6 +95,17 @@ export default function About() {
               <Group gap={4}>
                 <Github size={16} />
                 <Text size="sm">Kiro Gateway</Text>
+              </Group>
+            </Anchor>
+          </Group>
+          <Group>
+            <Text size="sm" fw={500} w={100}>
+              使用教程
+            </Text>
+            <Anchor href="https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc" target="_blank" rel="noopener noreferrer" size="sm">
+              <Group gap={4}>
+                <BookOpen size={16} />
+                <Text size="sm">飞书云文档</Text>
               </Group>
             </Anchor>
           </Group>
