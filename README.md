@@ -187,6 +187,11 @@ cd src-tauri && cargo fmt
   - `Authorization: Bearer {token}` 请求头
 - 通过 `GET /admin/token` 获取当前 Admin Token
 
+**XSS 防护**：
+- 聊天测试页集成 `rehype-sanitize` 插件
+- 自动过滤 AI 生成的 Markdown 内容中的恶意脚本
+- 确保渲染内容安全无害
+
 ### 环境变量
 
 在 `src-tauri/.env` 或系统环境变量中配置：
@@ -409,6 +414,7 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - ✅ Metrics 持久化（自动保存/加载）
 - ✅ **账号数据加密存储**（AES-256-GCM，机器特定密钥保护）
 - ✅ **Admin API 认证保护**（自动生成 Admin Token，统一 middleware 认证）
+- ✅ **XSS 防护**（聊天测试页集成 rehype-sanitize，过滤恶意脚本）
 
 ## 参考项目
 
