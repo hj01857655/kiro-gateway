@@ -586,10 +586,13 @@ pub fn build_kiro_payload(
 
     // 合并相邻的同角色消息
     let merged_messages = merge_adjacent_messages(&other_messages);
+    
+    // 应用消息清理逻辑（参考 Kiro IDE 的 sanitizeConversation）
+    let sanitized_messages = sanitize_conversation(merged_messages);
 
     // 构建历史（除最后一条）
-    let history = if merged_messages.len() > 1 {
-        let history_msgs = &merged_messages[..merged_messages.len() - 1];
+    let history = if sanitized_messages.len() > 1 {
+        let history_msgs = &sanitized_messages[..sanitized_messages.len() - 1];
         let mut history_items = Vec::new();
         let mut is_first_user = true;
 
@@ -696,7 +699,7 @@ pub fn build_kiro_payload(
     };
 
     // 当前消息（最后一条）
-    let current_msg = merged_messages
+    let current_msg = sanitized_messages
         .last()
         .ok_or_else(|| "消息列表为空".to_string())?;
     let mut current_content = extract_text_content(&current_msg.content);
@@ -708,11 +711,11 @@ pub fn build_kiro_payload(
 
     // 如果当前消息是 assistant，需要特殊处理
     if current_msg.role == "assistant" {
-        current_content = "Continue".to_string();
+        current_content = CONTINUE_MESSAGE_CONTENT.to_string();
     }
 
     if current_content.is_empty() {
-        current_content = "Continue".to_string();
+        current_content = CONTINUE_MESSAGE_CONTENT.to_string();
     }
 
     // 构建 context
@@ -855,6 +858,258 @@ fn merge_adjacent_messages(messages: &[&ChatMessage]) -> Vec<ChatMessage> {
     }
 
     merged
+}
+
+// ============================================================
+// 消息清理（参考 Kiro IDE 的 sanitizeConversation）
+// ============================================================
+
+/// 标准占位消息
+const HELLO_MESSAGE_CONTENT: &str = "Hello";
+const CONTINUE_MESSAGE_CONTENT: &str = "Continue";
+const UNDERSTOOD_MESSAGE_CONTENT: &str = "understood";
+
+/// 检查消息是否为空（没有内容且没有 tool results）
+fn is_empty_user_message(msg: &ChatMessage) -> bool {
+    if msg.role != "user" {
+        return false;
+    }
+    
+    let has_content = match &msg.content {
+        Some(serde_json::Value::String(s)) => !s.trim().is_empty(),
+        Some(serde_json::Value::Array(arr)) => !arr.is_empty(),
+        _ => false,
+    };
+    
+    let has_tool_results = extract_tool_results(&msg.content).len() > 0;
+    
+    !has_content && !has_tool_results
+}
+
+/// 检查 tool uses 和 tool results 是否匹配
+fn has_matching_tool_results(tool_uses: &[KiroToolUse], tool_results: &[KiroToolResult]) -> bool {
+    if tool_uses.is_empty() {
+        return true;
+    }
+    if tool_results.is_empty() {
+        return false;
+    }
+    
+    // 检查所有 tool use 都有对应的 result
+    let all_uses_have_results = tool_uses.iter().all(|tool_use| {
+        tool_results.iter().any(|result| result.tool_use_id == tool_use.tool_use_id)
+    });
+    
+    // 检查所有 tool result 都有对应的 use
+    let all_results_have_uses = tool_results.iter().all(|result| {
+        tool_uses.iter().any(|tool_use| result.tool_use_id == tool_use.tool_use_id)
+    });
+    
+    all_uses_have_results && all_results_have_uses
+}
+
+/// 确保消息以 user 消息开始
+fn ensure_starts_with_user_message(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    if messages.is_empty() || messages[0].role != "user" {
+        let mut result = vec![ChatMessage {
+            role: "user".to_string(),
+            content: Some(serde_json::Value::String(HELLO_MESSAGE_CONTENT.to_string())),
+            tool_calls: None,
+            tool_call_id: None,
+        }];
+        result.extend(messages);
+        result
+    } else {
+        messages
+    }
+}
+
+/// 移除空的 user 消息（除了第一条）
+fn remove_empty_user_messages(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    if messages.len() <= 1 {
+        return messages;
+    }
+    
+    let first_user_index = messages.iter().position(|m| m.role == "user");
+    
+    messages.into_iter().enumerate().filter(|(index, msg)| {
+        // 保留所有 assistant 消息
+        if msg.role == "assistant" {
+            return true;
+        }
+        
+        // 保留第一条 user 消息
+        if msg.role == "user" && Some(*index) == first_user_index {
+            return true;
+        }
+        
+        // 检查 user 消息是否有内容或 tool results
+        if msg.role == "user" {
+            return !is_empty_user_message(msg);
+        }
+        
+        true
+    }).map(|(_, msg)| msg).collect()
+}
+
+/// 确保消息交替（user → assistant → user → assistant）
+fn ensure_alternating_messages(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    if messages.len() <= 1 {
+        return messages;
+    }
+    
+    let mut result = vec![messages[0].clone()];
+    
+    for msg in messages.into_iter().skip(1) {
+        let prev_role = &result.last().unwrap().role;
+        
+        // 两条连续的 user 消息 → 插入 UNDERSTOOD_MESSAGE
+        if prev_role == "user" && msg.role == "user" {
+            result.push(ChatMessage {
+                role: "assistant".to_string(),
+                content: Some(serde_json::Value::String(UNDERSTOOD_MESSAGE_CONTENT.to_string())),
+                tool_calls: None,
+                tool_call_id: None,
+            });
+        }
+        // 两条连续的 assistant 消息 → 插入 CONTINUE_MESSAGE
+        else if prev_role == "assistant" && msg.role == "assistant" {
+            result.push(ChatMessage {
+                role: "user".to_string(),
+                content: Some(serde_json::Value::String(CONTINUE_MESSAGE_CONTENT.to_string())),
+                tool_calls: None,
+                tool_call_id: None,
+            });
+        }
+        
+        result.push(msg);
+    }
+    
+    result
+}
+
+/// 确保消息以 user 消息结束
+fn ensure_ends_with_user_message(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    if messages.is_empty() {
+        return vec![ChatMessage {
+            role: "user".to_string(),
+            content: Some(serde_json::Value::String(HELLO_MESSAGE_CONTENT.to_string())),
+            tool_calls: None,
+            tool_call_id: None,
+        }];
+    }
+    
+    if messages.last().unwrap().role != "user" {
+        let mut result = messages;
+        result.push(ChatMessage {
+            role: "user".to_string(),
+            content: Some(serde_json::Value::String(CONTINUE_MESSAGE_CONTENT.to_string())),
+            tool_calls: None,
+            tool_call_id: None,
+        });
+        result
+    } else {
+        messages
+    }
+}
+
+/// 确保工具调用有对应的结果
+/// 如果没有，自动添加失败消息（status: "error"）
+fn ensure_valid_tool_uses_and_results(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    let mut result = Vec::new();
+    
+    for (i, msg) in messages.iter().enumerate() {
+        result.push(msg.clone());
+        
+        // 检查 assistant 消息是否有 tool uses
+        if msg.role == "assistant" {
+            let tool_uses = extract_tool_uses(msg);
+            if !tool_uses.is_empty() {
+                let next_msg = messages.get(i + 1);
+                
+                // 情况1：没有下一条消息，或下一条不是 user 消息，或没有 tool results
+                if next_msg.is_none() || next_msg.unwrap().role != "user" {
+                    let tool_use_ids: Vec<String> = tool_uses.iter()
+                        .map(|tu| tu.tool_use_id.clone())
+                        .collect();
+                    result.push(create_failed_tool_use_message(tool_use_ids));
+                } else if let Some(next) = next_msg {
+                    let tool_results = extract_tool_results(&next.content);
+                    
+                    // 情况2：tool results 不匹配
+                    if !has_matching_tool_results(&tool_uses, &tool_results) {
+                        // 检查是否有其他地方匹配
+                        let has_matching_elsewhere = messages.iter().enumerate().any(|(j, other_msg)| {
+                            if j == i || other_msg.role != "assistant" {
+                                return false;
+                            }
+                            let other_uses = extract_tool_uses(other_msg);
+                            has_matching_tool_results(&other_uses, &tool_results)
+                        });
+                        
+                        // 如果没有其他地方匹配，添加失败消息
+                        if !has_matching_elsewhere {
+                            let tool_use_ids: Vec<String> = tool_uses.iter()
+                                .map(|tu| tu.tool_use_id.clone())
+                                .collect();
+                            result.push(create_failed_tool_use_message(tool_use_ids));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    result
+}
+
+/// 创建工具调用失败消息
+fn create_failed_tool_use_message(tool_use_ids: Vec<String>) -> ChatMessage {
+    let tool_results: Vec<serde_json::Value> = tool_use_ids.iter().map(|id| {
+        serde_json::json!({
+            "type": "tool_result",
+            "tool_use_id": id,
+            "content": "Tool execution failed",
+            "is_error": true
+        })
+    }).collect();
+    
+    ChatMessage {
+        role: "user".to_string(),
+        content: Some(serde_json::Value::Array(tool_results)),
+        tool_calls: None,
+        tool_call_id: None,
+    }
+}
+
+/// 清理消息列表，确保符合 Kiro API 要求
+/// 参考 Kiro IDE 的 sanitizeConversation 实现
+pub fn sanitize_conversation(messages: Vec<ChatMessage>) -> Vec<ChatMessage> {
+    let original_len = messages.len();
+    let mut sanitized = messages;
+    
+    // 1. 确保以 user 消息开始
+    sanitized = ensure_starts_with_user_message(sanitized);
+    
+    // 2. 移除空的 user 消息
+    sanitized = remove_empty_user_messages(sanitized);
+    
+    // 3. 确保工具调用有对应结果
+    sanitized = ensure_valid_tool_uses_and_results(sanitized);
+    
+    // 4. 确保消息交替（user → assistant → user → assistant）
+    sanitized = ensure_alternating_messages(sanitized);
+    
+    // 5. 确保以 user 消息结束
+    sanitized = ensure_ends_with_user_message(sanitized);
+    
+    tracing::debug!(
+        "[kiro-gateway] 消息清理: {} -> {} 条消息",
+        original_len,
+        sanitized.len()
+    );
+    
+    sanitized
 }
 
 /// 截断消息历史，只保留最后一对对话
