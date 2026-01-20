@@ -359,7 +359,7 @@ Made with ❤️ by [hj01857655](https://github.com/hj01857655)
 
 - GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
 - 问题反馈: [Issues](https://github.com/hj01857655/kiro-gateway/issues)
-- QQ 交流群: [Kiro GateWay交流群](https://qm.qq.com/q/oQbUA0cxO2)
+- QQ 交流群: 1081058179（[Kiro GateWay交流群](https://qm.qq.com/q/oQbUA0cxO2)）
 
 ## 免责声明
 
