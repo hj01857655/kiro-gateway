@@ -8,7 +8,7 @@ use argon2::password_hash::{rand_core::RngCore, SaltString};
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 
