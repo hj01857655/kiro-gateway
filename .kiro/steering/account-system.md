@@ -224,7 +224,8 @@ Kiro 支持两种认证方式：
 ```
 
 **格式变更说明**：
-- AWS SSO OIDC 端点也新增了相同的 4 个字段
+- AWS SSO OIDC 端点新增了 4 个 AWS SSO 字段
+- ❌ IDC 刷新响应**不包含** `profileArn` 字段
 - kiro-gateway 已更新解析逻辑，兼容两种格式
 - 核心字段保持不变
 
