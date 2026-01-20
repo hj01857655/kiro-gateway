@@ -2,6 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useHealth, useCheckHealth } from '@/hooks/useHealth'
 import { accountsApi } from '@/api/accounts'
+import { fetchWithTimeout } from '@/api/utils'
+import { logger } from '@/lib/logger'
+import { getAccountKey } from '@/lib/utils'
 import {
   Button,
   Card,
@@ -61,33 +64,25 @@ export default function Accounts() {
     clientSecret: '',
   })
 
-  const [jsonInput, setJsonInput] = useState(`{
-  "id": "account-1",
-  "name": "我的账号",
-  "authMethod": "social",
-  "refreshToken": "粘贴你的 refresh token",
-  "profileArn": "",
-  "region": "us-east-1",
-  "enabled": true
-}
-
-// 或者批量导入（数组格式）：
-[
+  const [jsonInput, setJsonInput] = useState(`[
   {
     "id": "account-1",
-    "name": "账号 1",
+    "name": "我的 Social 账号",
     "authMethod": "social",
-    "refreshToken": "token1",
+    "refreshToken": "粘贴你的 refresh token",
+    "profileArn": "",
+    "region": "us-east-1",
     "enabled": true
   },
   {
     "id": "account-2",
-    "name": "账号 2",
+    "name": "我的 IDC 账号",
     "authMethod": "idc",
-    "refreshToken": "token2",
-    "profileArn": "arn:aws:...",
-    "clientId": "client-id",
-    "clientSecret": "client-secret",
+    "refreshToken": "粘贴你的 refresh token",
+    "profileArn": "arn:aws:codewhisperer:...",
+    "clientId": "粘贴 client id",
+    "clientSecret": "粘贴 client secret",
+    "region": "us-east-1",
     "enabled": true
   }
 ]`)
@@ -95,12 +90,16 @@ export default function Accounts() {
   // 页面加载时自动获取所有账号的配额（只在账号 ID 列表变化时触发）
   useEffect(() => {
     if (accounts && accounts.length > 0) {
-      accounts.forEach((account) => {
-        // 只获取未加载过的配额
-        if (!quotaCache[account.id] && !loadingQuotas[account.id]) {
+      // 批量获取配额，避免重复请求
+      const accountsToFetch = accounts.filter(
+        (account) => !quotaCache[account.id] && !loadingQuotas[account.id]
+      )
+
+      if (accountsToFetch.length > 0) {
+        accountsToFetch.forEach((account) => {
           fetchQuota(account.id)
-        }
-      })
+        })
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts?.map(a => a.id).join(',')])
@@ -115,7 +114,7 @@ export default function Accounts() {
       setQuotaCache((prev) => ({ ...prev, [accountId]: quota }))
     } catch (error) {
       // 静默失败，使用缓存的配额信息
-      console.warn(`获取账号 ${accountId} 配额失败:`, error)
+      logger.warn(`获取账号 ${accountId} 配额失败:`, error)
     } finally {
       setLoadingQuotas((prev) => ({ ...prev, [accountId]: false }))
     }
@@ -143,14 +142,17 @@ export default function Accounts() {
     }
     // 构造符合 Partial<Account> 类型的对象
     const accountData: Partial<Account> = {
+      id: `${formData.authMethod}-${Date.now()}`, // 自动生成 ID
       name: formData.name,
       authMethod: formData.authMethod,
       refreshToken: formData.refreshToken,
-      profileArn: formData.profileArn,
-      region: formData.region,
-      clientId: formData.clientId,
-      clientSecret: formData.clientSecret,
+      profileArn: formData.profileArn || '',
+      region: formData.region || 'us-east-1',
+      clientId: formData.clientId || undefined,
+      clientSecret: formData.clientSecret || undefined,
+      enabled: true,
     }
+    logger.debug('添加账号数据:', accountData)
     addAccount(accountData)
     setShowAddModal(false)
     setFormData({
@@ -182,18 +184,52 @@ export default function Accounts() {
         return
       }
 
+      // 去重检查 - 使用账号唯一标识（只检查有 email+provider 的账号）
+      const existingKeys = new Set(
+        (accounts || [])
+          .map(a => getAccountKey(a))
+          .filter((key): key is string => key !== null)
+      )
+      
       // 自动检测是单个对象还是数组
       if (Array.isArray(data)) {
-        // 批量导入
-        data.forEach((account) => addAccount(account))
+        // 批量导入 - 过滤重复账号
+        const newAccounts = data.filter((account: Account) => {
+          const key = getAccountKey(account)
+          return key === null || !existingKeys.has(key)
+        })
+        
+        if (newAccounts.length === 0) {
+          notifications.show({
+            title: '无需导入',
+            message: '所有账号已存在，无需重复导入',
+            color: 'blue',
+          })
+          setShowAddModal(false)
+          return
+        }
+        
+        newAccounts.forEach((account) => addAccount(account))
+        const skippedCount = data.length - newAccounts.length
         setShowAddModal(false)
         notifications.show({
           title: '成功',
-          message: `批量导入 ${data.length} 个账号成功`,
+          message: `批量导入 ${newAccounts.length} 个账号成功${skippedCount > 0 ? `，跳过 ${skippedCount} 个重复账号` : ''}`,
           color: 'green',
         })
       } else {
-        // 单个导入
+        // 单个导入 - 检查是否重复
+        const key = getAccountKey(data)
+        if (key !== null && existingKeys.has(key)) {
+          notifications.show({
+            title: '账号已存在',
+            message: '该账号已存在，无需重复添加',
+            color: 'blue',
+          })
+          setShowAddModal(false)
+          return
+        }
+        
         addAccount(data)
         setShowAddModal(false)
         notifications.show({
@@ -229,14 +265,50 @@ export default function Accounts() {
           return
         }
 
+        // 去重检查 - 使用账号唯一标识（只检查有 email+provider 的账号）
+        const existingKeys = new Set(
+          (accounts || [])
+            .map(a => getAccountKey(a))
+            .filter((key): key is string => key !== null)
+        )
+
         if (Array.isArray(data)) {
-          data.forEach((account) => addAccount(account))
+          // 批量导入 - 过滤重复账号
+          const newAccounts = data.filter((account: Account) => {
+            const key = getAccountKey(account)
+            return key === null || !existingKeys.has(key)
+          })
+          
+          if (newAccounts.length === 0) {
+            notifications.show({
+              title: '无需导入',
+              message: '所有账号已存在，无需重复导入',
+              color: 'blue',
+            })
+            setShowAddModal(false)
+            return
+          }
+          
+          newAccounts.forEach((account) => addAccount(account))
+          const skippedCount = data.length - newAccounts.length
           notifications.show({
             title: '成功',
-            message: `从文件导入 ${data.length} 个账号成功`,
+            message: `从文件导入 ${newAccounts.length} 个账号成功${skippedCount > 0 ? `，跳过 ${skippedCount} 个重复账号` : ''}`,
             color: 'green',
           })
         } else {
+          // 单个导入 - 检查是否重复
+          const key = getAccountKey(data)
+          if (key !== null && existingKeys.has(key)) {
+            notifications.show({
+              title: '账号已存在',
+              message: '该账号已存在，无需重复添加',
+              color: 'blue',
+            })
+            setShowAddModal(false)
+            return
+          }
+          
           addAccount(data)
           notifications.show({
             title: '成功',
@@ -324,8 +396,7 @@ export default function Accounts() {
   // 从 Kiro IDE 导入账号
   const handleImportFromKiro = async () => {
     try {
-      const res = await fetch('/admin/accounts/import', { method: 'POST' })
-      if (!res.ok) throw new Error('导入失败')
+      const res = await fetchWithTimeout('/admin/accounts/import', { method: 'POST' })
       
       const data = await res.json()
       if (!data.success || !data.accounts || data.accounts.length === 0) {
@@ -337,14 +408,35 @@ export default function Accounts() {
         return
       }
 
-      // 添加导入的账号
-      for (const account of data.accounts) {
+      // 去重：使用账号唯一标识（只检查有 email+provider 的账号）
+      const existingKeys = new Set(
+        (accounts || [])
+          .map(a => getAccountKey(a))
+          .filter((key): key is string => key !== null)
+      )
+      const newAccounts = data.accounts.filter((account: Account) => {
+        const key = getAccountKey(account)
+        return key === null || !existingKeys.has(key)
+      })
+
+      if (newAccounts.length === 0) {
+        notifications.show({
+          title: '无需导入',
+          message: '所有账号已存在，无需重复导入',
+          color: 'blue',
+        })
+        return
+      }
+
+      // 添加新账号
+      for (const account of newAccounts) {
         await addAccount(account)
       }
 
+      const skippedCount = data.accounts.length - newAccounts.length
       notifications.show({
         title: '导入成功',
-        message: `成功导入 ${data.accounts.length} 个账号`,
+        message: `成功导入 ${newAccounts.length} 个账号${skippedCount > 0 ? `，跳过 ${skippedCount} 个重复账号` : ''}`,
         color: 'green',
       })
     } catch (error) {
@@ -478,109 +570,172 @@ export default function Accounts() {
             
             return (
               <Card key={account.id} shadow="sm" padding="lg" radius="md" withBorder>
-                <Group justify="space-between" wrap="nowrap">
-                  <Stack gap="xs" style={{ flex: 1 }}>
+                <Stack gap="md">
+                  {/* 顶部：名称和状态 */}
+                  <Group justify="space-between" wrap="nowrap">
                     <Group gap="sm">
                       <Text fw={600} size="lg">
                         {account.name || account.id}
                       </Text>
-                      <Badge color={getStatusColor(account.status)} variant="light">
+                      <Badge color={getStatusColor(account.status)} variant="light" size="lg">
                         {account.status}
                       </Badge>
-                      <Badge color="gray" variant="outline">
+                      <Badge color="gray" variant="outline" size="sm">
                         {account.authMethod === 'social' ? 'Social' : 'IDC'}
                       </Badge>
-                      {health && (
-                        <Tooltip label={`成功率: ${(health.success_rate * 100).toFixed(1)}%`}>
-                          <Badge color={health.is_available ? 'green' : 'red'} variant="dot">
-                            {health.is_available ? '可用' : '不可用'}
-                          </Badge>
-                        </Tooltip>
-                      )}
                     </Group>
-                    <Text
-                      size="sm"
-                      c="dimmed"
-                      style={{ fontFamily: 'monospace', fontSize: '0.8em' }}
-                    >
-                      ID: {account.id}
-                    </Text>
-                    
-                    <Group gap="md" wrap="wrap">
-                      {/* 配额显示 - 紧凑版 */}
-                      {quota && (
-                        <Group gap="xs">
-                          <CreditCard size={14} />
-                          <Text size="sm" c="dimmed">
-                            配额: {quota.used}/{quota.total}
-                          </Text>
+                    <Group gap="xs">
+                      <Tooltip label={account.status !== 'disabled' ? '禁用账号' : '启用账号'}>
+                        <ActionIcon
+                          variant="light"
+                          color={account.status !== 'disabled' ? 'orange' : 'green'}
+                          size="lg"
+                          onClick={() => handleToggle(account)}
+                        >
+                          {account.status !== 'disabled' ? <PowerOff size={18} /> : <Power size={18} />}
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="刷新 Token 和配额">
+                        <ActionIcon
+                          variant="light"
+                          color="blue"
+                          size="lg"
+                          onClick={() => handleRefresh(account.id)}
+                          loading={isLoadingQuota}
+                        >
+                          <RefreshCw size={18} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="删除账号">
+                        <ActionIcon
+                          variant="light"
+                          color="red"
+                          size="lg"
+                          onClick={() => deleteAccount(account.id)}
+                        >
+                          <Trash2 size={18} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Group>
+
+                  {/* 中部：配额和健康状态 */}
+                  <Group grow>
+                    {/* 配额卡片 */}
+                    {quota ? (
+                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                        <Group gap="xs" mb={4}>
+                          <CreditCard size={16} />
+                          <Text size="sm" fw={500}>配额使用</Text>
+                        </Group>
+                        <Group justify="space-between" align="flex-end">
+                          <div>
+                            <Text size="xl" fw={700}>
+                              {quota.used}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              / {quota.total} {quota.unit}
+                            </Text>
+                          </div>
                           <Badge
-                            size="xs"
+                            size="lg"
                             color={quota.percentage > 80 ? 'red' : quota.percentage > 50 ? 'yellow' : 'green'}
                           >
                             {quota.percentage.toFixed(0)}%
                           </Badge>
                         </Group>
-                      )}
-                      {isLoadingQuota && (
-                        <Group gap="xs">
-                          <Loader size="xs" />
-                          <Text size="xs" c="dimmed">加载配额...</Text>
+                        <Progress
+                          value={quota.percentage}
+                          size="sm"
+                          mt="xs"
+                          color={quota.percentage > 80 ? 'red' : quota.percentage > 50 ? 'yellow' : 'green'}
+                        />
+                      </Card>
+                    ) : isLoadingQuota ? (
+                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                        <Center h={80}>
+                          <Stack align="center" gap={4}>
+                            <Loader size="sm" />
+                            <Text size="xs" c="dimmed">加载配额...</Text>
+                          </Stack>
+                        </Center>
+                      </Card>
+                    ) : (
+                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                        <Group gap="xs" mb={4}>
+                          <CreditCard size={16} />
+                          <Text size="sm" fw={500}>配额使用</Text>
                         </Group>
-                      )}
-                      
-                      {/* 健康统计 */}
-                      {health && (
-                        <>
-                          <Text size="sm" c="dimmed">
-                            成功: {health.success_count} | 失败: {health.fail_count}
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            成功率: {(health.success_rate * 100).toFixed(1)}%
-                          </Text>
-                          {health.last_used && (
-                            <Text size="sm" c="dimmed">
-                              最后使用: {format(new Date(health.last_used), 'HH:mm:ss')}
+                        <Center h={60}>
+                          <Text size="xs" c="dimmed">暂无数据</Text>
+                        </Center>
+                      </Card>
+                    )}
+
+                    {/* 健康状态卡片 */}
+                    {health ? (
+                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                        <Group gap="xs" mb={4}>
+                          <Activity size={16} />
+                          <Text size="sm" fw={500}>健康状态</Text>
+                        </Group>
+                        <Group justify="space-between" align="flex-end">
+                          <div>
+                            <Badge
+                              size="lg"
+                              color={health.is_available ? 'green' : 'red'}
+                              variant="dot"
+                            >
+                              {health.is_available ? '可用' : '不可用'}
+                            </Badge>
+                            <Text size="xs" c="dimmed" mt={4}>
+                              成功率: {(health.success_rate * 100).toFixed(1)}%
                             </Text>
-                          )}
-                        </>
-                      )}
-                    </Group>
-                    
+                          </div>
+                          <Stack gap={0} align="flex-end">
+                            <Text size="xs" c="dimmed">
+                              成功: {health.success_count}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              失败: {health.fail_count}
+                            </Text>
+                          </Stack>
+                        </Group>
+                        {health.last_used && (
+                          <Text size="xs" c="dimmed" mt="xs">
+                            最后使用: {format(new Date(health.last_used), 'HH:mm:ss')}
+                          </Text>
+                        )}
+                      </Card>
+                    ) : (
+                      <Card withBorder p="sm" radius="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                        <Group gap="xs" mb={4}>
+                          <Activity size={16} />
+                          <Text size="sm" fw={500}>健康状态</Text>
+                        </Group>
+                        <Center h={60}>
+                          <Text size="xs" c="dimmed">暂无数据</Text>
+                        </Center>
+                      </Card>
+                    )}
+                  </Group>
+
+                  {/* 底部：详细信息 */}
+                  <Stack gap={4}>
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      style={{ fontFamily: 'monospace' }}
+                    >
+                      ID: {account.id}
+                    </Text>
                     {account.expiresAt && (
-                      <Text size="sm" c="dimmed">
-                        过期: {format(new Date(account.expiresAt), 'yyyy-MM-dd HH:mm:ss')}
+                      <Text size="xs" c="dimmed">
+                        Token 过期: {format(new Date(account.expiresAt), 'yyyy-MM-dd HH:mm:ss')}
                       </Text>
                     )}
                   </Stack>
-                  <Group gap="xs">
-                    <ActionIcon
-                      variant="light"
-                      color={account.status !== 'disabled' ? 'orange' : 'green'}
-                      size="lg"
-                      onClick={() => handleToggle(account)}
-                    >
-                      {account.status !== 'disabled' ? <PowerOff size={18} /> : <Power size={18} />}
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="light"
-                      color="blue"
-                      size="lg"
-                      onClick={() => handleRefresh(account.id)}
-                      loading={isLoadingQuota}
-                    >
-                      <RefreshCw size={18} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="light"
-                      color="red"
-                      size="lg"
-                      onClick={() => deleteAccount(account.id)}
-                    >
-                      <Trash2 size={18} />
-                    </ActionIcon>
-                  </Group>
-                </Group>
+                </Stack>
               </Card>
             )
           })}
@@ -675,7 +830,7 @@ export default function Accounts() {
           </Tabs.Panel>
 
           <Tabs.Panel value="import">
-            <Stack gap="md" style={{ minHeight: '500px' }}>
+            <Stack gap="md" style={{ minHeight: '600px' }}>
               <Text size="sm" c="dimmed">
                 支持 JSON 输入或文件上传，可导入单个账号或批量导入
               </Text>
@@ -697,13 +852,14 @@ export default function Accounts() {
                 placeholder="粘贴 JSON 配置..."
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                minRows={20}
-                maxRows={25}
+                minRows={28}
+                autosize
                 styles={{
                   input: {
                     fontFamily: 'monospace',
                     fontSize: '0.85em',
-                    lineHeight: '1.5'
+                    lineHeight: '1.5',
+                    minHeight: '450px'
                   }
                 }}
               />

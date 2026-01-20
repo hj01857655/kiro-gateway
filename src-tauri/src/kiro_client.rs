@@ -72,7 +72,7 @@ impl KiroClient {
     /// 带 Token 刷新和超时控制的请求
     pub async fn generate_with_refresh(
         &self,
-        request: KiroPayload,
+        mut request: KiroPayload,
         accounts: &AccountManager,
         model: &str,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<KiroEvent, AppError>> + Send>>, AppError> {
@@ -107,6 +107,95 @@ impl KiroClient {
                 // 限流时标记账号
                 accounts.mark_throttled(&account.id);
                 Err(AppError::RateLimited)
+            }
+            Err(AppError::BadRequest(ref msg)) if msg.contains("CONTENT_LENGTH_EXCEEDS_THRESHOLD") => {
+                // 内容长度超限，自动截断历史消息并重试
+                warn!("内容长度超限，截断历史消息后重试...");
+                
+                // 截断历史消息（只保留最后一对对话）
+                if let Some(ref mut history) = request.conversation_state.history {
+                    use crate::converter::trim_message_history;
+                    use crate::models::ChatMessage;
+                    
+                    // 将 HistoryItem 转换为 ChatMessage 进行截断
+                    let mut messages: Vec<ChatMessage> = Vec::new();
+                    for item in history.iter() {
+                        match item {
+                            crate::models::HistoryItem::User { user_input_message } => {
+                                messages.push(ChatMessage {
+                                    role: "user".to_string(),
+                                    content: Some(serde_json::Value::String(user_input_message.content.clone())),
+                                    tool_calls: None,
+                                    tool_call_id: None,
+                                });
+                            }
+                            crate::models::HistoryItem::Assistant { assistant_response_message } => {
+                                messages.push(ChatMessage {
+                                    role: "assistant".to_string(),
+                                    content: Some(serde_json::Value::String(assistant_response_message.content.clone())),
+                                    tool_calls: None,
+                                    tool_call_id: None,
+                                });
+                            }
+                        }
+                    }
+                    
+                    // 截断消息
+                    let trimmed = trim_message_history(&messages);
+                    
+                    // 转换回 HistoryItem
+                    let mut new_history = Vec::new();
+                    for msg in trimmed {
+                        match msg.role.as_str() {
+                            "user" => {
+                                let content = match msg.content {
+                                    Some(serde_json::Value::String(s)) => s,
+                                    _ => "continue".to_string(),
+                                };
+                                new_history.push(crate::models::HistoryItem::User {
+                                    user_input_message: crate::models::HistoryUserMessage {
+                                        content,
+                                        model_id: request.conversation_state.current_message.user_input_message.model_id.clone(),
+                                        user_intent: Some("CODE_GENERATION".to_string()),
+                                        origin: "AI_EDITOR".to_string(),
+                                        images: None,
+                                        user_input_message_context: None,
+                                        inference_config: None,
+                                    },
+                                });
+                            }
+                            "assistant" => {
+                                let content = match msg.content {
+                                    Some(serde_json::Value::String(s)) => s,
+                                    _ => "understood".to_string(),
+                                };
+                                new_history.push(crate::models::HistoryItem::Assistant {
+                                    assistant_response_message: crate::models::HistoryAssistantMessage {
+                                        content,
+                                        tool_uses: None,
+                                    },
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+                    
+                    *history = new_history;
+                    info!("历史消息已截断，重试请求...");
+                    
+                    // 重试请求
+                    return self.generate_with_timeout(
+                        request,
+                        &account,
+                        accounts,
+                        first_token_timeout,
+                        stream_timeout,
+                    ).await;
+                } else {
+                    // 没有历史消息，无法截断
+                    warn!("没有历史消息可截断，返回错误");
+                    Err(AppError::BadRequest(msg.clone()))
+                }
             }
             Err(e) => Err(e),
         }
@@ -228,6 +317,16 @@ impl KiroClient {
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
 
+                // 检查 reason 字段（CONTENT_LENGTH_EXCEEDS_THRESHOLD）
+                if let Some(reason) = error_json.get("reason").and_then(|v| v.as_str()) {
+                    if reason == "CONTENT_LENGTH_EXCEEDS_THRESHOLD" {
+                        return Err(AppError::BadRequest(format!(
+                            "Input is too long: {}",
+                            error_text
+                        )));
+                    }
+                }
+
                 if error_type == "ExpiredTokenException" {
                     return Err(AppError::TokenExpired);
                 }
@@ -329,12 +428,8 @@ where
                 // 解析 AWS Event Stream 格式的 JSON payload
                 // Kiro 返回格式: {"content":"..."} 或 {"name":"xxx","toolUseId":"xxx",...}
                 let mut search_start = 0;
-                loop {
-                    // 查找 JSON 对象的开始位置
-                    let json_start = match buffer[search_start..].find('{') {
-                        Some(pos) => search_start + pos,
-                        None => break,
-                    };
+                while let Some(pos) = buffer[search_start..].find('{') {
+                    let json_start = search_start + pos;
 
                     // 使用括号计数法找到完整的 JSON 对象
                     let mut brace_count = 0;
@@ -735,7 +830,7 @@ impl KiroClient {
         let models = data
             .get("models")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.clone())
+            .cloned()
             .unwrap_or_default();
 
         Ok(models)

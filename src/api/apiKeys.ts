@@ -1,7 +1,5 @@
 import { fetchWithTimeout } from './utils'
 
-const API_BASE = 'http://127.0.0.1:8080/admin'
-
 export interface ApiKey {
   id: string
   key: string
@@ -13,13 +11,13 @@ export interface ApiKey {
 
 export const apiKeysApi = {
   list: async (): Promise<ApiKey[]> => {
-    const res = await fetchWithTimeout(`${API_BASE}/api-keys`)
+    const res = await fetchWithTimeout('/admin/api-keys')
     const data = await res.json()
     return data.keys || []
   },
 
   generate: async (name: string): Promise<ApiKey> => {
-    const res = await fetchWithTimeout(`${API_BASE}/api-keys`, {
+    const res = await fetchWithTimeout('/admin/api-keys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -29,7 +27,7 @@ export const apiKeysApi = {
   },
 
   update: async (id: string, updates: Partial<ApiKey>): Promise<void> => {
-    await fetchWithTimeout(`${API_BASE}/api-keys/${id}`, {
+    await fetchWithTimeout(`/admin/api-keys/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -37,6 +35,6 @@ export const apiKeysApi = {
   },
 
   delete: async (id: string): Promise<void> => {
-    await fetchWithTimeout(`${API_BASE}/api-keys/${id}`, { method: 'DELETE' })
+    await fetchWithTimeout(`/admin/api-keys/${id}`, { method: 'DELETE' })
   },
 }

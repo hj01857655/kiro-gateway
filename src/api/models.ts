@@ -1,5 +1,6 @@
 // 模型 API
 import { fetchWithTimeout } from './utils'
+import { logger } from '@/lib/logger'
 
 export interface Model {
   id: string
@@ -35,7 +36,7 @@ export const modelsApi = {
 
       return data.data
     } catch (error) {
-      console.error('获取模型列表失败:', error)
+      logger.error('获取模型列表失败:', error)
       // 如果有旧缓存，返回旧缓存
       if (modelsCache) {
         return modelsCache

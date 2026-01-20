@@ -1,7 +1,18 @@
 import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor } from '@mantine/core'
 import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 export default function About() {
+  const [version, setVersion] = useState('加载中...')
+
+  useEffect(() => {
+    // 从 Tauri 获取版本号
+    invoke<string>('get_app_version')
+      .then(setVersion)
+      .catch(() => setVersion('未知'))
+  }, [])
+
   return (
     <Stack gap="md" maw={1200} mx="auto">
       <Group>
@@ -33,7 +44,7 @@ export default function About() {
               版本
             </Text>
             <Badge color="blue" variant="light">
-              v1.0.0
+              v{version}
             </Badge>
           </Group>
           <Group>

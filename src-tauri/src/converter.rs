@@ -857,6 +857,116 @@ fn merge_adjacent_messages(messages: &[&ChatMessage]) -> Vec<ChatMessage> {
     merged
 }
 
+/// 截断消息历史，只保留最后一对对话
+/// 参考 Kiro IDE 的 trimMessageHistory 实现
+/// 
+/// 逻辑：
+/// 1. 找出所有完整的 human/AI 对话对
+/// 2. 只保留最后一对
+/// 3. 如果最后一条消息是 human（还没有 AI 回复），也保留
+pub fn trim_message_history(messages: &[ChatMessage]) -> Vec<ChatMessage> {
+    if messages.is_empty() {
+        return Vec::new();
+    }
+
+    // 先合并相邻的同角色消息
+    let merged = merge_adjacent_messages(&messages.iter().collect::<Vec<_>>());
+
+    // 找出所有完整的 human/AI 对话对
+    let mut pairs: Vec<(ChatMessage, ChatMessage)> = Vec::new();
+    let mut i = 0;
+    while i < merged.len() - 1 {
+        if merged[i].role == "user" && merged[i + 1].role == "assistant" {
+            pairs.push((merged[i].clone(), merged[i + 1].clone()));
+            i += 2; // 跳过这一对
+        } else {
+            i += 1;
+        }
+    }
+
+    let mut result = Vec::new();
+
+    // 只保留最后一对
+    if let Some((human, ai)) = pairs.last() {
+        result.push(human.clone());
+        result.push(ai.clone());
+    }
+
+    // 检查最后一条消息是否是 human（还没有 AI 回复）
+    if let Some(last_msg) = merged.last() {
+        if last_msg.role == "user" {
+            // 检查是否已经包含在 pairs 中
+            let already_included = pairs.last().map(|(h, _)| h.content == last_msg.content).unwrap_or(false);
+            if !already_included {
+                result.push(last_msg.clone());
+            }
+        }
+    }
+
+    // 如果结果为空，至少返回最后一条 human 消息
+    if result.is_empty() && !merged.is_empty() {
+        // 从后往前找第一条 user 消息
+        if let Some(last_human) = merged.iter().rev().find(|m| m.role == "user") {
+            result.push(last_human.clone());
+        } else {
+            // 实在没有，创建一个 "continue" 消息
+            result.push(ChatMessage {
+                role: "user".to_string(),
+                content: Some(serde_json::Value::String("continue".to_string())),
+                tool_calls: None,
+                tool_call_id: None,
+            });
+        }
+    }
+
+    // 确保第一条是 user，最后一条也是 user
+    if !result.is_empty() {
+        if result[0].role != "user" {
+            result.insert(
+                0,
+                ChatMessage {
+                    role: "user".to_string(),
+                    content: Some(serde_json::Value::String("continue".to_string())),
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            );
+        }
+        if result.last().unwrap().role != "user" {
+            result.push(ChatMessage {
+                role: "user".to_string(),
+                content: Some(serde_json::Value::String("continue".to_string())),
+                tool_calls: None,
+                tool_call_id: None,
+            });
+        }
+    }
+
+    // 确保所有消息都有内容
+    for msg in &mut result {
+        if let Some(serde_json::Value::String(s)) = &msg.content {
+            if s.is_empty() {
+                msg.content = Some(serde_json::Value::String(
+                    if msg.role == "user" {
+                        "continue"
+                    } else {
+                        "understood"
+                    }
+                    .to_string(),
+                ));
+            }
+        }
+    }
+
+    tracing::info!(
+        "[kiro-gateway] 截断消息历史: {} -> {} 条消息",
+        messages.len(),
+        result.len()
+    );
+
+    result
+}
+
 /// 处理长 description 的工具
 /// 超过 TOOL_DESCRIPTION_MAX_LENGTH 的描述会被移到 system prompt
 /// 返回 (处理后的 tools, 需要添加到 system prompt 的文档)

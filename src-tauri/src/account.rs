@@ -30,6 +30,7 @@ pub struct Account {
     pub id: String,
     pub name: Option<String>,
     pub provider: Option<String>,
+    pub email: Option<String>,  // 新增 email 字段用于去重
     #[serde(default)]
     pub auth_method: String,
     #[serde(default)]
@@ -200,17 +201,19 @@ impl AccountManager {
     }
 
     pub fn load_from_json(&self, json_str: &str) -> Result<(), AppError> {
-        // 支持两种格式：数组 [] 或对象 { "accounts": [] }
+        // 支持两种格式：
+        // 1. 数组: [{...}, {...}]
+        // 2. 单个对象: {...}
         let accounts: Vec<Account> = if json_str.trim().starts_with('[') {
+            // 数组格式
             serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?
+        } else if json_str.trim().starts_with('{') {
+            // 单个对象格式，转为数组
+            let account: Account = serde_json::from_str(json_str)
+                .map_err(|e| AppError::ParseError(e.to_string()))?;
+            vec![account]
         } else {
-            #[derive(Deserialize)]
-            struct AccountsConfig {
-                accounts: Vec<Account>,
-            }
-            let config: AccountsConfig =
-                serde_json::from_str(json_str).map_err(|e| AppError::ParseError(e.to_string()))?;
-            config.accounts
+            return Err(AppError::ParseError("无效的 JSON 格式".into()));
         };
 
         // 检查 refreshToken 长度
@@ -231,11 +234,68 @@ impl AccountManager {
         self.accounts.read().clone()
     }
 
-    /// 添加账号
+    /// 添加账号（带去重）
+    /// 去重策略：email + provider 组合必须唯一
     pub fn add_account(&self, account: Account) -> Result<(), AppError> {
         let mut accounts = self.accounts.write();
+
+        // 使用 email + provider 去重（最准确的方式）
+        if let (Some(email), Some(provider)) = (&account.email, &account.provider) {
+            if accounts.iter().any(|a| {
+                if let (Some(e), Some(p)) = (&a.email, &a.provider) {
+                    e == email && p == provider
+                } else {
+                    false
+                }
+            }) {
+                return Err(AppError::BadRequest(format!(
+                    "该账号已存在（{} - {}），请勿重复导入",
+                    email, provider
+                )));
+            }
+        }
+
+        // 其次检查 ID（防止手动指定相同 ID）
+        if accounts.iter().any(|a| a.id == account.id) {
+            return Err(AppError::BadRequest(format!("账号 ID {} 已存在", account.id)));
+        }
+
         accounts.push(account);
         Ok(())
+    }
+
+    /// 批量添加账号（带去重）
+    pub fn add_accounts_batch(&self, new_accounts: Vec<Account>) -> Result<(usize, Vec<String>), AppError> {
+        let mut accounts = self.accounts.write();
+        let mut added_count = 0;
+        let mut skipped = Vec::new();
+
+        for account in new_accounts {
+            // 使用 email + provider 去重
+            if let (Some(email), Some(provider)) = (&account.email, &account.provider) {
+                if accounts.iter().any(|a| {
+                    if let (Some(e), Some(p)) = (&a.email, &a.provider) {
+                        e == email && p == provider
+                    } else {
+                        false
+                    }
+                }) {
+                    skipped.push(format!("账号 {} - {} 已存在", email, provider));
+                    continue;
+                }
+            }
+
+            // 检查 ID 是否重复
+            if accounts.iter().any(|a| a.id == account.id) {
+                skipped.push(format!("ID {} 已存在", account.id));
+                continue;
+            }
+
+            accounts.push(account);
+            added_count += 1;
+        }
+
+        Ok((added_count, skipped))
     }
 
     /// 更新账号
@@ -291,9 +351,20 @@ impl AccountManager {
     pub async fn get_account(&self) -> Result<Account, AppError> {
         // 最多尝试 3 次
         for attempt in 0..3 {
-            // 使用智能分配器选择最优账号
-            let accounts = self.accounts.read().clone();
-            let mut account = self.allocator.get_best_account(&accounts)?;
+            // 使用智能分配器选择最优账号（避免 clone 整个列表）
+            let account_id = {
+                let accounts = self.accounts.read();
+                self.allocator.get_best_account(&accounts)?.id.clone()
+            };
+
+            // 获取账号副本用于后续操作
+            let mut account = {
+                let accounts = self.accounts.read();
+                accounts.iter()
+                    .find(|a| a.id == account_id)
+                    .cloned()
+                    .ok_or(AppError::NoToken)?
+            };
 
             // 检查是否需要刷新 Token
             if account.is_expired() {

@@ -16,12 +16,27 @@ impl AppConfig {
         // 不再使用默认的 data/accounts.json，统一从用户数据目录读取
         let accounts_file = env::var("ACCOUNTS_FILE").ok();
 
+        // 验证端口范围
+        let port = env::var("PORT")
+            .unwrap_or_else(|_| "8080".to_string())
+            .parse::<u16>()
+            .unwrap_or_else(|_| {
+                tracing::warn!("无效的 PORT 环境变量，使用默认值 8080");
+                8080
+            });
+
+        // 验证主机地址
+        let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+        let host = if host.is_empty() {
+            tracing::warn!("HOST 为空，使用默认值 127.0.0.1");
+            "127.0.0.1".to_string()
+        } else {
+            host
+        };
+
         Self {
-            host: env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
-            port: env::var("PORT")
-                .unwrap_or_else(|_| "8080".to_string())
-                .parse()
-                .unwrap_or(8080),
+            host,
+            port,
             kiro_endpoint: env::var("KIRO_ENDPOINT")
                 .unwrap_or_else(|_| "https://codewhisperer.us-east-1.amazonaws.com".to_string()),
             api_key: env::var("API_KEY").ok(),
@@ -31,6 +46,20 @@ impl AppConfig {
                 .ok()
                 .or_else(|| Some(generate_machine_id())),
         }
+    }
+
+    /// 验证配置是否有效
+    pub fn validate(&self) -> Result<(), String> {
+        if self.port == 0 {
+            return Err("端口不能为 0".to_string());
+        }
+        if self.host.is_empty() {
+            return Err("主机地址不能为空".to_string());
+        }
+        if self.kiro_endpoint.is_empty() {
+            return Err("Kiro 端点不能为空".to_string());
+        }
+        Ok(())
     }
 }
 

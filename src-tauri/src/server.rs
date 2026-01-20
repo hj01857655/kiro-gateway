@@ -70,13 +70,15 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
     let accounts_file = data_dir.join("accounts.json");
     let accounts_file_str = accounts_file.to_string_lossy().to_string();
 
+    // 设置账号文件路径（统一使用应用数据目录）
+    accounts.set_accounts_file(&accounts_file_str);
+
     // 加载账号
     if let Some(ref json) = config.accounts_json {
         info!("从环境变量 ACCOUNTS_JSON 加载账号");
         if let Err(e) = accounts.load_from_json(json) {
             tracing::error!("从环境变量加载账号失败: {}", e);
         }
-        accounts.set_accounts_file(&accounts_file_str);
     } else if let Some(ref file) = config.accounts_file {
         info!("从环境变量 ACCOUNTS_FILE 加载账号: {}", file);
         match std::fs::read_to_string(file) {
@@ -89,10 +91,8 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
                 tracing::warn!("读取账号文件 {} 失败: {}", file, e);
             }
         }
-        accounts.set_accounts_file(file);
     } else {
         info!("从默认路径加载账号: {}", accounts_file_str);
-        accounts.set_accounts_file(&accounts_file_str);
         match std::fs::read_to_string(&accounts_file) {
             Ok(content) => {
                 info!("成功读取账号文件，内容长度: {} 字节", content.len());
@@ -216,11 +216,11 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
         .layer(
             CorsLayer::new()
                 .allow_origin([
-                    "http://localhost:5173".parse().unwrap(),
-                    "http://127.0.0.1:5173".parse().unwrap(),
-                    "http://localhost:8080".parse().unwrap(),
-                    "http://127.0.0.1:8080".parse().unwrap(),
-                    "tauri://localhost".parse().unwrap(),
+                    "http://localhost:5173".parse().expect("Invalid CORS origin"),
+                    "http://127.0.0.1:5173".parse().expect("Invalid CORS origin"),
+                    "http://localhost:8080".parse().expect("Invalid CORS origin"),
+                    "http://127.0.0.1:8080".parse().expect("Invalid CORS origin"),
+                    "tauri://localhost".parse().expect("Invalid CORS origin"),
                 ])
                 .allow_methods([
                     axum::http::Method::GET,
@@ -232,7 +232,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
                 .allow_headers([
                     axum::http::header::CONTENT_TYPE,
                     axum::http::header::AUTHORIZATION,
-                    "x-api-key".parse().unwrap(),
+                    "x-api-key".parse().expect("Invalid header name"),
                 ])
                 .allow_credentials(true),
         );
@@ -278,52 +278,15 @@ fn verify_api_key(
     Ok(())
 }
 
-// Admin API 认证中间件
+// Admin API 认证中间件（桌面应用无需认证）
 async fn admin_auth_middleware(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
+    _state: State<Arc<AppState>>,
+    _headers: HeaderMap,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, AppError> {
-    // 检查是否来自 Tauri（本地桌面应用）
-    let is_tauri = headers
-        .get("origin")
-        .and_then(|v| v.to_str().ok())
-        .map(|origin| origin == "tauri://localhost")
-        .unwrap_or(false);
-
-    // Tauri 应用无需认证（本地访问）
-    if is_tauri {
-        return Ok(next.run(request).await);
-    }
-
-    // 检查是否提供了 Admin API Key
-    let provided = headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .or_else(|| headers.get("x-api-key").and_then(|v| v.to_str().ok()));
-
-    // 如果配置了 API_KEY，必须提供且匹配
-    if let Some(ref admin_key) = state.config.api_key {
-        match provided {
-            Some(key) if key == admin_key => {
-                // 认证通过
-                Ok(next.run(request).await)
-            }
-            Some(_) => {
-                // 提供了 key 但不匹配
-                Err(AppError::BadRequest("Invalid admin API key".into()))
-            }
-            None => {
-                // 未提供 key
-                Err(AppError::BadRequest("Admin API key required".into()))
-            }
-        }
-    } else {
-        // 未配置 API_KEY，允许访问（仅限本地开发）
-        Ok(next.run(request).await)
-    }
+    // 桌面应用的 Admin API 无需认证，直接放行
+    Ok(next.run(request).await)
 }
 
 async fn chat_completions(
@@ -596,6 +559,9 @@ async fn messages(
             "usage": usage_info.map(|u| serde_json::json!({
                 "input_tokens": u.prompt_tokens,
                 "output_tokens": u.completion_tokens
+            })).unwrap_or_else(|| serde_json::json!({
+                "input_tokens": 0,
+                "output_tokens": 0
             }))
         });
 
@@ -726,16 +692,22 @@ async fn admin_add_account(
     let account: crate::account::Account = serde_json::from_value(account)
         .map_err(|e| AppError::BadRequest(format!("账号数据格式错误: {}", e)))?;
 
-    // 添加到账号列表
-    state.accounts.add_account(account.clone())?;
+    // 添加到账号列表（带去重检查）
+    match state.accounts.add_account(account.clone()) {
+        Ok(_) => {
+            // 保存到文件
+            let all_accounts = state.accounts.list_accounts();
+            state.accounts.save_accounts_to_file(&all_accounts)?;
 
-    // 保存到文件
-    let all_accounts = state.accounts.list_accounts();
-    state.accounts.save_accounts_to_file(&all_accounts)?;
-
-    Ok(Json(
-        serde_json::json!({ "success": true, "account": account }),
-    ))
+            Ok(Json(
+                serde_json::json!({ "success": true, "account": account }),
+            ))
+        }
+        Err(e) => {
+            // 返回友好的错误信息
+            Err(e)
+        }
+    }
 }
 
 async fn admin_update_account(
@@ -953,7 +925,7 @@ async fn admin_get_quota(
 
 // 从 Kiro IDE 缓存导入账号
 async fn admin_import_accounts(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     // 获取用户主目录
     let home = dirs::home_dir().ok_or_else(|| AppError::BadRequest("无法获取用户目录".into()))?;
@@ -991,21 +963,85 @@ async fn admin_import_accounts(
         .map(|dt| dt.timestamp_millis() as u64)
         .unwrap_or(0);
 
+    // 判断账号类型
+    let auth_method = token_data["authMethod"]
+        .as_str()
+        .unwrap_or("social");
+    
+    let profile_arn = token_data["profileArn"]
+        .as_str()
+        .unwrap_or("");
+    
+    let region = token_data["region"]
+        .as_str()
+        .unwrap_or("us-east-1");
+
     // 创建账号对象
-    let account = serde_json::json!({
+    let account_id = format!("{}-{}", auth_method, chrono::Utc::now().timestamp_millis());
+    let mut account = serde_json::json!({
+        "id": account_id,
         "name": "Kiro IDE (导入)",
-        "type": "social",
+        "authMethod": auth_method,
         "refreshToken": refresh_token,
         "accessToken": access_token,
         "expiresAt": expires_at,
-        "profileArn": "",
-        "region": "us-east-1"
+        "profileArn": profile_arn,
+        "region": region,
+        "enabled": true,
+        "status": "active"
     });
 
-    Ok(Json(serde_json::json!({
-        "success": true,
-        "accounts": [account]
-    })))
+    // 如果是 IDC 账号，需要读取 clientId 和 clientSecret
+    if auth_method.to_lowercase() == "idc" {
+        if let Some(client_id_hash) = token_data["clientIdHash"].as_str() {
+            let client_reg_path = home
+                .join(".aws")
+                .join("sso")
+                .join("cache")
+                .join(format!("{}.json", client_id_hash));
+            
+            if client_reg_path.exists() {
+                if let Ok(reg_content) = std::fs::read_to_string(&client_reg_path) {
+                    if let Ok(reg_data) = serde_json::from_str::<serde_json::Value>(&reg_content) {
+                        if let Some(client_id) = reg_data["clientId"].as_str() {
+                            account["clientId"] = serde_json::json!(client_id);
+                        }
+                        if let Some(client_secret) = reg_data["clientSecret"].as_str() {
+                            account["clientSecret"] = serde_json::json!(client_secret);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 将 JSON 转换为 Account 对象
+    let account_obj: crate::account::Account = serde_json::from_value(account.clone())
+        .map_err(|e| AppError::BadRequest(format!("账号数据格式错误: {}", e)))?;
+
+    // 添加账号到列表（带去重检查）
+    match state.accounts.add_account(account_obj) {
+        Ok(_) => {
+            // 保存到文件
+            let all_accounts = state.accounts.list_accounts();
+            state.accounts.save_accounts_to_file(&all_accounts)?;
+
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "message": "账号导入成功",
+                "accounts": [account]
+            })))
+        }
+        Err(AppError::BadRequest(msg)) if msg.contains("已存在") => {
+            // 账号已存在，返回友好提示
+            Ok(Json(serde_json::json!({
+                "success": false,
+                "message": msg,
+                "accounts": []
+            })))
+        }
+        Err(e) => Err(e)
+    }
 }
 
 // API Key 管理端点

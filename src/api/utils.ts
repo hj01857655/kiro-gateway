@@ -1,8 +1,21 @@
+import { tauriFetch } from '../lib/tauri'
+
+// 检测是否在 Tauri 环境
+const isTauri = '__TAURI_INTERNALS__' in window
+
 export async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
   timeout = 10000
 ): Promise<Response> {
+  // 生产环境使用 Tauri invoke
+  if (isTauri) {
+    // 提取路径（移除 base URL）
+    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    return tauriFetch(path, options)
+  }
+
+  // 开发环境使用原生 fetch
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeout)
 

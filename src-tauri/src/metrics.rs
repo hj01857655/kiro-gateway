@@ -131,7 +131,13 @@ impl Metrics {
         is_stream: bool,
         api_type: &str,
     ) {
-        let mut inner = self.inner.write().unwrap();
+        let mut inner = match self.inner.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::error!("Metrics RwLock 中毒，恢复数据");
+                poisoned.into_inner()
+            }
+        };
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or(Duration::ZERO)
@@ -194,7 +200,13 @@ impl Metrics {
 
     /// 获取统计数据
     pub fn get_metrics(&self) -> MetricsData {
-        let inner = self.inner.read().unwrap();
+        let inner = match self.inner.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::error!("Metrics RwLock 中毒，使用受损数据");
+                poisoned.into_inner()
+            }
+        };
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or(Duration::ZERO)
@@ -295,7 +307,13 @@ impl Metrics {
             std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
         }
 
-        let inner = self.inner.read().unwrap();
+        let inner = match self.inner.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("Metrics RwLock 中毒，尝试保存受损数据");
+                poisoned.into_inner()
+            }
+        };
         let json =
             serde_json::to_string_pretty(&*inner).map_err(|e| format!("序列化失败: {}", e))?;
         std::fs::write(path, json).map_err(|e| format!("写入文件失败: {}", e))?;
@@ -307,7 +325,15 @@ impl Metrics {
         let content = std::fs::read_to_string(path).map_err(|e| format!("读取文件失败: {}", e))?;
         let loaded: MetricsInner =
             serde_json::from_str(&content).map_err(|e| format!("反序列化失败: {}", e))?;
-        *self.inner.write().unwrap() = loaded;
+
+        let mut inner = match self.inner.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::error!("Metrics RwLock 中毒，强制恢复");
+                poisoned.into_inner()
+            }
+        };
+        *inner = loaded;
         Ok(())
     }
 }

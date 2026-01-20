@@ -3,6 +3,7 @@ export interface Account {
   id: string
   name?: string
   provider?: string
+  email?: string  // 新增 email 字段用于去重
   authMethod: string
   accessToken: string
   refreshToken: string

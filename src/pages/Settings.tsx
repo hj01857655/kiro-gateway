@@ -16,6 +16,8 @@ import {
   Textarea,
   Alert,
   Switch,
+  Center,
+  rem,
 } from '@mantine/core'
 import { Server, Key, Globe, Plus, Trash2, Copy, Check, Power, PowerOff, Download, Wand2, AlertCircle, Moon } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -225,17 +227,34 @@ export default function Settings() {
   }
 
   return (
-    <Stack gap="md" maw={1200} mx="auto">
+    <Stack gap="md" maw={1200} mx="auto" className="animate-fade-in">
       <Title order={2}>设置</Title>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
         <Group mb="md">
-          <Moon size={20} color="#7950f2" />
+          <div
+            style={{
+              width: rem(40),
+              height: rem(40),
+              borderRadius: rem(10),
+              background: colorScheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(121, 80, 242, 0.2) 0%, rgba(121, 80, 242, 0.1) 100%)'
+                : 'linear-gradient(135deg, rgba(121, 80, 242, 0.15) 0%, rgba(121, 80, 242, 0.08) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Moon size={20} color="#7950f2" />
+          </div>
           <Text size="lg" fw={600}>
             外观
           </Text>
         </Group>
-        <Group justify="space-between">
+        <Group justify="space-between" p="md" style={{ 
+          borderRadius: rem(10),
+          background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)',
+        }}>
           <div>
             <Text size="sm" fw={500}>深色模式</Text>
             <Text size="xs" c="dimmed">切换浅色/深色主题</Text>
@@ -244,14 +263,29 @@ export default function Settings() {
             checked={colorScheme === 'dark'}
             onChange={toggleColorScheme}
             size="md"
+            color="violet"
           />
         </Group>
       </Card>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
         <Group justify="space-between" mb="md">
           <Group>
-            <Server size={20} color="#228be6" />
+            <div
+              style={{
+                width: rem(40),
+                height: rem(40),
+                borderRadius: rem(10),
+                background: colorScheme === 'dark'
+                  ? 'linear-gradient(135deg, rgba(34, 139, 230, 0.2) 0%, rgba(34, 139, 230, 0.1) 100%)'
+                  : 'linear-gradient(135deg, rgba(34, 139, 230, 0.15) 0%, rgba(34, 139, 230, 0.08) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Server size={20} color="#228be6" />
+            </div>
             <Text size="lg" fw={600}>
               服务器配置
             </Text>
@@ -296,6 +330,11 @@ export default function Settings() {
               setServerConfigDirty(true)
             }}
             disabled={!editingServer}
+            styles={{
+              input: {
+                borderRadius: rem(10),
+              }
+            }}
           />
           <TextInput 
             label="监听端口" 
@@ -309,17 +348,36 @@ export default function Settings() {
             type="number"
             min={1024}
             max={65535}
+            styles={{
+              input: {
+                borderRadius: rem(10),
+              }
+            }}
           />
-          <Text size="sm" c="dimmed">
+          <Alert icon={<AlertCircle size={16} />} color="blue" variant="light">
             {editingServer ? '修改后需要保存并重启应用才能生效' : '点击"编辑"按钮修改服务器配置'}
-          </Text>
+          </Alert>
         </Stack>
       </Card>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
         <Group justify="space-between" mb="md">
           <Group>
-            <Key size={20} color="#40c057" />
+            <div
+              style={{
+                width: rem(40),
+                height: rem(40),
+                borderRadius: rem(10),
+                background: colorScheme === 'dark'
+                  ? 'linear-gradient(135deg, rgba(64, 192, 87, 0.2) 0%, rgba(64, 192, 87, 0.1) 100%)'
+                  : 'linear-gradient(135deg, rgba(64, 192, 87, 0.15) 0%, rgba(64, 192, 87, 0.08) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Key size={20} color="#40c057" />
+            </div>
             <Text size="lg" fw={600}>
               API Key 管理
             </Text>
@@ -328,6 +386,7 @@ export default function Settings() {
             leftSection={<Plus size={16} />}
             onClick={() => setShowAddModal(true)}
             size="sm"
+            variant="light"
           >
             生成新 Key
           </Button>
@@ -337,25 +396,32 @@ export default function Settings() {
         </Text>
         
         {apiKeys.length === 0 ? (
-          <Text size="sm" c="dimmed" ta="center" py="xl">
-            暂无 API Key，点击上方按钮生成
-          </Text>
+          <Card withBorder p="xl" radius="md" style={{ background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.03)' : 'rgba(99, 102, 241, 0.02)' }}>
+            <Center>
+              <Stack align="center" gap="sm">
+                <Key size={48} color={colorScheme === 'dark' ? '#666' : '#aaa'} />
+                <Text size="sm" c="dimmed" ta="center">
+                  暂无 API Key，点击上方按钮生成
+                </Text>
+              </Stack>
+            </Center>
+          </Card>
         ) : (
           <Stack gap="sm">
             {apiKeys.map((key) => (
-              <Card key={key.id} withBorder p="md">
+              <Card key={key.id} withBorder p="md" radius="md" className="glass-effect">
                 <Group justify="space-between">
                   <Stack gap="xs" style={{ flex: 1 }}>
                     <Group gap="sm">
                       <Text size="sm" fw={500}>
                         {key.name}
                       </Text>
-                      <Badge color={key.enabled ? 'green' : 'gray'} size="sm">
+                      <Badge color={key.enabled ? 'green' : 'gray'} size="sm" variant="light">
                         {key.enabled ? '启用' : '禁用'}
                       </Badge>
                     </Group>
                     <Group gap="xs">
-                      <Code style={{ fontSize: '0.75em' }}>
+                      <Code style={{ fontSize: '0.75em', padding: '4px 8px', borderRadius: rem(6) }}>
                         {key.key.slice(0, 20)}...{key.key.slice(-8)}
                       </Code>
                       <CopyButton value={key.key}>
@@ -395,6 +461,7 @@ export default function Settings() {
                       variant="light"
                       color={key.enabled ? 'orange' : 'green'}
                       onClick={() => handleToggleKey(key)}
+                      size="lg"
                     >
                       {key.enabled ? <PowerOff size={16} /> : <Power size={16} />}
                     </ActionIcon>
@@ -402,6 +469,7 @@ export default function Settings() {
                       variant="light"
                       color="red"
                       onClick={() => handleDeleteKey(key.id)}
+                      size="lg"
                     >
                       <Trash2 size={16} />
                     </ActionIcon>
@@ -471,46 +539,82 @@ export default function Settings() {
         )}
       </Modal>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
         <Group mb="md">
-          <Globe size={20} color="#7950f2" />
+          <div
+            style={{
+              width: rem(40),
+              height: rem(40),
+              borderRadius: rem(10),
+              background: colorScheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(121, 80, 242, 0.2) 0%, rgba(121, 80, 242, 0.1) 100%)'
+                : 'linear-gradient(135deg, rgba(121, 80, 242, 0.15) 0%, rgba(121, 80, 242, 0.08) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Globe size={20} color="#7950f2" />
+          </div>
           <Text size="lg" fw={600}>
             API 端点
           </Text>
         </Group>
-        <Stack gap="sm">
+        <Stack gap="md">
           <div>
-            <Text size="sm" fw={500} mb={4}>
+            <Text size="sm" fw={500} mb={8}>
               OpenAI 兼容接口
             </Text>
-            <Code block>POST http://127.0.0.1:8080/v1/chat/completions</Code>
+            <Code block style={{ borderRadius: rem(8), padding: rem(12) }}>
+              POST http://127.0.0.1:8080/v1/chat/completions
+            </Code>
           </div>
           <div>
-            <Text size="sm" fw={500} mb={4}>
+            <Text size="sm" fw={500} mb={8}>
               Anthropic 兼容接口
             </Text>
-            <Code block>POST http://127.0.0.1:8080/v1/messages</Code>
+            <Code block style={{ borderRadius: rem(8), padding: rem(12) }}>
+              POST http://127.0.0.1:8080/v1/messages
+            </Code>
           </div>
           <div>
-            <Text size="sm" fw={500} mb={4}>
+            <Text size="sm" fw={500} mb={8}>
               模型列表
             </Text>
-            <Code block>GET http://127.0.0.1:8080/v1/models</Code>
+            <Code block style={{ borderRadius: rem(8), padding: rem(12) }}>
+              GET http://127.0.0.1:8080/v1/models
+            </Code>
           </div>
           <div>
-            <Text size="sm" fw={500} mb={4}>
+            <Text size="sm" fw={500} mb={8}>
               健康检查
             </Text>
-            <Code block>GET http://127.0.0.1:8080/health</Code>
+            <Code block style={{ borderRadius: rem(8), padding: rem(12) }}>
+              GET http://127.0.0.1:8080/health
+            </Code>
           </div>
         </Stack>
       </Card>
 
       {/* 一键配置 Claude */}
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
         <Group justify="space-between" mb="md">
           <Group>
-            <Wand2 size={20} color="#f59f00" />
+            <div
+              style={{
+                width: rem(40),
+                height: rem(40),
+                borderRadius: rem(10),
+                background: colorScheme === 'dark'
+                  ? 'linear-gradient(135deg, rgba(245, 159, 0, 0.2) 0%, rgba(245, 159, 0, 0.1) 100%)'
+                  : 'linear-gradient(135deg, rgba(245, 159, 0, 0.15) 0%, rgba(245, 159, 0, 0.08) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Wand2 size={20} color="#f59f00" />
+            </div>
             <Text size="lg" fw={600}>
               一键配置 Claude
             </Text>
@@ -520,6 +624,7 @@ export default function Settings() {
             onClick={handleGenerateConfig}
             loading={configLoading}
             size="sm"
+            variant="light"
           >
             生成配置
           </Button>

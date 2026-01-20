@@ -1,8 +1,6 @@
 // 健康检查 API
 import { fetchWithTimeout } from './utils'
 
-const API_BASE = 'http://127.0.0.1:8080'
-
 export interface AccountHealth {
   id: string
   name?: string
@@ -43,13 +41,13 @@ export interface AllocatorStatsResponse {
 
 // 获取健康状态
 export async function getHealth(): Promise<HealthResponse> {
-  const response = await fetchWithTimeout(`${API_BASE}/admin/health`)
+  const response = await fetchWithTimeout('/admin/health')
   return response.json()
 }
 
 // 手动触发健康检查
 export async function checkHealth(): Promise<HealthCheckResult> {
-  const response = await fetchWithTimeout(`${API_BASE}/admin/health`, {
+  const response = await fetchWithTimeout('/admin/health', {
     method: 'POST',
   })
   return response.json()
@@ -57,6 +55,6 @@ export async function checkHealth(): Promise<HealthCheckResult> {
 
 // 获取智能分配器统计
 export async function getAllocatorStats(): Promise<AllocatorStatsResponse> {
-  const response = await fetchWithTimeout(`${API_BASE}/admin/allocator/stats`)
+  const response = await fetchWithTimeout('/admin/allocator/stats')
   return response.json()
 }
