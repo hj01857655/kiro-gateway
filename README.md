@@ -107,6 +107,38 @@ cd src-tauri && cargo fmt
 
 ## 配置说明
 
+### 数据存储
+
+所有配置文件和敏感数据统一存储在用户数据目录：
+
+- **Windows**: `%APPDATA%\com.kiro.gateway\`
+- **macOS**: `~/Library/Application Support/com.kiro.gateway/`
+- **Linux**: `~/.local/share/com.kiro.gateway/`
+
+**配置文件**：
+- `accounts.json` - 账号配置（敏感字段已加密）
+- `api_keys.json` - API Key 配置
+- `metrics.json` - 统计数据
+- `.encryption_key` - 加密密钥（自动生成，机器特定）
+- `.admin_token` - Admin Token（自动生成，64位随机字符串）
+
+### 安全特性
+
+**账号数据加密**：
+- 使用 AES-256-GCM 加密 `refreshToken`、`accessToken`、`clientSecret`
+- 主密钥由机器特定信息（hostname + username）派生
+- 加密密钥文件权限设置为仅当前用户可读（Unix 系统）
+- 自动检测并解密已加密数据
+- 明文数据自动迁移到加密格式
+
+**Admin API 认证**：
+- 首次启动自动生成 64 位随机 Admin Token
+- 所有 `/admin/*` 路由需要认证
+- 支持两种认证方式：
+  - `x-admin-token: {token}` 请求头
+  - `Authorization: Bearer {token}` 请求头
+- 通过 `GET /admin/token` 获取当前 Admin Token
+
 ### 环境变量
 
 在 `src-tauri/.env` 或系统环境变量中配置：
@@ -117,35 +149,40 @@ HOST=127.0.0.1
 
 # HTTP 服务监听端口（默认 8080）
 PORT=8080
-
-# 账号配置文件路径（默认 accounts.json）
-ACCOUNTS_FILE=accounts.json
-
-# 管理员 API Key（可选）
-ADMIN_API_KEY=your-admin-key
 ```
 
 ### 账号配置
 
-在 `accounts.json` 中配置 Kiro 账号：
+**方式 1：从 Kiro IDE 导入**（推荐）
+- 使用桌面应用的"导入账号"功能
+- 自动从 `~/.aws/sso/cache/kiro-auth-token.json` 读取
+
+**方式 2：手动配置**
+
+在用户数据目录创建 `accounts.json`：
 
 ```json
-{
-  "accounts": [
-    {
-      "name": "账号1",
-      "type": "social",
-      "access_token": "your-access-token",
-      "refresh_token": "your-refresh-token",
-      "expires_at": "2024-01-01T00:00:00Z"
-    }
-  ]
-}
+[
+  {
+    "id": "account-1",
+    "name": "我的账号",
+    "authMethod": "social",
+    "provider": "Google",
+    "accessToken": "eyJ...",
+    "refreshToken": "eyJ...",
+    "expiresAt": 1704067200000,
+    "profileArn": "",
+    "region": "us-east-1",
+    "enabled": true,
+    "status": "active"
+  }
+]
 ```
 
-**获取凭证**：
-- 从 Kiro IDE 缓存：`~/.aws/sso/cache/kiro-auth-token.json`
-- 或使用 Kiro Account Manager 导出
+**注意**：
+- 敏感字段（`refreshToken`、`accessToken`、`clientSecret`）会在保存时自动加密
+- 已加密的数据格式为 JSON 对象：`{"ciphertext":"...","nonce":"..."}`
+- 不要手动编辑已加密的字段
 
 ## API 端点
 
@@ -185,21 +222,44 @@ anthropic-version: 2023-06-01
 
 ### 管理端点
 
+**注意**：所有 `/admin/*` 端点需要 Admin Token 认证。
+
 ```bash
-# 健康检查
+# 获取 Admin Token
+GET http://127.0.0.1:8080/admin/token
+x-admin-token: your-admin-token
+
+# 健康检查（无需认证）
 GET http://127.0.0.1:8080/health
 
-# 获取模型列表（动态从 Kiro API 获取）
+# 获取模型列表（无需认证）
 GET http://127.0.0.1:8080/v1/models
 
 # 获取统计数据
 GET http://127.0.0.1:8080/admin/metrics
+x-admin-token: your-admin-token
 
 # 获取日志
 GET http://127.0.0.1:8080/admin/logs
+x-admin-token: your-admin-token
 
 # 清空日志
 POST http://127.0.0.1:8080/admin/logs/clear
+x-admin-token: your-admin-token
+
+# 账号管理
+GET http://127.0.0.1:8080/admin/accounts
+POST http://127.0.0.1:8080/admin/accounts
+PATCH http://127.0.0.1:8080/admin/accounts/:id
+DELETE http://127.0.0.1:8080/admin/accounts/:id
+x-admin-token: your-admin-token
+
+# API Key 管理
+GET http://127.0.0.1:8080/admin/api-keys
+POST http://127.0.0.1:8080/admin/api-keys
+PATCH http://127.0.0.1:8080/admin/api-keys/:id
+DELETE http://127.0.0.1:8080/admin/api-keys/:id
+x-admin-token: your-admin-token
 ```
 
 ## 模型映射
@@ -232,7 +292,7 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - ✅ OpenAI Chat Completions API 兼容
 - ✅ Anthropic Messages API 兼容
 - ✅ 多账号轮询和自动切换
-- ✅ 自动 Token 刷新
+- ✅ 自动 Token 刷新（Social 和 IDC 账号）
 - ✅ 流式响应（SSE）
 - ✅ 工具调用支持
 - ✅ 图片上传支持
@@ -245,6 +305,8 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - ✅ WebSearch 集成（Kiro MCP API）
 - ✅ API Key 管理系统（生成、验证、持久化）
 - ✅ Metrics 持久化（自动保存/加载）
+- ✅ **账号数据加密存储**（AES-256-GCM，机器特定密钥保护）
+- ✅ **Admin API 认证保护**（自动生成 Admin Token，统一 middleware 认证）
 
 ## 参考项目
 

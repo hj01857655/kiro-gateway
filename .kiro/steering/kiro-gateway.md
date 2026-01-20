@@ -343,6 +343,25 @@ Get-Content "E:\VSCodeSpace\Kiro\KiroGate\文件路径" -Raw
 - 一键生成 OpenAI 兼容配置
 - 自动应用配置到 Claude Desktop
 
+### ✅ 账号数据加密存储
+- 文件: `src/encryption.rs`
+- 使用 AES-256-GCM 加密敏感字段（refreshToken、accessToken、clientSecret）
+- 机器特定密钥保护主密钥（基于 hostname + username）
+- 自动检测并解密已加密数据
+- 明文数据自动迁移到加密格式
+- 加密密钥存储在用户数据目录 `.encryption_key`
+- 文件权限保护（Unix 系统设置为 600）
+
+### ✅ Admin API 认证保护
+- 统一的 middleware 认证所有 `/admin/*` 路由
+- 自动生成 64 位随机 Admin Token（首次启动）
+- Token 存储在用户数据目录 `.admin_token`
+- 支持两种认证方式：
+  - `x-admin-token` 请求头
+  - `Authorization: Bearer {token}` 请求头
+- 认证失败返回 400 错误
+- API 端点：`GET /admin/token` - 获取当前 Admin Token
+
 ## Metrics 说明
 
 **Metrics 不是必须的**：

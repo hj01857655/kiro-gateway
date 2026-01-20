@@ -247,11 +247,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
             "/config/server",
             get(admin_get_server_config).post(admin_update_server_config),
         )
-        .route("/token", get(admin_get_token))
-        .layer(middleware::from_fn_with_state(
-            Arc::clone(&state),
-            admin_auth_middleware,
-        ));
+        .route("/token", get(admin_get_token));
 
     let app = Router::new()
         .route("/v1/chat/completions", post(chat_completions))
