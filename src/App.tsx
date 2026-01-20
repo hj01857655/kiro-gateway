@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from 'react'
 import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center, Burger, Container } from '@mantine/core'
 import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import { useThemeStore } from './stores/themeStore'
+import { UpdateNotification } from './components/UpdateNotification'
 
 const Accounts = lazy(() => import('./pages/Accounts'))
 const Metrics = lazy(() => import('./pages/Metrics'))
@@ -289,6 +290,9 @@ export default function App() {
           </Suspense>
         </AppShell.Main>
       </AppShell>
+
+      {/* 自动更新通知 */}
+      <UpdateNotification />
     </ErrorBoundary>
   )
 }
