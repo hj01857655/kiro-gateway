@@ -49,6 +49,7 @@ export default function Chat() {
   const [model, setModel] = useState('claude-sonnet-4.5')
   const [models, setModels] = useState<Model[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
+  const [apiFormat, setApiFormat] = useState<'openai' | 'anthropic'>('openai')
   const colorScheme = useThemeStore((state) => state.colorScheme)
   const viewport = useRef<HTMLDivElement>(null)
 
@@ -86,16 +87,28 @@ export default function Chat() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/v1/chat/completions', {
+      // 根据 API 格式选择不同的端点和请求体
+      const endpoint = apiFormat === 'openai' ? '/v1/chat/completions' : '/v1/messages'
+      const requestBody = apiFormat === 'openai'
+        ? {
+            model,
+            messages: [...messages, userMessage],
+            stream: true,
+          }
+        : {
+            model,
+            messages: [...messages, userMessage].filter(m => m.role !== 'system'),
+            max_tokens: 4096,
+            stream: true,
+          }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({
-          model,
-          messages: [...messages, userMessage],
-          stream: true,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
@@ -124,7 +137,18 @@ export default function Chat() {
 
             try {
               const parsed = JSON.parse(data)
-              const content = parsed.choices?.[0]?.delta?.content
+              
+              // 根据 API 格式解析不同的响应结构
+              let content = ''
+              if (apiFormat === 'openai') {
+                content = parsed.choices?.[0]?.delta?.content || ''
+              } else {
+                // Anthropic 格式
+                if (parsed.type === 'content_block_delta') {
+                  content = parsed.delta?.text || ''
+                }
+              }
+              
               if (content) {
                 assistantMessage += content
                 // 更新最后一条消息
@@ -190,6 +214,16 @@ export default function Chat() {
         </Group>
         <Group>
           <Select
+            value={apiFormat}
+            onChange={(value) => setApiFormat(value as 'openai' | 'anthropic')}
+            data={[
+              { value: 'openai', label: 'OpenAI 格式' },
+              { value: 'anthropic', label: 'Anthropic 格式' },
+            ]}
+            style={{ width: 160 }}
+            size="sm"
+          />
+          <Select
             value={model}
             onChange={(value) => setModel(value || 'claude-sonnet-4.5')}
             data={models.map((m) => ({
@@ -217,7 +251,11 @@ export default function Chat() {
         styles={{ root: { border: '1px solid rgba(34, 139, 230, 0.2)' } }}
       >
         <Text size="xs">
-          此功能调用本地网关的 <Code style={{ fontSize: rem(12) }}>/v1/chat/completions</Code> 接口。已支持 <strong>Markdown</strong> 解析与代码高亮。
+          当前使用 <strong>{apiFormat === 'openai' ? 'OpenAI' : 'Anthropic'}</strong> 格式，调用{' '}
+          <Code style={{ fontSize: rem(12) }}>
+            {apiFormat === 'openai' ? '/v1/chat/completions' : '/v1/messages'}
+          </Code>{' '}
+          接口。已支持 <strong>Markdown</strong> 解析与代码高亮。
         </Text>
       </Alert>
 
