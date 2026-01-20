@@ -24,6 +24,7 @@ import { useState, useEffect } from 'react'
 import { notifications } from '@mantine/notifications'
 import { apiKeysApi, type ApiKey } from '@/api/apiKeys'
 import { useThemeStore } from '@/stores/themeStore'
+import { fetchWithTimeout } from '@/api/utils'
 
 export default function Settings() {
   const colorScheme = useThemeStore((state) => state.colorScheme)
@@ -49,8 +50,7 @@ export default function Settings() {
 
   const loadServerConfig = async () => {
     try {
-      const res = await fetch('/admin/config/server')
-      if (!res.ok) throw new Error('加载配置失败')
+      const res = await fetchWithTimeout('/admin/config/server')
       const data = await res.json()
       setServerConfig(data)
     } catch (error) {
@@ -141,12 +141,11 @@ export default function Settings() {
   const handleGenerateConfig = async () => {
     setConfigLoading(true)
     try {
-      const res = await fetch('/admin/config/generate', {
+      const res = await fetchWithTimeout('/admin/config/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-      if (!res.ok) throw new Error('生成配置失败')
       const data = await res.json()
       setConfigPackage(data)
       setShowConfigModal(true)
@@ -180,12 +179,11 @@ export default function Settings() {
 
     setLoading(true)
     try {
-      const res = await fetch('/admin/config/server', {
+      const res = await fetchWithTimeout('/admin/config/server', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(serverConfig),
       })
-      if (!res.ok) throw new Error('保存配置失败')
       const data = await res.json()
       
       notifications.show({
