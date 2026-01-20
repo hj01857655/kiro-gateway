@@ -1,4 +1,4 @@
-import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor, Container } from '@mantine/core'
+import { Card, Stack, Title, Text, Group, Badge, Divider, Code, List, Anchor } from '@mantine/core'
 import { Info, Github, Heart, Zap, Shield, Globe } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
@@ -14,8 +14,7 @@ export default function About() {
   }, [])
 
   return (
-    <Container size="lg">
-      <Stack gap="md">
+    <Stack gap="md" maw={1200} mx="auto" className="animate-fade-in">
       <Group>
         <Info size={24} color="#228be6" />
         <div>
@@ -222,6 +221,5 @@ export default function About() {
         </Text>
       </Card>
     </Stack>
-    </Container>
   )
 }

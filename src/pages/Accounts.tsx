@@ -26,7 +26,6 @@ import {
   Progress,
   Tooltip,
   PasswordInput,
-  Container,
   rem,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
@@ -450,8 +449,7 @@ export default function Accounts() {
   }
 
   return (
-    <Container size="xl">
-      <Stack gap="md">
+    <Stack gap="md" maw={1400} mx="auto" className="animate-fade-in">
       {/* 健康状态概览 */}
       {healthData && (
         <Card withBorder>
@@ -876,6 +874,5 @@ export default function Accounts() {
         </Tabs>
       </Modal>
     </Stack>
-    </Container>
   )
 }
