@@ -50,8 +50,7 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 ## 💬 交流群
 
-**QQ 群**：1081058179（Kiro GateWay交流群）  
-[点击加入群聊](https://qm.qq.com/q/oQbUA0cxO2)
+**QQ 群**：[1081058179（Kiro GateWay交流群）](https://qm.qq.com/q/oQbUA0cxO2)
 
 ## 🚀 快速开始
 
@@ -63,7 +62,8 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 打开应用后，在"账号管理"页面添加 Kiro 账号：
 - **从 Kiro IDE 导入**：自动读取 `~/.aws/sso/cache/kiro-auth-token.json`
-- **手动添加**：输入 Access Token 和 Refresh Token
+- **手动添加 Social 账号**：输入 Refresh Token
+- **手动添加 IDC 账号**：输入 Client ID、Client Secret、Profile ARN
 - **批量导入**：支持 JSON 文件导入
 
 ### 3. 配置客户端
@@ -77,55 +77,9 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 配置完成后，即可通过 Claude Desktop、Claude CLI 或其他 OpenAI 兼容客户端使用。
 
-## 项目简介
+## 📖 使用文档
 
-## 技术栈
-
-**后端**：
-- Rust + Axum - HTTP API 服务
-- Tauri 2.0 - 桌面应用框架
-- Tokio - 异步运行时
-- Reqwest - HTTP 客户端
-
-**前端**：
-- React 19 - UI 框架
-- TypeScript - 类型安全
-- Vite - 构建工具
-- TailwindCSS 4 - 样式框架
-- Mantine v7 - UI 组件库
-- TanStack Query - 数据管理
-- Zustand - 状态管理
-
-## 项目结构
-
-```
-kiro-gateway/
-├── src-tauri/              # Tauri + Rust 后端
-│   ├── src/
-│   │   ├── main.rs        # Tauri 入口（启动 Axum + 窗口）
-│   │   ├── server.rs      # Axum HTTP 服务器
-│   │   ├── account.rs     # 账号管理
-│   │   ├── auth.rs        # Token 刷新
-│   │   ├── converter.rs   # 格式转换
-│   │   ├── kiro_client.rs # Kiro API 客户端
-│   │   ├── config.rs      # 配置管理
-│   │   ├── error.rs       # 错误处理
-│   │   ├── models.rs      # 数据模型
-│   │   ├── logger.rs      # 日志系统
-│   │   ├── metrics.rs     # 统计系统
-│   │   └── thinking_parser.rs  # Thinking 解析
-│   └── Cargo.toml
-├── src/                    # React 前端
-│   ├── App.tsx            # 主应用组件
-│   ├── main.tsx           # React 入口
-│   └── index.css          # 样式
-├── index.html             # HTML 入口
-├── package.json           # 前端依赖
-├── vite.config.ts         # Vite 配置
-└── tauri.conf.json        # Tauri 配置
-```
-
-## 开发命令
+### API 端点
 
 ### 安装依赖
 
@@ -406,7 +360,7 @@ Made with ❤️ by [hj01857655](https://github.com/hj01857655)
 
 - GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
 - 问题反馈: [Issues](https://github.com/hj01857655/kiro-gateway/issues)
-- QQ 交流群: 1081058179（[Kiro GateWay交流群](https://qm.qq.com/q/oQbUA0cxO2)）
+- QQ 交流群: [1081058179（Kiro GateWay交流群）](https://qm.qq.com/q/oQbUA0cxO2)
 
 ## 免责声明
 

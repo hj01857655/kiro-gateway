@@ -23,6 +23,22 @@ Kiro 支持两种认证方式：
 
 ---
 
+## 手动添加账号所需字段
+
+### Social 账号（1个字段）
+- **Refresh Token** - 刷新令牌
+
+### IDC 账号（3个字段）
+- **Client ID** - 客户端 ID
+- **Client Secret** - 客户端密钥
+- **Profile ARN** - 配置文件 ARN
+
+**注意**：
+- Social 账号不需要 Access Token（会自动通过 Refresh Token 获取）
+- IDC 账号不需要 Region（默认使用 us-east-1）
+
+---
+
 ## 账号类型对比
 
 | 特性 | Social 账号 | IDC 账号 |
