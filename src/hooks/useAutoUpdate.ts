@@ -21,6 +21,15 @@ export function useAutoUpdate() {
     setError(null)
 
     try {
+      // 开发版本不检查更新
+      if (import.meta.env.DEV) {
+        setUpdateInfo({
+          available: false,
+          currentVersion: 'dev',
+        })
+        return false
+      }
+
       // 获取当前版本
       const currentVersion = await invoke<string>('get_app_version')
 
