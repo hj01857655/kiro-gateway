@@ -71,7 +71,7 @@ function getContinueGlobalPath() {
 **环境变量**：`CONTINUE_GLOBAL_DIR`
 
 **实际路径**（Windows）：
-- `C:\Users\{用户名}\AppData\Roaming\Kiro`
+- `C:\Users\{用户名}\AppData\Roaming\Kiro\User\globalStorage\kiro.kiroagent`
 
 **用途**：
 - 存储全局数据（会话、索引、日志等）
@@ -115,10 +115,10 @@ function getSessionsFolderPath(workspaceDir) {
 **示例**：
 ```
 工作区路径: E:\VSCodeSpace\Kiro\kiro-gateway
-Base64: RTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk=
-Hash: RTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_
+Base64: ZTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk=
+Hash: ZTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_
 
-最终路径: C:\Users\12925\AppData\Roaming\Kiro\workspace-sessions\RTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_
+最终路径: C:\Users\12925\AppData\Roaming\Kiro\User\globalStorage\kiro.kiroagent\workspace-sessions\ZTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_
 ```
 
 ---
@@ -138,7 +138,7 @@ function getSessionFilePath(sessionId, workspaceDir) {
 
 **示例**：
 ```
-C:\Users\12925\AppData\Roaming\Kiro\workspace-sessions\RTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_\550e8400-e29b-41d4-a716-446655440000.json
+C:\Users\12925\AppData\Roaming\Kiro\User\globalStorage\kiro.kiroagent\workspace-sessions\ZTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_\550e8400-e29b-41d4-a716-446655440000.json
 ```
 
 ---
@@ -165,7 +165,7 @@ function getSessionsListPath(workspaceDir) {
 
 **示例**：
 ```
-C:\Users\12925\AppData\Roaming\Kiro\workspace-sessions\RTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_\sessions.json
+C:\Users\12925\AppData\Roaming\Kiro\User\globalStorage\kiro.kiroagent\workspace-sessions\ZTpcVlNDb2RlU3BhY2VcS2lyb1xraXJvLWdhdGV3YXk_\sessions.json
 ```
 
 ---
@@ -215,7 +215,10 @@ C:\Users\{用户名}\
 │   └── settings/
 │       └── mcp.json                          # 用户级 MCP 配置
 │
-└── AppData\Roaming\Kiro\                     # CONTINUE_GLOBAL_DIR
+└── AppData\Roaming\Kiro\
+    └── User\
+        └── globalStorage\
+            └── kiro.kiroagent\               # CONTINUE_GLOBAL_DIR
     ├── logs/                                 # 日志目录
     │   └── {时间戳}/
     │       └── window1/
@@ -226,17 +229,28 @@ C:\Users\{用户名}\
     │                   ├── KiroLLMLogs.log   # LLM 日志
     │                   └── Kiro - MCP Logs.log  # MCP 日志
     │
-    ├── sessions/                             # 全局会话（无工作区）
-    │   ├── sessions.json                     # 会话列表
-    │   └── {sessionId}.json                  # 单个会话
-    │
-    ├── workspace-sessions/                   # 工作区会话
-    │   └── {workspaceHash}/                  # 工作区特定会话
-    │       ├── sessions.json                 # 会话列表
-    │       └── {sessionId}.json              # 单个会话
-    │
-    └── index/                                # 索引数据
-        └── globalContext.json                # 全局上下文
+    └── User/
+        └── globalStorage/
+            └── kiro.kiroagent/               # CONTINUE_GLOBAL_DIR
+                ├── .utils/                   # 工具文件
+                ├── .diffs/                   # Diff 文件
+                ├── .migrations/              # 数据库迁移
+                ├── .configs/                 # 配置备份
+                ├── sessions/                 # 全局会话（无工作区）
+                │   ├── sessions.json         # 会话列表
+                │   └── {sessionId}.json      # 单个会话
+                ├── workspace-sessions/       # 工作区会话
+                │   └── {workspaceHash}/      # 工作区特定会话
+                │       ├── sessions.json     # 会话列表
+                │       └── {sessionId}.json  # 单个会话
+                ├── index/                    # 代码索引
+                │   └── globalContext.json    # 全局上下文
+                ├── dev_data/                 # 开发数据
+                │   └── devdata.sqlite        # SQLite 数据库
+                ├── config.json               # 主配置文件
+                ├── .continuerc.json          # Continue 配置
+                ├── .env                      # 环境变量
+                └── kiroAgent.log             # 主日志文件
 
 {workspaceDir}/                               # 工作区目录
 └── .kiro/                                    # 工作区配置

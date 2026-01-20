@@ -445,7 +445,7 @@ try {
 ## 完整目录结构（实际使用）
 
 ```
-C:\Users\{用户名}\AppData\Roaming\Kiro\          # CONTINUE_GLOBAL_DIR
+C:\Users\{用户名}\AppData\Roaming\Kiro\User\globalStorage\kiro.kiroagent\  # CONTINUE_GLOBAL_DIR
 ├── .utils/                                       # 工具文件
 ├── .diffs/                                       # Diff 文件
 ├── .migrations/                                  # 数据库迁移
