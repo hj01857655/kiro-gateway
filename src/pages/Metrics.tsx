@@ -4,15 +4,14 @@ import {
   Group,
   Text,
   Stack,
-  Title,
-  Loader,
-  Center,
   Table,
   Badge,
   SimpleGrid,
   rem,
+  Skeleton,
+  Title,
 } from '@mantine/core'
-import { Activity, Clock, Zap, TrendingUp } from 'lucide-react'
+import { Activity, Clock, Zap, TrendingUp, BarChart3 } from 'lucide-react'
 import {
   LineChart,
   Line,
@@ -31,12 +30,34 @@ export default function Metrics() {
 
   if (isLoading || !metrics) {
     return (
-      <Center h={400}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader size="lg" type="dots" color="violet" />
-          <Text size="sm" c="dimmed" mt="md">加载统计数据...</Text>
-        </div>
-      </Center>
+      <Stack gap="md" className="animate-fade-in">
+        <Group justify="space-between">
+          <Skeleton h={36} w={150} radius="md" />
+          <Skeleton h={32} w={100} radius="sm" />
+        </Group>
+
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} withBorder radius="md" p="lg" className="glass-effect">
+              <Group justify="space-between" mb="xs">
+                <Skeleton circle h={48} w={48} />
+              </Group>
+              <Skeleton h={14} w="40%" mb={8} />
+              <Skeleton h={28} w="60%" />
+            </Card>
+          ))}
+        </SimpleGrid>
+
+        <Card withBorder radius="md" p="lg" className="glass-effect">
+          <Skeleton h={24} w={200} mb="md" />
+          <Skeleton h={300} w="100%" />
+        </Card>
+
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+          <Card withBorder radius="md" p="lg" className="glass-effect"><Skeleton h={24} w={150} mb="md" /><Stack gap="xs"><Skeleton h={40} /><Skeleton h={40} /><Skeleton h={40} /></Stack></Card>
+          <Card withBorder radius="md" p="lg" className="glass-effect"><Skeleton h={24} w={150} mb="md" /><Stack gap="xs"><Skeleton h={40} /><Skeleton h={40} /><Skeleton h={40} /></Stack></Card>
+        </SimpleGrid>
+      </Stack>
     )
   }
 
@@ -54,7 +75,26 @@ export default function Metrics() {
   return (
     <Stack gap="md" className="animate-fade-in">
       <Group justify="space-between">
-        <Title order={2}>统计监控</Title>
+        <Group>
+          <div
+            style={{
+              width: rem(44),
+              height: rem(44),
+              borderRadius: rem(12),
+              background: 'var(--kiro-primary-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 16px rgba(99, 102, 241, 0.25)',
+            }}
+          >
+            <BarChart3 size={24} color="white" />
+          </div>
+          <div>
+            <Title order={2}>统计监控</Title>
+            <Text size="sm" c="dimmed">实时监控 API 调用频次与性能指标</Text>
+          </div>
+        </Group>
         <Badge size="lg" variant="light" color="violet" leftSection={<TrendingUp size={14} />}>
           实时数据
         </Badge>
@@ -181,7 +221,7 @@ export default function Metrics() {
             <Tooltip
               contentStyle={{
                 backgroundColor: colorScheme === 'dark' ? 'rgba(30, 30, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                border: `1px solid ${colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.3)' : 'rgba(0, 0, 0, 0.1)'}`,
+                border: `1px solid ${colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.3)' : 'rgba(0, 0, 0, 0.1)'} `,
                 borderRadius: '8px',
                 backdropFilter: 'blur(10px)',
               }}

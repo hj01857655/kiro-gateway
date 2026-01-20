@@ -39,6 +39,7 @@ import {
   ChevronDown,
   Activity,
   CreditCard,
+  Users,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Account, QuotaInfo } from '@/types'
@@ -152,7 +153,6 @@ export default function Accounts() {
       clientSecret: formData.clientSecret || undefined,
       enabled: true,
     }
-    logger.debug('添加账号数据:', accountData)
     addAccount(accountData)
     setShowAddModal(false)
     setFormData({
@@ -450,61 +450,29 @@ export default function Accounts() {
 
   return (
     <Stack gap="md" className="animate-fade-in">
-      {/* 健康状态概览 */}
-      {healthData && (
-        <Card withBorder className="glass-effect">
-          <Group mb="md">
-            <Activity size={20} color="var(--kiro-primary)" />
-            <Text fw={600}>健康状态</Text>
-          </Group>
-          <Group grow>
-            <Card withBorder p="sm" className="glass-effect" style={{ background: 'rgba(99, 102, 241, 0.05) !important' }}>
-              <Text size="xs" c="dimmed">
-                总账号数
-              </Text>
-              <Text size="xl" fw={700}>
-                {healthData.total}
-              </Text>
-            </Card>
-            <Card withBorder p="sm" className="glass-effect" style={{ background: 'rgba(16, 185, 129, 0.05) !important' }}>
-              <Text size="xs" c="dimmed">
-                可用账号
-              </Text>
-              <Text size="xl" fw={700} c="green">
-                {healthData.available}
-              </Text>
-            </Card>
-            <Card withBorder p="sm" className="glass-effect" style={{ background: 'rgba(250, 82, 82, 0.05) !important' }}>
-              <Text size="xs" c="dimmed">
-                不可用账号
-              </Text>
-              <Text size="xl" fw={700} c="red">
-                {healthData.total - healthData.available}
-              </Text>
-            </Card>
-            <Card withBorder p="sm" className="glass-effect">
-              <Text size="xs" c="dimmed">
-                可用率
-              </Text>
-              <Text size="xl" fw={700}>
-                {healthData.total > 0
-                  ? Math.round((healthData.available / healthData.total) * 100)
-                  : 0}
-                %
-              </Text>
-              <Progress
-                value={healthData.total > 0 ? (healthData.available / healthData.total) * 100 : 0}
-                size="xs"
-                mt="xs"
-                color={healthData.available / healthData.total > 0.7 ? 'green' : 'orange'}
-              />
-            </Card>
-          </Group>
-        </Card>
-      )}
-
       <Group justify="space-between">
-        <Title order={2}>账号管理</Title>
+        <Group>
+          <div
+            style={{
+              width: rem(44),
+              height: rem(44),
+              borderRadius: rem(12),
+              background: 'var(--kiro-primary-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 16px rgba(99, 102, 241, 0.25)',
+            }}
+          >
+            <Users size={24} color="white" />
+          </div>
+          <div>
+            <Title order={2}>账号管理</Title>
+            <Text size="sm" c="dimmed">
+              管理你的 AI 账号权限与配额状态
+            </Text>
+          </div>
+        </Group>
         <Group gap="sm">
           <Button
             variant="light"
@@ -539,16 +507,78 @@ export default function Accounts() {
               >
                 批量导入
               </Menu.Item>
-              <Menu.Item
-                leftSection={<Upload size={16} />}
-                onClick={handleImportFromKiro}
-              >
+              <Menu.Item leftSection={<Upload size={16} />} onClick={handleImportFromKiro}>
                 从 Kiro IDE 导入
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
         </Group>
       </Group>
+
+      {/* 健康状态概览 */}
+      {healthData && (
+        <Card withBorder className="glass-effect">
+          <Group mb="md">
+            <Activity size={20} color="var(--kiro-primary)" />
+            <Text fw={600}>系统概览</Text>
+          </Group>
+          <Group grow>
+            <Card
+              withBorder
+              p="sm"
+              className="glass-effect"
+              style={{ background: 'rgba(99, 102, 241, 0.05) !important' }}
+            >
+              <Text size="xs" c="dimmed">
+                总账号数
+              </Text>
+              <Text size="xl" fw={700}>
+                {healthData.total}
+              </Text>
+            </Card>
+            <Card
+              withBorder
+              p="sm"
+              className="glass-effect"
+              style={{ background: 'rgba(16, 185, 129, 0.05) !important' }}
+            >
+              <Text size="xs" c="dimmed">
+                可用账号
+              </Text>
+              <Text size="xl" fw={700} c="green">
+                {healthData.available}
+              </Text>
+            </Card>
+            <Card
+              withBorder
+              p="sm"
+              className="glass-effect"
+              style={{ background: 'rgba(250, 82, 82, 0.05) !important' }}
+            >
+              <Text size="xs" c="dimmed">
+                不可用账号
+              </Text>
+              <Text size="xl" fw={700} c="red">
+                {healthData.total - healthData.available}
+              </Text>
+            </Card>
+            <Card withBorder p="sm" className="glass-effect">
+              <Text size="xs" c="dimmed">
+                可用率
+              </Text>
+              <Text size="xl" fw={700}>
+                {healthData.total > 0 ? Math.round((healthData.available / healthData.total) * 100) : 0}%
+              </Text>
+              <Progress
+                value={healthData.total > 0 ? (healthData.available / healthData.total) * 100 : 0}
+                size="xs"
+                mt="xs"
+                color={healthData.available / healthData.total > 0.7 ? 'green' : 'orange'}
+              />
+            </Card>
+          </Group>
+        </Card>
+      )}
 
       {(accounts || []).length === 0 ? (
         <Card shadow="sm" padding="xl" radius="md" withBorder>
@@ -623,10 +653,18 @@ export default function Accounts() {
                   <Group grow>
                     {/* 配额卡片 */}
                     {quota ? (
-                      <Card withBorder p="sm" radius="sm" className="glass-effect" style={{ background: 'rgba(99, 102, 241, 0.03) !important' }}>
+                      <Card
+                        withBorder
+                        p="sm"
+                        radius="sm"
+                        className="glass-effect"
+                        style={{ background: 'rgba(99, 102, 241, 0.03) !important' }}
+                      >
                         <Group gap="xs" mb={4}>
                           <CreditCard size={16} color="var(--kiro-primary)" />
-                          <Text size="sm" fw={500}>配额使用</Text>
+                          <Text size="sm" fw={500}>
+                            配额使用
+                          </Text>
                         </Group>
                         <Group justify="space-between" align="flex-end">
                           <div>
@@ -656,7 +694,9 @@ export default function Accounts() {
                         <Center h={80}>
                           <Stack align="center" gap={4}>
                             <Loader size="sm" />
-                            <Text size="xs" c="dimmed">加载配额...</Text>
+                            <Text size="xs" c="dimmed">
+                              加载配额...
+                            </Text>
                           </Stack>
                         </Center>
                       </Card>
@@ -664,28 +704,36 @@ export default function Accounts() {
                       <Card withBorder p="sm" radius="sm" className="glass-effect">
                         <Group gap="xs" mb={4}>
                           <CreditCard size={16} />
-                          <Text size="sm" fw={500}>配额使用</Text>
+                          <Text size="sm" fw={500}>
+                            配额使用
+                          </Text>
                         </Group>
                         <Center h={60}>
-                          <Text size="xs" c="dimmed">暂无数据</Text>
+                          <Text size="xs" c="dimmed">
+                            暂无数据
+                          </Text>
                         </Center>
                       </Card>
                     )}
 
                     {/* 健康状态卡片 */}
                     {health ? (
-                      <Card withBorder p="sm" radius="sm" className="glass-effect" style={{ background: 'rgba(16, 185, 129, 0.03) !important' }}>
+                      <Card
+                        withBorder
+                        p="sm"
+                        radius="sm"
+                        className="glass-effect"
+                        style={{ background: 'rgba(16, 185, 129, 0.03) !important' }}
+                      >
                         <Group gap="xs" mb={4}>
                           <Activity size={16} color="#10b981" />
-                          <Text size="sm" fw={500}>健康状态</Text>
+                          <Text size="sm" fw={500}>
+                            健康状态
+                          </Text>
                         </Group>
                         <Group justify="space-between" align="flex-end">
                           <div>
-                            <Badge
-                              size="lg"
-                              color={health.is_available ? 'green' : 'red'}
-                              variant="dot"
-                            >
+                            <Badge size="lg" color={health.is_available ? 'green' : 'red'} variant="dot">
                               {health.is_available ? '可用' : '不可用'}
                             </Badge>
                             <Text size="xs" c="dimmed" mt={4}>
@@ -711,10 +759,14 @@ export default function Accounts() {
                       <Card withBorder p="sm" radius="sm" className="glass-effect">
                         <Group gap="xs" mb={4}>
                           <Activity size={16} />
-                          <Text size="sm" fw={500}>健康状态</Text>
+                          <Text size="sm" fw={500}>
+                            健康状态
+                          </Text>
                         </Group>
                         <Center h={60}>
-                          <Text size="xs" c="dimmed">暂无数据</Text>
+                          <Text size="xs" c="dimmed">
+                            暂无数据
+                          </Text>
                         </Center>
                       </Card>
                     )}
@@ -722,11 +774,7 @@ export default function Accounts() {
 
                   {/* 底部：详细信息 */}
                   <Stack gap={4}>
-                    <Text
-                      size="xs"
-                      c="dimmed"
-                      style={{ fontFamily: 'monospace' }}
-                    >
+                    <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
                       ID: {account.id}
                     </Text>
                     {account.expiresAt && (
@@ -834,11 +882,7 @@ export default function Accounts() {
               <Text size="sm" c="dimmed">
                 支持 JSON 输入或文件上传，可导入单个账号或批量导入
               </Text>
-              <FileButton
-                resetRef={resetRef}
-                onChange={handleFileImport}
-                accept="application/json,.json"
-              >
+              <FileButton resetRef={resetRef} onChange={handleFileImport} accept="application/json,.json">
                 {(props) => (
                   <Button {...props} leftSection={<Upload size={16} />} variant="light" fullWidth>
                     选择 JSON 文件
@@ -860,7 +904,7 @@ export default function Accounts() {
                     fontFamily: 'monospace',
                     fontSize: '0.85em',
                     lineHeight: '1.5',
-                  }
+                  },
                 }}
               />
               <Group justify="flex-end" mt="md">

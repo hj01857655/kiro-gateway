@@ -235,33 +235,41 @@ export default function Settings() {
               width: rem(40),
               height: rem(40),
               borderRadius: rem(10),
-              background: colorScheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(121, 80, 242, 0.2) 0%, rgba(121, 80, 242, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(121, 80, 242, 0.15) 0%, rgba(121, 80, 242, 0.08) 100%)',
+              background: 'var(--kiro-primary-gradient)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)',
             }}
           >
-            <Moon size={20} color="#7950f2" />
+            <Moon size={20} color="white" />
           </div>
-          <Text size="lg" fw={600}>
-            外观
-          </Text>
+          <div>
+            <Text size="lg" fw={600}>界面外观</Text>
+            <Text size="xs" c="dimmed">个性化你的使用体验</Text>
+          </div>
         </Group>
         <Group justify="space-between" p="md" style={{
-          borderRadius: rem(10),
-          background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)',
+          borderRadius: rem(12),
+          background: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+          border: '1px solid var(--kiro-card-border)',
         }}>
           <div>
-            <Text size="sm" fw={500}>深色模式</Text>
-            <Text size="xs" c="dimmed">切换浅色/深色主题</Text>
+            <Text size="sm" fw={600}>深色模式 (Dark Mode)</Text>
+            <Text size="xs" c="dimmed">在浅色和深色主题之间切换</Text>
           </div>
           <Switch
             checked={colorScheme === 'dark'}
             onChange={toggleColorScheme}
             size="md"
-            color="violet"
+            color="indigo"
+            thumbIcon={
+              colorScheme === 'dark' ? (
+                <Moon size={12} color="var(--mantine-color-indigo-6)" />
+              ) : (
+                <Moon size={12} color="var(--mantine-color-gray-6)" />
+              )
+            }
           />
         </Group>
       </Card>
@@ -322,20 +330,18 @@ export default function Settings() {
         <Stack gap="md">
           <TextInput
             label="监听地址"
+            description="网关服务监听的 IP 地址，通常为 127.0.0.1 或 0.0.0.0"
             value={serverConfig.host}
             onChange={(e) => {
               setServerConfig({ ...serverConfig, host: e.target.value })
               setServerConfigDirty(true)
             }}
             disabled={!editingServer}
-            styles={{
-              input: {
-                borderRadius: rem(10),
-              }
-            }}
+            variant="filled"
           />
           <TextInput
             label="监听端口"
+            description="网关服务监听的端口号 (1024-65535)"
             value={serverConfig.port.toString()}
             onChange={(e) => {
               const port = parseInt(e.target.value) || 8080
@@ -344,17 +350,15 @@ export default function Settings() {
             }}
             disabled={!editingServer}
             type="number"
-            min={1024}
-            max={65535}
-            styles={{
-              input: {
-                borderRadius: rem(10),
-              }
-            }}
+            variant="filled"
           />
-          <Alert icon={<AlertCircle size={16} />} color="blue" variant="light">
-            {editingServer ? '修改后需要保存并重启应用才能生效' : '点击"编辑"按钮修改服务器配置'}
-          </Alert>
+          {editingServer ? (
+            <Alert icon={<AlertCircle size={16} />} color="orange" variant="light" radius="md">
+              修改服务器配置后需要<strong>保存并重启应用</strong>才能生效。
+            </Alert>
+          ) : (
+            <Text size="xs" c="dimmed" ta="right">点击“编辑”修改监听参数</Text>
+          )}
         </Stack>
       </Card>
 

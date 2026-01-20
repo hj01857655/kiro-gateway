@@ -32,6 +32,33 @@ use crate::health_checker::HealthChecker;
 use crate::kiro_client::KiroClient;
 use crate::models::{AnthropicRequest, OpenAIRequest, Usage};
 
+// Windows 文件权限设置（使用 ACL）
+#[cfg(windows)]
+fn set_windows_file_permissions(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    use std::process::Command;
+    
+    // 使用 icacls 命令设置文件权限
+    // /inheritance:r - 移除继承的权限
+    // /grant:r - 授予权限并替换现有权限
+    // %USERNAME%:F - 当前用户完全控制
+    let output = Command::new("icacls")
+        .arg(path)
+        .arg("/inheritance:r")
+        .arg("/grant:r")
+        .arg(format!("{}:F", std::env::var("USERNAME")?))
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(format!(
+            "icacls 命令失败: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ).into());
+    }
+    
+    info!("已设置 Windows 文件权限: {:?}", path);
+    Ok(())
+}
+
 pub struct AppState {
     pub config: AppConfig,
     pub client: KiroClient,
@@ -93,6 +120,14 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
             let mut perms = std::fs::metadata(&admin_token_file)?.permissions();
             perms.set_mode(0o600);
             std::fs::set_permissions(&admin_token_file, perms)?;
+        }
+
+        // Windows 平台设置文件权限（使用 ACL）
+        #[cfg(windows)]
+        {
+            if let Err(e) = set_windows_file_permissions(&admin_token_file) {
+                warn!("设置 Windows 文件权限失败: {}", e);
+            }
         }
 
         info!("已生成新的 Admin Token，保存在: {:?}", admin_token_file);
@@ -328,8 +363,19 @@ fn verify_api_key(
         return Err(AppError::BadRequest("Missing API key".into()));
     }
 
-    // 没有配置 Admin Key，允许无认证访问（开发模式）
-    Ok(())
+    // 生产环境必须配置 API Key
+    #[cfg(not(debug_assertions))]
+    {
+        warn!("生产环境未配置 API Key，拒绝访问");
+        return Err(AppError::BadRequest("API key required in production".into()));
+    }
+
+    // 开发模式允许无认证访问（仅用于本地测试）
+    #[cfg(debug_assertions)]
+    {
+        warn!("开发模式：允许无认证访问");
+        Ok(())
+    }
 }
 
 // Admin API 认证中间件

@@ -12,6 +12,8 @@ const About = lazy(() => import('./pages/About'))
 
 type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'about'
 
+import ErrorBoundary from './components/ErrorBoundary'
+
 export default function App() {
   const colorScheme = useThemeStore((state) => state.colorScheme)
   const [currentPage, setCurrentPage] = useState<Page>(() => {
@@ -88,137 +90,169 @@ export default function App() {
   }
 
   return (
-    <AppShell
-      navbar={{
-        width: navbarOpened ? 220 : 70,
-        breakpoint: 'sm',
-      }}
-      padding="md"
-      styles={{
-        main: {
-          minHeight: '100vh',
-          paddingTop: rem(80), // 为 fixed header 留出空间
-        },
-        navbar: {
-          background: 'var(--kiro-nav-bg)',
-          backdropFilter: 'var(--kiro-glass-blur)',
-          borderRight: '1px solid var(--kiro-card-border)',
-          boxShadow: 'var(--kiro-card-shadow)',
-        },
-      }}
-    >
-      <div
-        style={{
-          position: 'fixed',
-          top: rem(16),
-          left: navbarOpened ? rem(220 + 24) : rem(70 + 24),
-          zIndex: 1000,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: 'var(--kiro-card-bg)',
-          borderRadius: rem(12),
-          padding: rem(8),
-          boxShadow: 'var(--kiro-card-shadow)',
-          backdropFilter: 'var(--kiro-glass-blur)',
-          border: '1px solid var(--kiro-card-border)',
+    <ErrorBoundary>
+      <AppShell
+        header={{ height: rem(64) }}
+        navbar={{
+          width: navbarOpened ? 220 : 70,
+          breakpoint: 'sm',
+        }}
+        padding="md"
+        styles={{
+          main: {
+            minHeight: '100vh',
+            background: 'transparent',
+          },
+          navbar: {
+            background: 'var(--kiro-nav-bg)',
+            backdropFilter: 'var(--kiro-glass-blur)',
+            borderRight: '1px solid var(--kiro-card-border)',
+            boxShadow: 'var(--kiro-card-shadow)',
+          },
+          header: {
+            background: 'transparent',
+            border: 'none',
+            pointerEvents: 'none', // Allow clicking through the header except for children
+          }
         }}
       >
-        <Burger opened={navbarOpened} onClick={() => setNavbarOpened(!navbarOpened)} size="sm" />
-      </div>
+        <AppShell.Header>
+          <div
+            style={{
+              position: 'absolute',
+              top: rem(16),
+              left: navbarOpened ? rem(220 + 24) : rem(70 + 24),
+              zIndex: 1000,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              background: 'var(--kiro-card-bg)',
+              borderRadius: rem(12),
+              padding: rem(8),
+              boxShadow: 'var(--kiro-card-shadow)',
+              backdropFilter: 'var(--kiro-glass-blur)',
+              border: '1px solid var(--kiro-card-border)',
+              pointerEvents: 'auto', // Enable pointer events for the burger container
+            }}
+          >
+            <Burger opened={navbarOpened} onClick={() => setNavbarOpened(!navbarOpened)} size="sm" />
+          </div>
+        </AppShell.Header>
 
-      <AppShell.Navbar p="md">
-        <AppShell.Section>
-          <Group mb="xl" justify="center">
-            <div
-              style={{
-                width: rem(48),
-                height: rem(48),
-                borderRadius: rem(14),
-                background: 'var(--kiro-primary-gradient)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
+        <AppShell.Navbar p="md">
+          <AppShell.Section>
+            <Group mb="xl" justify="center">
               <div
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%)',
-                  animation: 'shimmer 3s infinite',
+                  width: rem(48),
+                  height: rem(48),
+                  borderRadius: rem(14),
+                  background: 'var(--kiro-primary-gradient)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
-              />
-              <Text c="white" fw={700} size="xl" style={{ position: 'relative', zIndex: 1 }}>
-                K
-              </Text>
-            </div>
-            {navbarOpened && (
-              <div>
-                <Text fw={700} size="lg" className="gradient-text">
-                  Kiro Gateway
-                </Text>
-                <Text size="xs" c="dimmed">
-                  API 网关管理
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%)',
+                    animation: 'shimmer 3s infinite',
+                  }}
+                />
+                <Text c="white" fw={700} size="xl" style={{ position: 'relative', zIndex: 1 }}>
+                  K
                 </Text>
               </div>
-            )}
-          </Group>
-        </AppShell.Section>
+              {navbarOpened && (
+                <div>
+                  <Text fw={700} size="lg" className="gradient-text">
+                    Kiro Gateway
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    API 网关管理
+                  </Text>
+                </div>
+              )}
+            </Group>
+          </AppShell.Section>
 
-        <AppShell.Section grow mt="xs">
-          {navigation.slice(0, 4).map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink
-                key={item.id}
-                active={currentPage === item.id}
-                label={navbarOpened ? item.name : ''}
-                leftSection={<Icon size={navbarOpened ? 20 : 24} />}
-                onClick={() => handlePageChange(item.id)}
-                color={item.color}
-                variant="subtle"
-                mb={6}
-                styles={navLinkStyles}
-              />
-            )
-          })}
-          <Divider my="md" opacity={0.3} />
-          {navigation.slice(4).map((item) => {
-            const Icon = item.icon
-            return (
-              <NavLink
-                key={item.id}
-                active={currentPage === item.id}
-                label={navbarOpened ? item.name : ''}
-                leftSection={<Icon size={navbarOpened ? 20 : 24} />}
-                onClick={() => handlePageChange(item.id)}
-                color={item.color}
-                variant="subtle"
-                mb={6}
-                styles={navLinkStyles}
-              />
-            )
-          })}
-        </AppShell.Section>
+          <AppShell.Section grow mt="xs">
+            {navigation.slice(0, 4).map((item) => {
+              const Icon = item.icon
+              return (
+                <NavLink
+                  key={item.id}
+                  active={currentPage === item.id}
+                  label={navbarOpened ? item.name : ''}
+                  leftSection={<Icon size={navbarOpened ? 20 : 24} />}
+                  onClick={() => handlePageChange(item.id)}
+                  color={item.color}
+                  variant="subtle"
+                  mb={6}
+                  styles={navLinkStyles}
+                />
+              )
+            })}
+            <Divider my="md" opacity={0.3} />
+            {navigation.slice(4).map((item) => {
+              const Icon = item.icon
+              return (
+                <NavLink
+                  key={item.id}
+                  active={currentPage === item.id}
+                  label={navbarOpened ? item.name : ''}
+                  leftSection={<Icon size={navbarOpened ? 20 : 24} />}
+                  onClick={() => handlePageChange(item.id)}
+                  color={item.color}
+                  variant="subtle"
+                  mb={6}
+                  styles={navLinkStyles}
+                />
+              )
+            })}
+          </AppShell.Section>
 
-        <AppShell.Section>
-          {navbarOpened ? (
-            <div
-              style={{
-                padding: rem(14),
-                borderRadius: rem(14),
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-                backdropFilter: 'var(--kiro-glass-blur)',
-                boxShadow: 'var(--kiro-card-shadow)',
-              }}
-            >
-              <Group gap="xs" wrap="nowrap">
+          <AppShell.Section>
+            {navbarOpened ? (
+              <div
+                style={{
+                  padding: rem(14),
+                  borderRadius: rem(14),
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  backdropFilter: 'var(--kiro-glass-blur)',
+                  boxShadow: 'var(--kiro-card-shadow)',
+                }}
+              >
+                <Group gap="xs" wrap="nowrap">
+                  <div
+                    style={{
+                      width: rem(10),
+                      height: rem(10),
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      boxShadow: '0 0 12px rgba(16, 185, 129, 0.8), 0 0 24px rgba(16, 185, 129, 0.4)',
+                      animation: 'pulse 2s ease-in-out infinite',
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <Text size="xs" fw={700} c={colorScheme === 'dark' ? 'green.3' : 'green.8'}>
+                      运行中
+                    </Text>
+                    <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace', fontWeight: 500 }}>
+                      127.0.0.1:8080
+                    </Text>
+                  </div>
+                </Group>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
                 <div
                   style={{
                     width: rem(10),
@@ -227,55 +261,34 @@ export default function App() {
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     boxShadow: '0 0 12px rgba(16, 185, 129, 0.8), 0 0 24px rgba(16, 185, 129, 0.4)',
                     animation: 'pulse 2s ease-in-out infinite',
+                    margin: '0 auto',
                   }}
                 />
-                <div style={{ flex: 1 }}>
-                  <Text size="xs" fw={700} c={colorScheme === 'dark' ? 'green.3' : 'green.8'}>
-                    运行中
-                  </Text>
-                  <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace', fontWeight: 500 }}>
-                    127.0.0.1:8080
-                  </Text>
-                </div>
-              </Group>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <div
-                style={{
-                  width: rem(10),
-                  height: rem(10),
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  boxShadow: '0 0 12px rgba(16, 185, 129, 0.8), 0 0 24px rgba(16, 185, 129, 0.4)',
-                  animation: 'pulse 2s ease-in-out infinite',
-                  margin: '0 auto',
-                }}
-              />
-            </div>
-          )}
-        </AppShell.Section>
-      </AppShell.Navbar>
+              </div>
+            )}
+          </AppShell.Section>
+        </AppShell.Navbar>
 
-      <AppShell.Main>
-        <Suspense fallback={
-          <Center h={400}>
-            <div style={{ textAlign: 'center' }}>
-              <Loader size="lg" type="dots" color="violet" />
-              <Text size="sm" c="dimmed" mt="md">加载中...</Text>
-            </div>
-          </Center>
-        }>
-          <Container size="1400px" px={rem(4)} pb="xl">
-            <div
-              key={currentPage}
-              className="animate-fade-in"
-            >
-              {renderPage()}
-            </div>
-          </Container>
-        </Suspense>
-      </AppShell.Main>
-    </AppShell>
+        <AppShell.Main>
+          <Suspense fallback={
+            <Center h={400}>
+              <div style={{ textAlign: 'center' }}>
+                <Loader size="lg" type="dots" color="violet" />
+                <Text size="sm" c="dimmed" mt="md">加载中...</Text>
+              </div>
+            </Center>
+          }>
+            <Container size="1400px" px={rem(4)} pb="xl">
+              <div
+                key={currentPage}
+                className="animate-fade-in"
+              >
+                {renderPage()}
+              </div>
+            </Container>
+          </Suspense>
+        </AppShell.Main>
+      </AppShell>
+    </ErrorBoundary>
   )
 }

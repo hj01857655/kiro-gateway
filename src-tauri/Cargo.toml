@@ -47,6 +47,7 @@ hex = "0.4"
 aes-gcm = "0.10"
 argon2 = "0.5"
 urlencoding = "2.1"
+regex = "1.10"
 
 [features]
 default = ["custom-protocol"]
