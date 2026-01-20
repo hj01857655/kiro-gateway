@@ -85,6 +85,16 @@ export default function About() {
               </Group>
             </Anchor>
           </Group>
+          <Group>
+            <Text size="sm" fw={500} w={100}>
+              QQ 交流群
+            </Text>
+            <Anchor href="https://qm.qq.com/q/oQbUA0cxO2" target="_blank" rel="noopener noreferrer" size="sm">
+              <Badge color="teal" variant="light">
+                Kiro GateWay交流群
+              </Badge>
+            </Anchor>
+          </Group>
         </Stack>
       </Card>
 

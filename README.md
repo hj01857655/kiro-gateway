@@ -2,6 +2,21 @@
 
 Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，提供 OpenAI/Anthropic 兼容的 Kiro API 网关服务。
 
+## 📥 下载
+
+**最新版本**（永久链接）：https://github.com/hj01857655/kiro-gateway/releases/latest
+
+**各平台下载**：
+- **Windows**：[kiro-gateway_x64-setup.exe](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_x64-setup.exe)
+- **macOS (Intel)**：[kiro-gateway_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_x64.dmg)
+- **macOS (Apple Silicon)**：[kiro-gateway_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_aarch64.dmg)
+- **Linux (AppImage)**：[kiro-gateway_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_amd64.AppImage)
+- **Linux (deb)**：[kiro-gateway_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_0.3.4_amd64.deb)
+
+## 💬 交流群
+
+**点击链接加入 QQ 群【Kiro GateWay交流群】**：https://qm.qq.com/q/oQbUA0cxO2
+
 ## 项目简介
 
 Kiro Gateway 将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
@@ -343,6 +358,7 @@ Made with ❤️ by [hj01857655](https://github.com/hj01857655)
 
 - GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
 - 问题反馈: [Issues](https://github.com/hj01857655/kiro-gateway/issues)
+- QQ 交流群: [Kiro GateWay交流群](https://qm.qq.com/q/oQbUA0cxO2)
 
 ## 免责声明
 
