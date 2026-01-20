@@ -107,7 +107,7 @@ export default function Accounts() {
   // 获取配额（静默失败，使用缓存）
   const fetchQuota = async (accountId: string) => {
     if (loadingQuotas[accountId]) return
-    
+
     setLoadingQuotas((prev) => ({ ...prev, [accountId]: true }))
     try {
       const quota = await accountsApi.getQuota(accountId)
@@ -190,7 +190,7 @@ export default function Accounts() {
           .map(a => getAccountKey(a))
           .filter((key): key is string => key !== null)
       )
-      
+
       // 自动检测是单个对象还是数组
       if (Array.isArray(data)) {
         // 批量导入 - 过滤重复账号
@@ -198,7 +198,7 @@ export default function Accounts() {
           const key = getAccountKey(account)
           return key === null || !existingKeys.has(key)
         })
-        
+
         if (newAccounts.length === 0) {
           notifications.show({
             title: '无需导入',
@@ -208,7 +208,7 @@ export default function Accounts() {
           setShowAddModal(false)
           return
         }
-        
+
         newAccounts.forEach((account) => addAccount(account))
         const skippedCount = data.length - newAccounts.length
         setShowAddModal(false)
@@ -229,7 +229,7 @@ export default function Accounts() {
           setShowAddModal(false)
           return
         }
-        
+
         addAccount(data)
         setShowAddModal(false)
         notifications.show({
@@ -278,7 +278,7 @@ export default function Accounts() {
             const key = getAccountKey(account)
             return key === null || !existingKeys.has(key)
           })
-          
+
           if (newAccounts.length === 0) {
             notifications.show({
               title: '无需导入',
@@ -288,7 +288,7 @@ export default function Accounts() {
             setShowAddModal(false)
             return
           }
-          
+
           newAccounts.forEach((account) => addAccount(account))
           const skippedCount = data.length - newAccounts.length
           notifications.show({
@@ -308,7 +308,7 @@ export default function Accounts() {
             setShowAddModal(false)
             return
           }
-          
+
           addAccount(data)
           notifications.show({
             title: '成功',
@@ -397,7 +397,7 @@ export default function Accounts() {
   const handleImportFromKiro = async () => {
     try {
       const res = await fetchWithTimeout('/admin/accounts/import', { method: 'POST' })
-      
+
       const data = await res.json()
       if (!data.success || !data.accounts || data.accounts.length === 0) {
         notifications.show({
@@ -449,7 +449,7 @@ export default function Accounts() {
   }
 
   return (
-    <Stack gap="md" maw={1400} mx="auto" className="animate-fade-in">
+    <Stack gap="md" className="animate-fade-in">
       {/* 健康状态概览 */}
       {healthData && (
         <Card withBorder>
@@ -520,33 +520,33 @@ export default function Accounts() {
                 添加账号
               </Button>
             </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item
-              leftSection={<Plus size={16} />}
-              onClick={() => {
-                setActiveTab('form')
-                setShowAddModal(true)
-              }}
-            >
-              手动添加
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<Upload size={16} />}
-              onClick={() => {
-                setActiveTab('import')
-                setShowAddModal(true)
-              }}
-            >
-              批量导入
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<Upload size={16} />}
-              onClick={handleImportFromKiro}
-            >
-              从 Kiro IDE 导入
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+            <Menu.Dropdown>
+              <Menu.Item
+                leftSection={<Plus size={16} />}
+                onClick={() => {
+                  setActiveTab('form')
+                  setShowAddModal(true)
+                }}
+              >
+                手动添加
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<Upload size={16} />}
+                onClick={() => {
+                  setActiveTab('import')
+                  setShowAddModal(true)
+                }}
+              >
+                批量导入
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<Upload size={16} />}
+                onClick={handleImportFromKiro}
+              >
+                从 Kiro IDE 导入
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
         </Group>
       </Group>
 
@@ -567,7 +567,7 @@ export default function Accounts() {
             const health = getAccountHealth(account.id)
             const quota = formatQuota(quotaCache[account.id])
             const isLoadingQuota = loadingQuotas[account.id]
-            
+
             return (
               <Card key={account.id} shadow="sm" padding="lg" radius="md" withBorder>
                 <Stack gap="md">

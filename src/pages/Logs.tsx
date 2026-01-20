@@ -52,7 +52,7 @@ export default function Logs() {
   }
 
   return (
-    <Stack gap="md" maw={1400} mx="auto" className="animate-fade-in">
+    <Stack gap="md" className="animate-fade-in">
       <Group justify="space-between">
         <Group>
           <Title order={2}>日志查看</Title>
@@ -60,9 +60,9 @@ export default function Logs() {
             {filteredLogs.length} 条
           </Badge>
         </Group>
-        <Button 
-          leftSection={<Trash2 size={16} />} 
-          color="red" 
+        <Button
+          leftSection={<Trash2 size={16} />}
+          color="red"
           variant="light"
           onClick={() => clearLogs()}
         >
@@ -122,25 +122,24 @@ export default function Logs() {
       ) : (
         <Stack gap="xs">
           {filteredLogs.map((log, idx) => (
-            <Card 
-              key={idx} 
-              shadow="sm" 
-              padding="md" 
-              radius="md" 
+            <Card
+              key={idx}
+              shadow="sm"
+              padding="md"
+              radius="md"
               withBorder
               className="glass-effect"
               style={{
-                borderLeft: `4px solid ${
-                  log.level === 'ERROR' ? '#fa5252' :
-                  log.level === 'WARN' ? '#fab005' :
-                  log.level === 'INFO' ? '#228be6' :
-                  '#868e96'
-                }`,
+                borderLeft: `4px solid ${log.level === 'ERROR' ? '#fa5252' :
+                    log.level === 'WARN' ? '#fab005' :
+                      log.level === 'INFO' ? '#228be6' :
+                        '#868e96'
+                  }`,
               }}
             >
               <Group gap="md" align="flex-start" wrap="nowrap">
-                <Badge 
-                  color={getLevelColor(log.level)} 
+                <Badge
+                  color={getLevelColor(log.level)}
                   variant="light"
                   size="lg"
                   style={{ minWidth: rem(70) }}

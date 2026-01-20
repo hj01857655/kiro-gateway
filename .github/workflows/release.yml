@@ -111,7 +111,7 @@ jobs:
             ---
             
             **完整源码**: [kiro-gateway_dev](https://github.com/hj01857655/kiro-gateway_dev)
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
           # 只在 macOS aarch64 上传 updater 文件，避免冲突

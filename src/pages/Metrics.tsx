@@ -43,7 +43,7 @@ export default function Metrics() {
   const avgResponseTime =
     metrics.response_times.length > 0
       ? metrics.response_times.reduce((a: number, b: number) => a + b, 0) /
-        metrics.response_times.length
+      metrics.response_times.length
       : 0
 
   const chartData = (metrics.hourly_stats || []).map((item) => ({
@@ -52,7 +52,7 @@ export default function Metrics() {
   }))
 
   return (
-    <Stack gap="md" maw={1400} mx="auto" className="animate-fade-in">
+    <Stack gap="md" className="animate-fade-in">
       <Group justify="space-between">
         <Title order={2}>统计监控</Title>
         <Badge size="lg" variant="light" color="violet" leftSection={<TrendingUp size={14} />}>
@@ -178,7 +178,7 @@ export default function Metrics() {
             <CartesianGrid strokeDasharray="3 3" stroke={colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} />
             <XAxis dataKey="time" stroke={colorScheme === 'dark' ? '#aaa' : '#666'} />
             <YAxis stroke={colorScheme === 'dark' ? '#aaa' : '#666'} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{
                 backgroundColor: colorScheme === 'dark' ? 'rgba(30, 30, 40, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                 border: `1px solid ${colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.3)' : 'rgba(0, 0, 0, 0.1)'}`,
@@ -198,7 +198,7 @@ export default function Metrics() {
           </Text>
           <Stack gap="sm">
             {Object.entries(metrics.requests_by_model || {}).map(([model, count]) => (
-              <Group key={model} justify="space-between" p="xs" style={{ 
+              <Group key={model} justify="space-between" p="xs" style={{
                 borderRadius: rem(8),
                 background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)',
                 transition: 'all 0.2s ease',
@@ -216,7 +216,7 @@ export default function Metrics() {
           </Text>
           <Stack gap="sm">
             {Object.entries(metrics.api_type_usage || {}).map(([type, count]) => (
-              <Group key={type} justify="space-between" p="xs" style={{ 
+              <Group key={type} justify="space-between" p="xs" style={{
                 borderRadius: rem(8),
                 background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)',
                 transition: 'all 0.2s ease',
@@ -289,8 +289,8 @@ export default function Metrics() {
                   </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Badge 
-                    size="lg" 
+                  <Badge
+                    size="lg"
                     variant="light"
                     color={req.status_code >= 200 && req.status_code < 300 ? 'green' : 'red'}
                   >

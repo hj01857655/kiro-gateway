@@ -37,7 +37,7 @@ export default function Settings() {
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [configPackage, setConfigPackage] = useState<any>(null)
   const [configLoading, setConfigLoading] = useState(false)
-  
+
   // 服务器配置
   const [serverConfig, setServerConfig] = useState({ host: '127.0.0.1', port: 8080 })
   const [editingServer, setEditingServer] = useState(false)
@@ -185,16 +185,16 @@ export default function Settings() {
         body: JSON.stringify(serverConfig),
       })
       const data = await res.json()
-      
+
       notifications.show({
         title: '成功',
         message: data.message,
         color: 'green',
       })
-      
+
       setEditingServer(false)
       setServerConfigDirty(false)
-      
+
       // 询问是否重启
       if (data.needRestart && confirm('配置已保存，是否立即重启应用使其生效？')) {
         await handleRestartApp()
@@ -225,7 +225,7 @@ export default function Settings() {
   }
 
   return (
-    <Stack gap="md" maw={1200} mx="auto" className="animate-fade-in">
+    <Stack gap="md" className="animate-fade-in">
       <Title order={2}>设置</Title>
 
       <Card shadow="sm" padding="lg" radius="md" withBorder className="glass-effect">
@@ -249,7 +249,7 @@ export default function Settings() {
             外观
           </Text>
         </Group>
-        <Group justify="space-between" p="md" style={{ 
+        <Group justify="space-between" p="md" style={{
           borderRadius: rem(10),
           background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(99, 102, 241, 0.03)',
         }}>
@@ -320,8 +320,8 @@ export default function Settings() {
           )}
         </Group>
         <Stack gap="md">
-          <TextInput 
-            label="监听地址" 
+          <TextInput
+            label="监听地址"
             value={serverConfig.host}
             onChange={(e) => {
               setServerConfig({ ...serverConfig, host: e.target.value })
@@ -334,8 +334,8 @@ export default function Settings() {
               }
             }}
           />
-          <TextInput 
-            label="监听端口" 
+          <TextInput
+            label="监听端口"
             value={serverConfig.port.toString()}
             onChange={(e) => {
               const port = parseInt(e.target.value) || 8080
@@ -392,7 +392,7 @@ export default function Settings() {
         <Text size="sm" c="dimmed" mb="md">
           API Key 用于保护网关接口，客户端需要在请求头中携带 Authorization: Bearer YOUR_API_KEY
         </Text>
-        
+
         {apiKeys.length === 0 ? (
           <Card withBorder p="xl" radius="md" style={{ background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.03)' : 'rgba(99, 102, 241, 0.02)' }}>
             <Center>

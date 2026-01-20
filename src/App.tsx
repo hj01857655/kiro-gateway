@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
-import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center, Burger } from '@mantine/core'
+import { AppShell, NavLink, Group, Text, rem, Divider, Loader, Center, Burger, Container } from '@mantine/core'
 import { Users, BarChart3, FileText, Settings, MessageSquare, Info } from 'lucide-react'
 import { useThemeStore } from './stores/themeStore'
 
@@ -122,13 +122,13 @@ export default function App() {
           left: navbarOpened ? rem(220 + 16) : rem(70 + 16),
           zIndex: 1000,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: colorScheme === 'dark' 
-            ? 'linear-gradient(135deg, rgba(30, 30, 45, 0.95) 0%, rgba(25, 25, 40, 0.95) 100%)' 
+          background: colorScheme === 'dark'
+            ? 'linear-gradient(135deg, rgba(30, 30, 45, 0.95) 0%, rgba(25, 25, 40, 0.95) 100%)'
             : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)',
           borderRadius: rem(12),
           padding: rem(10),
-          boxShadow: colorScheme === 'dark' 
-            ? '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.3)' 
+          boxShadow: colorScheme === 'dark'
+            ? '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.3)'
             : '0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05)',
           backdropFilter: 'blur(20px)',
         }}
@@ -223,41 +223,41 @@ export default function App() {
 
         <AppShell.Section>
           {navbarOpened ? (
-              <div
-                style={{
-                  padding: rem(14),
-                  borderRadius: rem(14),
-                  background: colorScheme === 'dark'
-                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)'
-                    : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
-                  border: `1px solid ${colorScheme === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)'}`,
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: colorScheme === 'dark'
-                    ? '0 4px 16px rgba(16, 185, 129, 0.2)'
-                    : '0 4px 16px rgba(16, 185, 129, 0.15)',
-                }}
-              >
-                <Group gap="xs" wrap="nowrap">
-                  <div
-                    style={{
-                      width: rem(10),
-                      height: rem(10),
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      boxShadow: '0 0 12px rgba(16, 185, 129, 0.8), 0 0 24px rgba(16, 185, 129, 0.4)',
-                      animation: 'pulse 2s ease-in-out infinite',
-                    }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <Text size="xs" fw={700} c={colorScheme === 'dark' ? 'green.3' : 'green.8'}>
-                      运行中
-                    </Text>
-                    <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace', fontWeight: 500 }}>
-                      127.0.0.1:8080
-                    </Text>
-                  </div>
-                </Group>
-              </div>
+            <div
+              style={{
+                padding: rem(14),
+                borderRadius: rem(14),
+                background: colorScheme === 'dark'
+                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                border: `1px solid ${colorScheme === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)'}`,
+                backdropFilter: 'blur(10px)',
+                boxShadow: colorScheme === 'dark'
+                  ? '0 4px 16px rgba(16, 185, 129, 0.2)'
+                  : '0 4px 16px rgba(16, 185, 129, 0.15)',
+              }}
+            >
+              <Group gap="xs" wrap="nowrap">
+                <div
+                  style={{
+                    width: rem(10),
+                    height: rem(10),
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    boxShadow: '0 0 12px rgba(16, 185, 129, 0.8), 0 0 24px rgba(16, 185, 129, 0.4)',
+                    animation: 'pulse 2s ease-in-out infinite',
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <Text size="xs" fw={700} c={colorScheme === 'dark' ? 'green.3' : 'green.8'}>
+                    运行中
+                  </Text>
+                  <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace', fontWeight: 500 }}>
+                    127.0.0.1:8080
+                  </Text>
+                </div>
+              </Group>
+            </div>
           ) : (
             <div style={{ textAlign: 'center' }}>
               <div
@@ -285,15 +285,14 @@ export default function App() {
             </div>
           </Center>
         }>
-          <div 
-            key={currentPage} 
-            className="animate-fade-in"
-            style={{ 
-              padding: rem(4),
-            }}
-          >
-            {renderPage()}
-          </div>
+          <Container size="1400px" px={rem(4)} pb="xl">
+            <div
+              key={currentPage}
+              className="animate-fade-in"
+            >
+              {renderPage()}
+            </div>
+          </Container>
         </Suspense>
       </AppShell.Main>
     </AppShell>

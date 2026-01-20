@@ -14,7 +14,7 @@ export default function About() {
   }, [])
 
   return (
-    <Stack gap="md" maw={1200} mx="auto" className="animate-fade-in">
+    <Stack gap="md" className="animate-fade-in">
       <Group>
         <Info size={24} color="#228be6" />
         <div>
