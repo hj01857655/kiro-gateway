@@ -181,17 +181,49 @@ PORT=8080
 
 在用户数据目录创建 `accounts.json`：
 
+**Social 账号示例**：
+```json
+[
+  {
+    "authMethod": "social",
+    "refreshToken": "eyJ..."
+  }
+]
+```
+
+**IDC 账号示例**：
+```json
+[
+  {
+    "authMethod": "IdC",
+    "clientId": "MkAG97...",
+    "clientSecret": "eyJraWQ...",
+    "refreshToken": "aorAAAAA..."
+  }
+]
+```
+
+**完整字段示例**（包含可选字段）：
 ```json
 [
   {
     "id": "account-1",
-    "name": "我的账号",
+    "name": "我的 Social 账号",
     "authMethod": "social",
-    "provider": "Google",
-    "accessToken": "eyJ...",
     "refreshToken": "eyJ...",
-    "expiresAt": 1704067200000,
     "profileArn": "",
+    "region": "us-east-1",
+    "enabled": true,
+    "status": "active"
+  },
+  {
+    "id": "account-2",
+    "name": "我的 IDC 账号",
+    "authMethod": "IdC",
+    "clientId": "MkAG97...",
+    "clientSecret": "eyJraWQ...",
+    "refreshToken": "aorAAAAA...",
+    "profileArn": "arn:aws:codewhisperer:us-east-1:123456789:profile/xxx",
     "region": "us-east-1",
     "enabled": true,
     "status": "active"
@@ -199,10 +231,23 @@ PORT=8080
 ]
 ```
 
+**必要字段说明**：
+- **Social 账号**：`authMethod`（"social"）、`refreshToken`
+- **IDC 账号**：`authMethod`（"IdC"）、`clientId`、`clientSecret`、`refreshToken`
+
+**可选字段**：
+- `id` - 账号 ID（不填会自动生成）
+- `name` - 账号名称（不填会使用默认名称）
+- `profileArn` - 配置文件 ARN（Social 为空，IDC 可选）
+- `region` - 区域（默认 us-east-1）
+- `enabled` - 是否启用（默认 true）
+- `status` - 账号状态（默认 active）
+
 **注意**：
 - 敏感字段（`refreshToken`、`accessToken`、`clientSecret`）会在保存时自动加密
 - 已加密的数据格式为 JSON 对象：`{"ciphertext":"...","nonce":"..."}`
 - 不要手动编辑已加密的字段
+- `accessToken` 和 `expiresAt` 不需要填写，会自动通过 `refreshToken` 获取
 
 ## API 端点
 
