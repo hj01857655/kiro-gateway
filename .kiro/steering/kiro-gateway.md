@@ -510,50 +510,81 @@ steps:
 
 ### 公开仓库文档同步
 
-当更新项目文档时，**只有以下文件**需要同步到公开仓库：
+**自动同步触发条件**：
+- 当 `README.md` 或 `.kiro/steering/git-workflow.md` 被修改时
+- 推送到私有仓库后，必须立即同步到公开仓库
 
-**允许同步的文件**：
-- ✅ `README.md` - 项目说明
-- ✅ `LICENSE` - 许可证
-- ❌ `FEATURE_COMPARISON.md` - 内部开发文档，不公开
-- ❌ `RELEASE.md` - 发布流程文档，不公开
-- ❌ `SECURITY_CHECKLIST.md` - 安全检查清单，不公开
-- ❌ 其他 `.md` 文件 - 默认不公开
+**同步策略**：
 
-**使用 gh api 命令更新**（推荐）：
-```powershell
-# 1. 获取文件当前 SHA
-$sha = gh api repos/hj01857655/kiro-gateway/contents/README.md --jq '.sha'
+| 文件类型 | 同步规则 | 目标位置 |
+|---------|---------|---------|
+| `README.md` | ✅ 必须同步 | 公开仓库根目录 |
+| `.kiro/steering/git-workflow.md` | ✅ 必须同步 | 公开仓库 `docs/git-workflow.md` |
+| `LICENSE` | ✅ 必须同步 | 公开仓库根目录 |
+| 其他 `.md` 文件 | ❌ 禁止同步 | - |
+| 源码文件 | ❌ 禁止同步 | - |
 
-# 2. 读取文件内容并 Base64 编码
-$content = Get-Content "README.md" -Raw -Encoding UTF8
-$base64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($content))
+**同步执行流程**：
 
-# 3. 构建 JSON 并更新
-$json = @{
-    message = "docs: 更新 README"
-    content = $base64
-    sha = $sha
-    branch = "main"
-} | ConvertTo-Json -Depth 10
+1. **检测文件变更**
+   ```bash
+   # 检查是否修改了需要同步的文件
+   git diff --name-only HEAD~1 HEAD | grep -E "(README\.md|\.kiro/steering/git-workflow\.md)"
+   ```
 
-$json | gh api -X PUT repos/hj01857655/kiro-gateway/contents/README.md --input -
-```
+2. **同步 README.md**
+   ```powershell
+   # 获取当前 SHA
+   $sha = gh api repos/hj01857655/kiro-gateway/contents/README.md --jq '.sha'
+   
+   # 读取并编码
+   $content = Get-Content "README.md" -Raw -Encoding UTF8
+   $base64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($content))
+   
+   # 更新到公开仓库
+   $json = @{
+       message = "docs: 同步更新 README"
+       content = $base64
+       sha = $sha
+       branch = "main"
+   } | ConvertTo-Json -Depth 10
+   
+   $json | gh api -X PUT repos/hj01857655/kiro-gateway/contents/README.md --input -
+   ```
 
-**删除文件**：
-```powershell
-# 获取 SHA 并删除
-$sha = gh api repos/hj01857655/kiro-gateway/contents/文件名 --jq '.sha'
-$json = @{ message = "docs: 移除文件"; sha = $sha; branch = "main" } | ConvertTo-Json
-$json | gh api -X DELETE repos/hj01857655/kiro-gateway/contents/文件名 --input -
-```
+3. **同步 git-workflow.md**
+   ```powershell
+   # 获取当前 SHA（如果文件存在）
+   $sha = gh api repos/hj01857655/kiro-gateway/contents/docs/git-workflow.md --jq '.sha' 2>$null
+   
+   # 读取并编码
+   $content = Get-Content ".kiro/steering/git-workflow.md" -Raw -Encoding UTF8
+   $base64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($content))
+   
+   # 更新到公开仓库
+   $json = @{
+       message = "docs: 同步更新 Git 工作流规范"
+       content = $base64
+       sha = $sha
+       branch = "main"
+   } | ConvertTo-Json -Depth 10
+   
+   $json | gh api -X PUT repos/hj01857655/kiro-gateway/contents/docs/git-workflow.md --input -
+   ```
 
-**注意事项**：
-- ✅ 只更新 README.md 和 LICENSE
-- ❌ 不要推送源码到公开仓库
-- ❌ 不要在文档中暴露私有仓库地址
-- ❌ 不要推送内部开发文档（FEATURE_COMPARISON、RELEASE、SECURITY_CHECKLIST 等）
-- ✅ 使用 gh api 命令而不是 git push
+**强制要求**：
+- ✅ 修改 README.md 后立即同步到公开仓库
+- ✅ 修改 git-workflow.md 后立即同步到公开仓库
+- ✅ 使用 `gh api` 命令而不是 `git push`
+- ❌ 禁止推送源码到公开仓库
+- ❌ 禁止在文档中暴露私有仓库地址
+- ❌ 禁止推送内部开发文档
+
+**安全检查清单**：
+- [ ] 文档中不包含敏感信息（Token、密钥、私有地址）
+- [ ] 文档中不包含内部开发流程
+- [ ] 文档适合公开展示
+- [ ] 使用 gh api 命令而非 git push
 
 ## 相关文档
 
