@@ -209,7 +209,7 @@ pub async fn start_server(app_handle: AppHandle) -> Result<(), Box<dyn std::erro
     // 创建健康检查器（每 5 分钟检查一次）
     let health_checker = Arc::new(crate::health_checker::HealthChecker::new(
         Arc::clone(&accounts),
-        Arc::new(client),
+        Arc::new(client.clone()),
         300,
     ));
 
