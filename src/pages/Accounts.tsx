@@ -6,6 +6,7 @@ import { fetchWithTimeout } from '@/api/utils'
 import { logger } from '@/lib/logger'
 import { getAccountKey } from '@/lib/utils'
 import { maskToken } from '@/lib/masking'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Button,
   Card,
@@ -52,6 +53,7 @@ export default function Accounts() {
     useAccounts()
   const { data: healthData } = useHealth()
   const checkHealthMutation = useCheckHealth()
+  const queryClient = useQueryClient()
   const [showAddModal, setShowAddModal] = useState(false)
   const [activeTab, setActiveTab] = useState<string | null>('form')
   const resetRef = useRef<() => void>(null)
@@ -118,7 +120,7 @@ export default function Accounts() {
       setQuotaCache((prev) => ({ ...prev, [accountId]: quota }))
       
       // 配额查询后刷新账号列表（状态可能已更新为 quotaexhausted）
-      refetch()
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
     } catch (error) {
       // 静默失败，使用缓存的配额信息
       logger.warn(`获取账号 ${accountId} 配额失败:`, error)
