@@ -134,7 +134,7 @@ export default function Accounts() {
     }
   }
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
     if (!formData.name || !formData.refreshToken) {
       notifications.show({
         title: '错误',
@@ -155,25 +155,34 @@ export default function Accounts() {
       clientSecret: formData.clientSecret || undefined,
       enabled: true,
     }
-    addAccount(accountData)
-    setShowAddModal(false)
-    setFormData({
-      name: '',
-      authMethod: 'social',
-      refreshToken: '',
-      profileArn: '',
-      region: 'us-east-1',
-      clientId: '',
-      clientSecret: '',
-    })
-    notifications.show({
-      title: '成功',
-      message: '账号添加成功',
-      color: 'green',
-    })
+    
+    try {
+      await addAccount(accountData)
+      setShowAddModal(false)
+      setFormData({
+        name: '',
+        authMethod: 'social',
+        refreshToken: '',
+        profileArn: '',
+        region: 'us-east-1',
+        clientId: '',
+        clientSecret: '',
+      })
+      notifications.show({
+        title: '成功',
+        message: '账号添加成功',
+        color: 'green',
+      })
+    } catch (error) {
+      notifications.show({
+        title: '添加失败',
+        message: error instanceof Error ? error.message : '未知错误',
+        color: 'red',
+      })
+    }
   }
 
-  const handleJsonSubmit = () => {
+  const handleJsonSubmit = async () => {
     try {
       const data = JSON.parse(jsonInput)
 
@@ -186,60 +195,57 @@ export default function Accounts() {
         return
       }
 
-      // 去重检查 - 使用账号唯一标识（只检查有 email+provider 的账号）
-      const existingKeys = new Set(
-        (accounts || [])
-          .map(a => getAccountKey(a))
-          .filter((key): key is string => key !== null)
-      )
-
-      // 自动检测是单个对象还是数组
+      // 批量导入（让后端处理去重和格式转换）
       if (Array.isArray(data)) {
-        // 批量导入 - 过滤重复账号
-        const newAccounts = data.filter((account: Account) => {
-          const key = getAccountKey(account)
-          return key === null || !existingKeys.has(key)
-        })
+        let successCount = 0
+        let failCount = 0
+        const errors: string[] = []
 
-        if (newAccounts.length === 0) {
-          notifications.show({
-            title: '无需导入',
-            message: '所有账号已存在，无需重复导入',
-            color: 'blue',
-          })
-          setShowAddModal(false)
-          return
+        for (const account of data) {
+          try {
+            await addAccount(account)
+            successCount++
+          } catch (error) {
+            failCount++
+            const errorMsg = error instanceof Error ? error.message : '未知错误'
+            // 只记录前 3 个错误，避免通知过多
+            if (errors.length < 3) {
+              errors.push(errorMsg)
+            }
+          }
         }
 
-        newAccounts.forEach((account) => addAccount(account))
-        const skippedCount = data.length - newAccounts.length
-        setShowAddModal(false)
-        notifications.show({
-          title: '成功',
-          message: `批量导入 ${newAccounts.length} 个账号成功${skippedCount > 0 ? `，跳过 ${skippedCount} 个重复账号` : ''}`,
-          color: 'green',
-        })
+        if (successCount > 0) {
+          notifications.show({
+            title: '导入完成',
+            message: `成功导入 ${successCount} 个账号${failCount > 0 ? `，跳过 ${failCount} 个重复或无效账号` : ''}`,
+            color: successCount === data.length ? 'green' : 'yellow',
+          })
+        } else {
+          notifications.show({
+            title: '导入失败',
+            message: errors.length > 0 ? errors[0] : '所有账号都已存在或无效',
+            color: 'red',
+          })
+        }
       } else {
-        // 单个导入 - 检查是否重复
-        const key = getAccountKey(data)
-        if (key !== null && existingKeys.has(key)) {
+        // 单个导入
+        try {
+          await addAccount(data)
           notifications.show({
-            title: '账号已存在',
-            message: '该账号已存在，无需重复添加',
-            color: 'blue',
+            title: '成功',
+            message: 'JSON 账号添加成功',
+            color: 'green',
           })
-          setShowAddModal(false)
-          return
+        } catch (error) {
+          notifications.show({
+            title: '导入失败',
+            message: error instanceof Error ? error.message : '未知错误',
+            color: 'red',
+          })
         }
-
-        addAccount(data)
-        setShowAddModal(false)
-        notifications.show({
-          title: '成功',
-          message: 'JSON 账号添加成功',
-          color: 'green',
-        })
       }
+      setShowAddModal(false)
     } catch (error) {
       notifications.show({
         title: '错误',
