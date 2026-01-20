@@ -1,5 +1,15 @@
 # Kiro Gateway
 
+[![GitHub release](https://img.shields.io/github/v/release/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/releases/latest)
+[![License](https://img.shields.io/github/license/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/pulls)
+[![GitHub last commit](https://img.shields.io/github/last-commit/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/commits/main)
+[![GitHub downloads](https://img.shields.io/github/downloads/hj01857655/kiro-gateway/total)](https://github.com/hj01857655/kiro-gateway/releases)
+[![QQ Group](https://img.shields.io/badge/QQ%20Group-1081058179-blue)](https://qm.qq.com/q/oQbUA0cxO2)
+
 Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，提供 OpenAI/Anthropic 兼容的 Kiro API 网关服务。
 
 ## 📥 下载
