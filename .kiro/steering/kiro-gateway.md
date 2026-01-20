@@ -566,6 +566,51 @@ steps:
 - ⚠️ 版本号必须在两个文件中同步更新
 - ⚠️ tag 格式必须是 `v*`（如 v0.1.1）
 
+### 防止源码泄露
+
+**问题**：如果不小心将源码推送到公开仓库，需要立即清理。
+
+**清理步骤**：
+
+1. **Clone 公开仓库到临时目录**
+   ```powershell
+   $tempDir = "E:\VSCodeSpace\Kiro\temp-kiro-gateway-public"
+   if (Test-Path $tempDir) { Remove-Item -Recurse -Force $tempDir }
+   New-Item -ItemType Directory -Path $tempDir | Out-Null
+   cd $tempDir
+   git clone https://github.com/hj01857655/kiro-gateway.git .
+   ```
+
+2. **删除源码目录**
+   ```powershell
+   Remove-Item -Recurse -Force src, src-tauri, .kiro, .vscode, data, .prettierrc, eslint.config.js -ErrorAction SilentlyContinue
+   ```
+
+3. **提交并强制推送**
+   ```powershell
+   git add -A
+   git commit -m "chore: 移除源码文件，公开仓库仅用于发布 Release"
+   git push origin main --force
+   ```
+
+4. **清理临时目录**
+   ```powershell
+   cd E:\VSCodeSpace\Kiro\kiro-gateway
+   Remove-Item -Recurse -Force $tempDir
+   ```
+
+**公开仓库应该只包含**：
+- `.github/` - GitHub Actions 配置
+- `docs/` - 文档目录
+- `README.md` - 项目说明
+
+**禁止包含**：
+- `src/` - 前端源码
+- `src-tauri/` - 后端源码
+- `.kiro/` - 内部配置
+- `.vscode/` - 编辑器配置
+- 其他开发配置文件
+
 ### 公开仓库文档同步
 
 **自动同步触发条件**：

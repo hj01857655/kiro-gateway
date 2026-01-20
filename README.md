@@ -210,6 +210,7 @@ PORT=8080
     "id": "account-1",
     "name": "我的 Social 账号",
     "authMethod": "social",
+    "provider": "Google",
     "refreshToken": "eyJ...",
     "profileArn": "",
     "region": "us-east-1",
@@ -220,6 +221,7 @@ PORT=8080
     "id": "account-2",
     "name": "我的 IDC 账号",
     "authMethod": "IdC",
+    "provider": "BuilderId",
     "clientId": "MkAG97...",
     "clientSecret": "eyJraWQ...",
     "refreshToken": "aorAAAAA...",
@@ -238,6 +240,7 @@ PORT=8080
 **可选字段**：
 - `id` - 账号 ID（不填会自动生成）
 - `name` - 账号名称（不填会使用默认名称）
+- `provider` - 提供商（Social: "Google"/"GitHub", IDC: "BuilderId"）
 - `profileArn` - 配置文件 ARN（Social 为空，IDC 可选）
 - `region` - 区域（默认 us-east-1）
 - `enabled` - 是否启用（默认 true）
