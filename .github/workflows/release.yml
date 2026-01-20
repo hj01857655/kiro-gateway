@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   build:
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -72,49 +71,3 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
           tauriScript: npm run tauri
-        continue-on-error: true
-
-      - name: Upload build artifacts (if build succeeded)
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ matrix.platform }}
-          path: src-tauri/target/release/bundle/
-
-  create-release-info:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create latest.json
-        run: |
-          cat > latest.json << EOF
-          {
-            "version": "${{ github.ref_name }}",
-            "notes": "See the release notes for details.",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_x64-setup.msi.zip"
-              },
-              "linux-x86_64": {
-                "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_amd64.AppImage.tar.gz"
-              },
-              "darwin-x86_64": {
-                "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_x64.app.tar.gz"
-              },
-              "darwin-aarch64": {
-                "signature": "",
-                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/kiro-gateway_aarch64.app.tar.gz"
-              }
-            }
-          }
-          EOF
-
-      - name: Upload latest.json
-        uses: actions/upload-artifact@v4
-        with:
-          name: latest-json
-          path: latest.json
