@@ -9,7 +9,7 @@ export interface Account {
   refreshToken: string
   profileArn: string
   region?: string
-  expiresAt?: number
+  expiresAt?: string  // ISO 8601 格式字符串，与 Kiro IDE 一致
   expire?: string
   clientId?: string
   clientSecret?: string
