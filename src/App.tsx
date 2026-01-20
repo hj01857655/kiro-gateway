@@ -14,8 +14,18 @@ type Page = 'accounts' | 'metrics' | 'logs' | 'settings' | 'chat' | 'about'
 
 export default function App() {
   const colorScheme = useThemeStore((state) => state.colorScheme)
-  const [currentPage, setCurrentPage] = useState<Page>('accounts')
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    // 从 localStorage 读取上次访问的页面
+    const saved = localStorage.getItem('currentPage')
+    return (saved as Page) || 'accounts'
+  })
   const [navbarOpened, setNavbarOpened] = useState(true)
+
+  // 切换页面并保存到 localStorage
+  const handlePageChange = (page: Page) => {
+    setCurrentPage(page)
+    localStorage.setItem('currentPage', page)
+  }
 
   const navigation = [
     { id: 'accounts' as Page, name: '账号管理', icon: Users, color: 'violet' },
@@ -184,7 +194,7 @@ export default function App() {
                 active={currentPage === item.id}
                 label={navbarOpened ? item.name : ''}
                 leftSection={<Icon size={navbarOpened ? 20 : 24} />}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => handlePageChange(item.id)}
                 color={item.color}
                 variant="subtle"
                 mb={6}
@@ -201,7 +211,7 @@ export default function App() {
                 active={currentPage === item.id}
                 label={navbarOpened ? item.name : ''}
                 leftSection={<Icon size={navbarOpened ? 20 : 24} />}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => handlePageChange(item.id)}
                 color={item.color}
                 variant="subtle"
                 mb={6}
