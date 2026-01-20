@@ -105,7 +105,7 @@ export default function About() {
             <Anchor href="https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc" target="_blank" rel="noopener noreferrer" size="sm">
               <Group gap={4}>
                 <BookOpen size={16} />
-                <Text size="sm">飞书云文档</Text>
+                <Text size="sm">Kiro Gateway 使用教程</Text>
               </Group>
             </Anchor>
           </Group>
