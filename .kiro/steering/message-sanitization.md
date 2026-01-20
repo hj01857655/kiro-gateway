@@ -189,17 +189,81 @@ function reorderToolResultMessages(messages) {
     if (isUserInputMessage(message) && hasToolResults(message)) {
       const toolResults = message.userInputMessage.userInputMessageContext.toolResults
       for (const result of toolResults) {
-        toolResultIndices.set(result.toolUseId, i)
+        if (!toolResultIndices.has(result.toolUseId)) {
+          toolResultIndices.set(result.toolUseId, i)
+        }
       }
     }
   }
   
-  // 重新排序（具体实现略）
-  // ...
+  // 如果没有 tool use，直接返回
+  if (toolUseIndices.length === 0) {
+    return messages
+  }
+  
+  // 重新排序消息
+  const result = []
+  const processed = new Set()
+  
+  for (let i = 0; i < messages.length; i++) {
+    if (processed.has(i)) continue
+    
+    const message = messages[i]
+    result.push(message)
+    processed.add(i)
+    
+    // 如果是 assistant 消息且有 tool uses，立即添加对应的 tool results
+    if (isAssistantResponseMessage(message) && hasToolUses(message)) {
+      const toolUses = message.assistantResponseMessage.toolUses || []
+      for (const toolUse of toolUses) {
+        const toolUseId = toolUse.toolUseId
+        if (toolUseId && toolResultIndices.has(toolUseId)) {
+          const resultIndex = toolResultIndices.get(toolUseId)
+          // 只有当 result 不在当前位置的下一个，且还没被处理时，才移动它
+          if (resultIndex && resultIndex !== i + 1 && !processed.has(resultIndex)) {
+            result.push(messages[resultIndex])
+            processed.add(resultIndex)
+          }
+        }
+      }
+    }
+  }
+  
+  return result
 }
 ```
 
-**作用**：确保 tool result 消息紧跟在对应的 tool use 消息之后。
+**作用**：
+- 找出所有 tool use 和 tool result 的位置
+- 遍历消息，当遇到 assistant 消息（有 tool uses）时，立即将对应的 tool result 消息移到它后面
+- 使用 `processed` Set 避免重复处理消息
+- 确保 tool result 紧跟在对应的 tool use 之后
+
+**为什么需要重排序？**
+
+在某些情况下，tool result 消息可能不在对应的 tool use 之后，例如：
+
+```
+1. user: "帮我查天气"
+2. assistant: [tool_use: get_weather]
+3. user: "顺便查一下明天的"
+4. assistant: [tool_use: get_weather_tomorrow]
+5. user: [tool_result for get_weather]
+6. user: [tool_result for get_weather_tomorrow]
+```
+
+重排序后：
+
+```
+1. user: "帮我查天气"
+2. assistant: [tool_use: get_weather]
+3. user: [tool_result for get_weather]
+4. user: "顺便查一下明天的"
+5. assistant: [tool_use: get_weather_tomorrow]
+6. user: [tool_result for get_weather_tomorrow]
+```
+
+这样可以确保每个 tool use 后面立即跟着对应的 tool result，符合 Kiro API 的预期。
 
 ---
 
