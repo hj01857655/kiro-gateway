@@ -78,6 +78,7 @@ Social 账号：
 [
   {
     "authMethod": "social",
+    "provider": "Google",
     "refreshToken": "eyJ..."
   }
 ]
@@ -88,6 +89,7 @@ IDC 账号：
 [
   {
     "authMethod": "IdC",
+    "provider": "BuilderId",
     "clientId": "MkAG97...",
     "clientSecret": "eyJraWQ...",
     "refreshToken": "aorAAAAA..."
@@ -96,6 +98,8 @@ IDC 账号：
 ```
 
 然后在"账号管理"页面点击"批量导入"按钮选择文件即可。
+
+**注意**：`provider` 字段可选，Social 账号可填 `"Google"` 或 `"GitHub"`，IDC 账号填 `"BuilderId"`。
 
 ### 3. 配置客户端
 
