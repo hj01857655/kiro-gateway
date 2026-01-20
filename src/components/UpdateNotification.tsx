@@ -3,8 +3,9 @@ import { Alert, Button, Group, Stack, Text, Loader } from '@mantine/core'
 import { AlertCircle, Download } from 'lucide-react'
 import { notifications } from '@mantine/notifications'
 import { useAutoUpdate } from '../hooks/useAutoUpdate'
+import ErrorBoundary from './ErrorBoundary'
 
-export function UpdateNotification() {
+function UpdateNotificationContent() {
   const { updateInfo, isChecking, error, installUpdate } = useAutoUpdate()
 
   useEffect(() => {
@@ -18,7 +19,8 @@ export function UpdateNotification() {
     }
   }, [error])
 
-  if (!updateInfo?.available) {
+  // updateInfo 可能为 null，需要先检查
+  if (!updateInfo || !updateInfo.available) {
     return null
   }
 
@@ -78,5 +80,13 @@ export function UpdateNotification() {
         </Group>
       </Stack>
     </Alert>
+  )
+}
+
+export function UpdateNotification() {
+  return (
+    <ErrorBoundary>
+      <UpdateNotificationContent />
+    </ErrorBoundary>
   )
 }

@@ -113,7 +113,7 @@ jobs:
           # 不在矩阵构建中生成 updater 文件，在后续单独生成
           includeUpdaterJson: false
 
-  # 所有平台构建完成后，生成 latest.json
+  # 所有平台构建完成后，从 Release 资源生成 latest.json
   generate-updater-json:
     needs: release
     runs-on: ubuntu-latest
@@ -122,27 +122,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install frontend dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Generate updater JSON
+      - name: Download Release Assets
+        run: |
+          mkdir -p ./release-assets
+          gh release download ${{ github.ref_name }} --dir ./release-assets --pattern "*.sig"
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Generate latest.json
         run: |
-          npx tauri build --ci --target x86_64-pc-windows-msvc --bundles updater-json
+          # 获取版本号（去掉 v 前缀）
+          VERSION="${{ github.ref_name }}"
+          VERSION=${VERSION#v}
+          
+          # 获取发布日期（RFC 3339 格式）
+          PUB_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          
+          # 读取签名文件
+          WINDOWS_SIG=$(cat ./release-assets/Kiro.Gateway_*_x64-setup.msi.sig 2>/dev/null || echo "")
+          LINUX_DEB_SIG=$(cat ./release-assets/Kiro.Gateway_*_amd64.deb.sig 2>/dev/null || echo "")
+          LINUX_APPIMAGE_SIG=$(cat ./release-assets/Kiro.Gateway_*_amd64.AppImage.sig 2>/dev/null || echo "")
+          MACOS_AARCH64_SIG=$(cat ./release-assets/Kiro.Gateway_*_aarch64.app.tar.gz.sig 2>/dev/null || echo "")
+          MACOS_X64_SIG=$(cat ./release-assets/Kiro.Gateway_*_x64.app.tar.gz.sig 2>/dev/null || echo "")
+          
+          # 生成 latest.json
+          cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "$WINDOWS_SIG",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_x64-setup.msi"
+              },
+              "linux-x86_64": {
+                "signature": "$LINUX_DEB_SIG",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_amd64.deb"
+              },
+              "darwin-aarch64": {
+                "signature": "$MACOS_AARCH64_SIG",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_aarch64.app.tar.gz"
+              },
+              "darwin-x86_64": {
+                "signature": "$MACOS_X64_SIG",
+                "url": "https://github.com/hj01857655/kiro-gateway/releases/download/${{ github.ref_name }}/Kiro.Gateway_${VERSION}_x64.app.tar.gz"
+              }
+            }
+          }
+          EOF
+          
+          cat latest.json
 
       - name: Upload latest.json to Release
         run: |
-          gh release upload ${{ github.ref_name }} src-tauri/target/release/bundle/msi/latest.json --clobber
+          gh release upload ${{ github.ref_name }} latest.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

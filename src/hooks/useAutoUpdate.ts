@@ -27,7 +27,8 @@ export function useAutoUpdate() {
       // 检查是否有新版本
       const update = await check()
 
-      if (update?.available) {
+      // update 可能为 null（latest.json 不存在或格式错误）
+      if (update && update.available) {
         setUpdateInfo({
           available: true,
           currentVersion,
@@ -56,7 +57,8 @@ export function useAutoUpdate() {
   const installUpdate = async () => {
     try {
       const update = await check()
-      if (update?.available) {
+      // update 可能为 null，需要检查
+      if (update && update.available) {
         await update.downloadAndInstall()
         // 安装完成后重启应用
         await relaunch()
