@@ -25,6 +25,7 @@ pub struct VerifyResult {
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
     pub region: Option<String>,
+    pub start_url: Option<String>,  // Enterprise 的 Start URL
 }
 
 /// 检查请求是否为纯 WebSearch 请求

@@ -14,6 +14,7 @@ pub struct TokenConfig {
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
     pub region: Option<String>,
+    pub start_url: Option<String>,  // Enterprise 的 Start URL
 }
 
 #[derive(Debug, Clone)]
@@ -56,7 +57,7 @@ impl TokenManager {
         let is_idc = self.config.auth_method.to_lowercase() == "idc";
 
         let (url, body) = if is_idc {
-            // IDC 刷新
+            // IDC 刷新（BuilderId/Enterprise）
             let region = self.config.region.as_deref().unwrap_or("us-east-1");
             let url = format!("https://oidc.{}.amazonaws.com/token", region);
 
@@ -81,7 +82,8 @@ impl TokenManager {
             (url, body)
         } else {
             // Social 刷新
-            let url = "https://prod.us-east-1.auth.desktop.kiro.dev/refreshToken".to_string();
+            let region = self.config.region.as_deref().unwrap_or("us-east-1");
+            let url = format!("https://prod.{}.auth.desktop.kiro.dev/refreshToken", region);
             let body = serde_json::json!({
                 "refreshToken": self.config.refresh_token
             });

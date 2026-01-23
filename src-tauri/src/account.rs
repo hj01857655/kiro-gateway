@@ -74,6 +74,7 @@ pub struct Account {
     pub expire: Option<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+    pub start_url: Option<String>,  // Enterprise 的 Start URL
     #[serde(default = "default_enabled")]
     pub enabled: bool,
     #[serde(default)]
@@ -161,6 +162,7 @@ impl Account {
                     .clone()
                     .unwrap_or_else(|| "us-east-1".to_string()),
             ),
+            start_url: self.start_url.clone(),  // 传递 start_url
         }
     }
 
