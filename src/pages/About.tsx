@@ -89,49 +89,39 @@ export default function About() {
           </Group>
           <Group>
             <Text size="sm" fw={500} w={100}>
-              GitHub
+              链接
             </Text>
-            <Anchor href="https://github.com/hj01857655/kiro-gateway" target="_blank" rel="noopener noreferrer" size="sm">
-              <Group gap={4}>
-                <Github size={16} />
-                <Text size="sm">Kiro Gateway</Text>
+            <Stack gap="xs" style={{ flex: 1 }}>
+              {/* 第一行：官网、GitHub */}
+              <Group gap="md">
+                <Anchor href="https://kiro-website-six.vercel.app/gateway" target="_blank" rel="noopener noreferrer" size="sm">
+                  <Group gap={4}>
+                    <Globe size={16} />
+                    <Text size="sm">官网</Text>
+                  </Group>
+                </Anchor>
+                <Anchor href="https://github.com/hj01857655/kiro-gateway" target="_blank" rel="noopener noreferrer" size="sm">
+                  <Group gap={4}>
+                    <Github size={16} />
+                    <Text size="sm">GitHub</Text>
+                  </Group>
+                </Anchor>
               </Group>
-            </Anchor>
-          </Group>
-          <Group>
-            <Text size="sm" fw={500} w={100}>
-              官方网站
-            </Text>
-            <Anchor href="https://kiro-website-six.vercel.app/gateway" target="_blank" rel="noopener noreferrer" size="sm">
-              <Group gap={4}>
-                <Globe size={16} />
-                <Text size="sm">Kiro Gateway 官网</Text>
+              {/* 第二行：使用教程、QQ群 */}
+              <Group gap="md">
+                <Anchor href="https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc" target="_blank" rel="noopener noreferrer" size="sm">
+                  <Group gap={4}>
+                    <BookOpen size={16} />
+                    <Text size="sm">使用教程</Text>
+                  </Group>
+                </Anchor>
+                <Anchor href="https://qm.qq.com/q/oQbUA0cxO2" target="_blank" rel="noopener noreferrer" size="sm">
+                  <Group gap={4}>
+                    <Text size="sm">QQ群</Text>
+                  </Group>
+                </Anchor>
               </Group>
-            </Anchor>
-          </Group>
-          <Group>
-            <Text size="sm" fw={500} w={100}>
-              使用教程
-            </Text>
-            <Anchor href="https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc" target="_blank" rel="noopener noreferrer" size="sm">
-              <Group gap={4}>
-                <BookOpen size={16} />
-                <Text size="sm">Kiro Gateway 使用教程</Text>
-              </Group>
-            </Anchor>
-          </Group>
-          <Group>
-            <Text size="sm" fw={500} w={100}>
-              QQ 交流群
-            </Text>
-            <Anchor href="https://qm.qq.com/q/oQbUA0cxO2" target="_blank" rel="noopener noreferrer" size="sm">
-              <Group gap={4}>
-                <Text size="sm">1081058179</Text>
-                <Badge color="teal" variant="light" size="sm">
-                  Kiro GateWay交流群
-                </Badge>
-              </Group>
-            </Anchor>
+            </Stack>
           </Group>
         </Stack>
       </Card>
