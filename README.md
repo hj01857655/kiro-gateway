@@ -3,10 +3,6 @@
 [![GitHub release](https://img.shields.io/github/v/release/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/releases/latest)
 [![License](https://img.shields.io/github/license/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/network/members)
-[![GitHub issues](https://img.shields.io/github/issues/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/pulls)
-[![GitHub last commit](https://img.shields.io/github/last-commit/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/commits/main)
 [![GitHub downloads](https://img.shields.io/github/downloads/hj01857655/kiro-gateway/total)](https://github.com/hj01857655/kiro-gateway/releases)
 [![QQ Group](https://img.shields.io/badge/QQ%20Group-1081058179-blue)](https://qm.qq.com/q/oQbUA0cxO2)
 
@@ -14,13 +10,7 @@
 
 Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
 
-<!-- 
-## 📸 应用截图
-
-![主界面](docs/screenshots/main.png)
-![账号管理](docs/screenshots/accounts.png)
-![统计监控](docs/screenshots/metrics.png)
--->
+---
 
 ## ✨ 核心特性
 
@@ -36,6 +26,8 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 | 💭 **Thinking 解析** | 支持解析和处理 `<thinking>` 标签 |
 | 🎯 **动态模型** | 从 Kiro API 动态加载可用模型列表 |
 
+---
+
 ## 📥 下载
 
 **最新版本**：[GitHub Releases](https://github.com/hj01857655/kiro-gateway/releases/latest)
@@ -48,9 +40,13 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 | 🐧 **Linux (AppImage)** | [kiro-gateway_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.AppImage) |
 | 🐧 **Linux (deb)** | [kiro-gateway_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/kiro-gateway_amd64.deb) |
 
+---
+
 ## 💬 交流群
 
 **QQ 群**：[1081058179（Kiro GateWay交流群）](https://qm.qq.com/q/oQbUA0cxO2)
+
+---
 
 ## 🚀 快速开始
 
@@ -97,10 +93,6 @@ IDC 账号：
 ]
 ```
 
-然后在"账号管理"页面点击"批量导入"按钮选择文件即可。
-
-**注意**：`provider` 字段可选，Social 账号可填 `"Google"` 或 `"GitHub"`，IDC 账号填 `"BuilderId"`。
-
 ### 3. 配置客户端
 
 在"设置"页面生成配置文件：
@@ -112,13 +104,17 @@ IDC 账号：
 
 配置完成后，即可通过 Claude Desktop、Claude CLI 或其他 OpenAI 兼容客户端使用。
 
+---
+
 ## 📖 使用文档
 
 - **[📘 Kiro Gateway 使用教程](https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc)** - 从零开始，5 分钟学会使用（飞书云文档）
 - **[🚀 快速开始](docs/getting-started.md)** - 快速上手指南
 - **[🔧 API 文档](#api-端点)** - API 端点说明
 
-### API 端点
+---
+
+## 🛠️ 开发指南
 
 ### 安装依赖
 
@@ -161,7 +157,9 @@ cd src-tauri && cargo clippy
 cd src-tauri && cargo fmt
 ```
 
-## 配置说明
+---
+
+## ⚙️ 配置说明
 
 ### 数据存储
 
@@ -178,38 +176,6 @@ cd src-tauri && cargo fmt
 - `.encryption_key` - 加密密钥（自动生成，机器特定）
 - `.admin_token` - Admin Token（自动生成，64位随机字符串）
 
-### 安全特性
-
-**账号数据加密**：
-- 使用 AES-256-GCM 加密 `refreshToken`、`accessToken`、`clientSecret`
-- 主密钥由机器特定信息（hostname + username）派生
-- 加密密钥文件权限设置为仅当前用户可读（Unix 系统）
-- 自动检测并解密已加密数据
-- 明文数据自动迁移到加密格式
-
-**Admin API 认证**：
-- 首次启动自动生成 64 位随机 Admin Token
-- 所有 `/admin/*` 路由需要认证
-- 支持两种认证方式：
-  - `x-admin-token: {token}` 请求头
-  - `Authorization: Bearer {token}` 请求头
-- 通过 `GET /admin/token` 获取当前 Admin Token
-
-**XSS 防护**：
-- 聊天测试页集成 `rehype-sanitize` 插件
-- 自动过滤 AI 生成的 Markdown 内容中的恶意脚本
-- 确保渲染内容安全无害
-
-**内容安全策略（CSP）**：
-- 在 `tauri.conf.json` 中配置严格的 CSP
-- 有效防止未授权资源加载
-- 阻止内联脚本执行
-
-**敏感信息脱敏**：
-- 账号管理页对 Refresh Token 和 Client Secret 进行掩码处理
-- 显示格式：`pk-abc...789`（只显示前后各 3 位）
-- 防止意外泄露，支持通过 Tooltip 识别状态
-
 ### 环境变量
 
 在 `src-tauri/.env` 或系统环境变量中配置：
@@ -222,94 +188,43 @@ HOST=127.0.0.1
 PORT=8080
 ```
 
-### 账号配置
+---
 
-**方式 1：从 Kiro IDE 导入**（推荐）
-- 使用桌面应用的"导入账号"功能
-- 自动从 `~/.aws/sso/cache/kiro-auth-token.json` 读取
+## 🔐 安全特性
 
-**方式 2：批量导入 JSON 文件**
+**账号数据加密**
+- 使用 AES-256-GCM 加密 `refreshToken`、`accessToken`、`clientSecret`
+- 主密钥由机器特定信息（hostname + username）派生
+- 加密密钥文件权限设置为仅当前用户可读（Unix 系统）
+- 自动检测并解密已加密数据
+- 明文数据自动迁移到加密格式
 
-在桌面应用的"账号管理"页面，点击"批量导入"按钮，选择 JSON 文件。
+**Admin API 认证**
+- 首次启动自动生成 64 位随机 Admin Token
+- 所有 `/admin/*` 路由需要认证
+- 支持两种认证方式：
+  - `x-admin-token: {token}` 请求头
+  - `Authorization: Bearer {token}` 请求头
+- 通过 `GET /admin/token` 获取当前 Admin Token
 
-**最小化 JSON 格式**（只包含必要字段）：
+**XSS 防护**
+- 聊天测试页集成 `rehype-sanitize` 插件
+- 自动过滤 AI 生成的 Markdown 内容中的恶意脚本
+- 确保渲染内容安全无害
 
-Social 账号：
-```json
-[
-  {
-    "authMethod": "social",
-    "refreshToken": "eyJ..."
-  }
-]
-```
+**内容安全策略（CSP）**
+- 在 `tauri.conf.json` 中配置严格的 CSP
+- 有效防止未授权资源加载
+- 阻止内联脚本执行
 
-IDC 账号：
-```json
-[
-  {
-    "authMethod": "IdC",
-    "clientId": "MkAG97...",
-    "clientSecret": "eyJraWQ...",
-    "refreshToken": "aorAAAAA..."
-  }
-]
-```
+**敏感信息脱敏**
+- 账号管理页对 Refresh Token 和 Client Secret 进行掩码处理
+- 显示格式：`pk-abc...789`（只显示前后各 3 位）
+- 防止意外泄露，支持通过 Tooltip 识别状态
 
-**完整字段示例**（包含可选字段）：
-```json
-[
-  {
-    "id": "account-1",
-    "name": "我的 Social 账号",
-    "authMethod": "social",
-    "provider": "Google",
-    "refreshToken": "eyJ...",
-    "profileArn": "",
-    "region": "us-east-1",
-    "enabled": true,
-    "status": "active"
-  },
-  {
-    "id": "account-2",
-    "name": "我的 IDC 账号",
-    "authMethod": "IdC",
-    "provider": "BuilderId",
-    "clientId": "MkAG97...",
-    "clientSecret": "eyJraWQ...",
-    "refreshToken": "aorAAAAA...",
-    "profileArn": "arn:aws:codewhisperer:us-east-1:123456789:profile/xxx",
-    "region": "us-east-1",
-    "enabled": true,
-    "status": "active"
-  }
-]
-```
+---
 
-**必要字段说明**：
-- **Social 账号**：`authMethod`（"social"）、`refreshToken`
-- **IDC 账号**：`authMethod`（"IdC"）、`clientId`、`clientSecret`、`refreshToken`
-
-**可选字段**：
-- `id` - 账号 ID（不填会自动生成）
-- `name` - 账号名称（不填会使用默认名称）
-- `provider` - 提供商（Social: "Google"/"GitHub", IDC: "BuilderId"）
-- `profileArn` - 配置文件 ARN（Social 为空，IDC 可选）
-- `region` - 区域（默认 us-east-1）
-- `enabled` - 是否启用（默认 true）
-- `status` - 账号状态（默认 active）
-
-**注意**：
-- 敏感字段（`refreshToken`、`accessToken`、`clientSecret`）会在保存时自动加密
-- 已加密的数据格式为 JSON 对象：`{"ciphertext":"...","nonce":"..."}`
-- 不要手动编辑已加密的字段
-- `accessToken` 和 `expiresAt` 不需要填写，会自动通过 `refreshToken` 获取
-
-**方式 3：手动创建配置文件**
-
-在用户数据目录创建 `accounts.json`（格式同上）。
-
-## API 端点
+## 🔌 API 端点
 
 ### OpenAI 兼容
 
@@ -364,14 +279,6 @@ GET http://127.0.0.1:8080/v1/models
 GET http://127.0.0.1:8080/admin/metrics
 x-admin-token: your-admin-token
 
-# 获取日志
-GET http://127.0.0.1:8080/admin/logs
-x-admin-token: your-admin-token
-
-# 清空日志
-POST http://127.0.0.1:8080/admin/logs/clear
-x-admin-token: your-admin-token
-
 # 账号管理
 GET http://127.0.0.1:8080/admin/accounts
 POST http://127.0.0.1:8080/admin/accounts
@@ -387,7 +294,9 @@ DELETE http://127.0.0.1:8080/admin/api-keys/:id
 x-admin-token: your-admin-token
 ```
 
-## 模型映射
+---
+
+## �� 模型映射
 
 Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射到 OpenAI/Anthropic 模型名称。
 
@@ -410,46 +319,17 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - 包含 `sonnet` → `claude-sonnet-4.5`
 - 默认 → `auto`
 
-## 功能特性
+---
 
-### 核心功能
+## 📝 源码说明
 
-- ✅ **API 兼容** - OpenAI Chat Completions 和 Anthropic Messages API 完全兼容
-- ✅ **多账号管理** - 支持 Social 和 IDC 账号，自动轮询和故障转移
-- ✅ **自动刷新** - Token 自动检测过期并刷新（Social 和 IDC 账号）
-- ✅ **流式响应** - 完整支持 SSE 流式输出
-- ✅ **工具调用** - 支持工具调用和图片上传
-- ✅ **Thinking 解析** - 解析和处理 `<thinking>` 标签
-- ✅ **动态模型** - 从 Kiro API 动态加载可用模型列表
-- ✅ **WebSearch 集成** - 集成 Kiro MCP WebSearch 功能
+本仓库不再提供源码，仅用于发布 Release 和展示项目信息。
 
-### 管理功能
+**⚠️ 本项目永久免费！如果有人向你收费，你被骗了！**
 
-- ✅ **桌面界面** - Tauri 2.0 桌面应用，React 19 + TypeScript + Mantine UI
-- ✅ **账号管理** - 添加/删除/更新账号，从 Kiro IDE 导入，批量导入 JSON
-- ✅ **健康检查** - 账号健康状态监控，自动标记异常账号
-- ✅ **配额查询** - 实时查询账号配额使用情况
-- ✅ **配置生成** - 一键生成 Claude Desktop/CLI/OpenAI 配置
+---
 
-### 监控功能
-
-- ✅ **日志系统** - 结构化日志存储（最多 1000 条），支持搜索和过滤
-- ✅ **统计监控** - 请求计数、响应时间、延迟百分位（P50/P95/P99）
-- ✅ **24小时趋势** - 请求量和成功率趋势图
-- ✅ **API 类型统计** - OpenAI/Anthropic 使用量分析
-- ✅ **Metrics 持久化** - 统计数据自动保存/加载
-
-### 安全功能
-
-- ✅ **数据加密** - AES-256-GCM 加密存储敏感字段（refreshToken、accessToken、clientSecret）
-- ✅ **密钥保护** - 机器特定密钥保护主密钥（基于 hostname + username）
-- ✅ **Admin 认证** - 自动生成 64 位随机 Admin Token，统一 middleware 认证
-- ✅ **API Key 管理** - 生成 `sk-{48位十六进制}` 格式的 API Key，支持启用/禁用
-- ✅ **XSS 防护** - 聊天测试页集成 rehype-sanitize，过滤恶意脚本
-- ✅ **CSP 策略** - 严格的内容安全策略，防止未授权资源加载
-- ✅ **敏感信息脱敏** - 账号管理页对 Token 进行掩码处理
-
-## 参考项目
+## 🔗 参考项目
 
 本项目参考了以下优秀项目的设计和实现：
 
@@ -459,37 +339,24 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - [aiclientproxy/proxycast](https://github.com/aiclientproxy/proxycast) - Tauri 桌面应用参考
 - [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust + React 前端参考
 
-## 相关项目
+感谢这些项目的开源贡献！
+
+---
+
+## 🔗 相关项目
 
 - **[kiro-account-manager](https://github.com/hj01857655/kiro-account-manager)** - Kiro IDE 账号管理器，支持多账号切换、配额监控、批量导入等功能
 
-感谢这些项目的开源贡献！
+---
 
-## 开发规范
-
-- 代码注释：中文
-- 变量/函数命名：英文（snake_case）
-- 日志 target：`kiro_gateway`
-- 提交信息：遵循 Conventional Commits
-
-## 许可证
+## 📄 许可证
 
 MIT License
 
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 作者
-
-Made with ❤️ by [hj01857655](https://github.com/hj01857655)
-
-## 联系方式
-
-- GitHub: [hj01857655/kiro-gateway](https://github.com/hj01857655/kiro-gateway)
-- 问题反馈: [Issues](https://github.com/hj01857655/kiro-gateway/issues)
-- QQ 交流群: [1081058179（Kiro GateWay交流群）](https://qm.qq.com/q/oQbUA0cxO2)
-
-## 免责声明
+## ⚠️ 免责声明
 
 本项目仅供学习和研究使用，请遵守 Kiro 服务条款，不要滥用 API 配额。
+
+---
+
+<p align="center">Made with ❤️ by <a href="https://github.com/hj01857655">hj01857655</a></p>
