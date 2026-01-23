@@ -454,7 +454,7 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 本项目参考了以下优秀项目的设计和实现：
 
 - [aliom-v/KiroGate](https://github.com/aliom-v/KiroGate) - Python + FastAPI 实现，主要参考
-- [chaogei/Kiro-account-manager](https://github.com/chaogei/Kiro-account-manager) - Rust + Axum + Tauri 实现，反代架构参考
+- [hj01857655/kiro-account-manager](https://github.com/hj01857655/kiro-account-manager) - Kiro IDE 账号管理器（本人项目），多账号管理和批量导入参考
 - [justlovemaki/AIClient-2-API](https://github.com/justlovemaki/AIClient-2-API) - 多 Provider 架构参考
 - [aiclientproxy/proxycast](https://github.com/aiclientproxy/proxycast) - Tauri 桌面应用参考
 - [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust + React 前端参考
