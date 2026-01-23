@@ -86,3 +86,41 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
           tauriScript: npm run tauri
+
+  update-readme:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Update README with version
+    steps:
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Update README version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_NUM="${VERSION#v}"
+          
+          # 更新 Windows 下载链接
+          sed -i "s|Kiro\.Gateway_[0-9.]*_x64_zh-CN\.msi|Kiro.Gateway_${VERSION_NUM}_x64_zh-CN.msi|g" README.md
+          
+          # 更新 macOS Intel 下载链接
+          sed -i "s|Kiro\.Gateway_[0-9.]*_x64\.dmg|Kiro.Gateway_${VERSION_NUM}_x64.dmg|g" README.md
+          
+          # 更新 macOS Apple Silicon 下载链接
+          sed -i "s|Kiro\.Gateway_[0-9.]*_aarch64\.dmg|Kiro.Gateway_${VERSION_NUM}_aarch64.dmg|g" README.md
+          
+          # 更新 Linux AppImage 下载链接
+          sed -i "s|Kiro\.Gateway_[0-9.]*_amd64\.AppImage|Kiro.Gateway_${VERSION_NUM}_amd64.AppImage|g" README.md
+          
+          # 更新 Linux deb 下载链接
+          sed -i "s|Kiro\.Gateway_[0-9.]*_amd64\.deb|Kiro.Gateway_${VERSION_NUM}_amd64.deb|g" README.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || git commit -m "docs: 自动更新 README 版本号到 ${{ github.ref_name }}"
+          git push
