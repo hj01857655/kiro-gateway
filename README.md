@@ -12,6 +12,12 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 ---
 
+## 🌐 官网
+
+**项目官网**：[https://kiro.ing/gateway](https://kiro.ing/gateway)
+
+---
+
 ## ✨ 核心特性
 
 | 特性 | 说明 |
@@ -43,10 +49,6 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 | 🐧 **Linux (deb)** | [Kiro.Gateway_0.4.0_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_amd64.deb) |
 
 ---
-
-## 🌐 官网
-
-**项目官网**：[https://kiro.ing/gateway](https://kiro.ing/gateway)
 
 ---
 
