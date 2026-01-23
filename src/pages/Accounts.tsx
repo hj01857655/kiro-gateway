@@ -99,26 +99,26 @@ export default function Accounts() {
     if (accounts && accounts.length > 0) {
       // 批量获取配额，避免重复请求
       const accountsToFetch = accounts.filter(
-        (account) => !quotaCache[account.id] && !loadingQuotas[account.id]
+        (account: Account) => !quotaCache[account.id] && !loadingQuotas[account.id]
       )
 
       if (accountsToFetch.length > 0) {
-        accountsToFetch.forEach((account) => {
+        accountsToFetch.forEach((account: Account) => {
           fetchQuota(account.id)
         })
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts?.map(a => a.id).join(',')])
+  }, [accounts?.map((a: Account) => a.id).join(',')])
 
   // 获取配额（静默失败，使用缓存）
   const fetchQuota = async (accountId: string) => {
     if (loadingQuotas[accountId]) return
 
-    setLoadingQuotas((prev) => ({ ...prev, [accountId]: true }))
+    setLoadingQuotas((prev: Record<string, boolean>) => ({ ...prev, [accountId]: true }))
     try {
       const quota = await accountsApi.getQuota(accountId)
-      setQuotaCache((prev) => ({ ...prev, [accountId]: quota }))
+      setQuotaCache((prev: Record<string, any>) => ({ ...prev, [accountId]: quota }))
       
       // 配额查询后刷新账号列表（状态可能已更新为 quotaexhausted）
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
@@ -126,7 +126,7 @@ export default function Accounts() {
       // 静默失败，使用缓存的配额信息
       logger.warn(`获取账号 ${accountId} 配额失败:`, error)
     } finally {
-      setLoadingQuotas((prev) => ({ ...prev, [accountId]: false }))
+      setLoadingQuotas((prev: Record<string, boolean>) => ({ ...prev, [accountId]: false }))
     }
   }
 
@@ -374,7 +374,7 @@ export default function Accounts() {
 
   // 获取账号的健康信息
   const getAccountHealth = (accountId: string) => {
-    return healthData?.accounts.find((h) => h.id === accountId)
+    return healthData?.accounts.find((h: any) => h.id === accountId)
   }
 
   // 手动触发健康检查
@@ -427,7 +427,7 @@ export default function Accounts() {
       // 去重：使用账号唯一标识（只检查有 email+provider 的账号）
       const existingKeys = new Set(
         (accounts || [])
-          .map(a => getAccountKey(a))
+          .map((a: Account) => getAccountKey(a))
           .filter((key): key is string => key !== null)
       )
       const newAccounts = data.accounts.filter((account: Account) => {
@@ -800,7 +800,7 @@ export default function Accounts() {
                         <Group gap="xs">
                           <Text size="xs" c="dimmed">Client ID:</Text>
                           <CopyButton value={account.clientId || ''}>
-                            {({ copied, copy }) => (
+                            {({ copied, copy }: { copied: boolean; copy: () => void }) => (
                               <Tooltip label={copied ? '已复制' : '复制 Client ID'}>
                                 <Code
                                   style={{ cursor: 'pointer', fontSize: rem(11) }}
@@ -816,7 +816,7 @@ export default function Accounts() {
                         <Group gap="xs">
                           <Text size="xs" c="dimmed">Client Secret:</Text>
                           <CopyButton value={account.clientSecret || ''}>
-                            {({ copied, copy }) => (
+                            {({ copied, copy }: { copied: boolean; copy: () => void }) => (
                               <Tooltip label={copied ? '已复制' : '复制 Client Secret'}>
                                 <Code
                                   style={{ cursor: 'pointer', fontSize: rem(11) }}
@@ -834,7 +834,7 @@ export default function Accounts() {
                       <Group gap="xs">
                         <Text size="xs" c="dimmed">Refresh Token:</Text>
                         <CopyButton value={account.refreshToken}>
-                          {({ copied, copy }) => (
+                          {({ copied, copy }: { copied: boolean; copy: () => void }) => (
                             <Tooltip label={copied ? '已复制' : '复制 Refresh Token'}>
                               <Code
                                 style={{ cursor: 'pointer', fontSize: rem(11) }}
@@ -887,13 +887,13 @@ export default function Accounts() {
                 label="账号名称"
                 placeholder="例如: Google 账号 1"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
               <Select
                 label="账号类型"
                 value={formData.authMethod}
-                onChange={(value) => setFormData({ ...formData, authMethod: value || 'social' })}
+                onChange={(value: string | null) => setFormData({ ...formData, authMethod: value || 'social' })}
                 data={[
                   { value: 'social', label: 'Social (Google/GitHub)' },
                   { value: 'idc', label: 'IDC (Builder ID / Enterprise)' },
@@ -904,7 +904,7 @@ export default function Accounts() {
                 label="Refresh Token"
                 placeholder="粘贴 Refresh Token"
                 value={formData.refreshToken}
-                onChange={(e) => setFormData({ ...formData, refreshToken: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, refreshToken: e.target.value })}
                 required
               />
               {formData.authMethod === 'idc' && (
@@ -914,14 +914,14 @@ export default function Accounts() {
                     placeholder="your_subdomain.awsapps.com/start"
                     description="仅 Enterprise 账号需要填写，Builder ID 留空"
                     value={formData.startUrl}
-                    onChange={(e) => setFormData({ ...formData, startUrl: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, startUrl: e.target.value })}
                   />
                   <Select
                     label="Region"
                     placeholder="选择区域"
                     description="AWS Region that hosts Identity directory"
                     value={formData.region}
-                    onChange={(value) => setFormData({ ...formData, region: value || '' })}
+                    onChange={(value: string | null) => setFormData({ ...formData, region: value || '' })}
                     data={[
                       { value: 'us-east-1', label: 'US East (N. Virginia)' },
                       { value: 'us-west-2', label: 'US West (Oregon)' },
@@ -935,14 +935,14 @@ export default function Accounts() {
                     label="Client ID"
                     placeholder="客户端 ID"
                     value={formData.clientId}
-                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, clientId: e.target.value })}
                     required
                   />
                   <PasswordInput
                     label="Client Secret"
                     placeholder="客户端密钥"
                     value={formData.clientSecret}
-                    onChange={(e) => setFormData({ ...formData, clientSecret: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, clientSecret: e.target.value })}
                     required
                   />
                 </>
@@ -962,7 +962,7 @@ export default function Accounts() {
                 支持 JSON 输入或文件上传，可导入单个账号或批量导入
               </Text>
               <FileButton resetRef={resetRef} onChange={handleFileImport} accept="application/json,.json">
-                {(props) => (
+                {(props: any) => (
                   <Button {...props} leftSection={<Upload size={16} />} variant="light" fullWidth>
                     选择 JSON 文件
                   </Button>
@@ -974,7 +974,7 @@ export default function Accounts() {
               <Textarea
                 placeholder="粘贴 JSON 配置..."
                 value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setJsonInput(e.target.value)}
                 minRows={12}
                 maxRows={16}
                 autosize
