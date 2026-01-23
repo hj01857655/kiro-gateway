@@ -65,7 +65,7 @@ export default function Accounts() {
     authMethod: 'social',
     refreshToken: '',
     profileArn: '',
-    region: 'us-east-1',
+    region: '', // 改为空字符串，让用户手动选择
     clientId: '',
     clientSecret: '',
     startUrl: '', // Enterprise 专用
@@ -172,7 +172,7 @@ export default function Accounts() {
         authMethod: 'social',
         refreshToken: '',
         profileArn: '',
-        region: 'us-east-1',
+        region: '',
         clientId: '',
         clientSecret: '',
         startUrl: '',
@@ -921,7 +921,7 @@ export default function Accounts() {
                     placeholder="选择区域"
                     description="AWS Region that hosts Identity directory"
                     value={formData.region}
-                    onChange={(value) => setFormData({ ...formData, region: value || 'us-east-1' })}
+                    onChange={(value) => setFormData({ ...formData, region: value || '' })}
                     data={[
                       { value: 'us-east-1', label: 'US East (N. Virginia)' },
                       { value: 'us-west-2', label: 'US West (Oregon)' },
