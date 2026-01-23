@@ -314,6 +314,7 @@ pub async fn handle_web_search_request(
         client_id: verify_result.client_id.clone(),
         client_secret: verify_result.client_secret.clone(),
         region: verify_result.region.clone(),
+        start_url: verify_result.start_url.clone(),
     };
 
     // 3. 获取 TokenManager
