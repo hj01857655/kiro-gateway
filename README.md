@@ -32,15 +32,13 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 **最新版本**：[GitHub Releases](https://github.com/hj01857655/kiro-gateway/releases/latest)
 
-请访问 [Releases 页面](https://github.com/hj01857655/kiro-gateway/releases/latest) 下载对应平台的安装包：
-
-| 平台 | 文件名格式 |
-|------|-----------|
-| 🪟 **Windows** | `Kiro.Gateway_{version}_x64_zh-CN.msi` |
-| 🍎 **macOS (Intel)** | `Kiro.Gateway_{version}_x64.dmg` |
-| 🍎 **macOS (Apple Silicon)** | `Kiro.Gateway_{version}_aarch64.dmg` |
-| 🐧 **Linux (AppImage)** | `Kiro.Gateway_{version}_amd64.AppImage` |
-| 🐧 **Linux (deb)** | `Kiro.Gateway_{version}_amd64.deb` |
+| 平台 | 下载链接 |
+|------|---------|
+| 🪟 **Windows** | [Kiro.Gateway_0.4.0_x64_zh-CN.msi](https://github.com/hj01857655/kiro-gateway/releases/download/v0.4.0/Kiro.Gateway_0.4.0_x64_zh-CN.msi) |
+| 🍎 **macOS (Intel)** | [Kiro.Gateway_0.4.0_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/download/v0.4.0/Kiro.Gateway_0.4.0_x64.dmg) |
+| 🍎 **macOS (Apple Silicon)** | [Kiro.Gateway_0.4.0_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/download/v0.4.0/Kiro.Gateway_0.4.0_aarch64.dmg) |
+| 🐧 **Linux (AppImage)** | [Kiro.Gateway_0.4.0_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/download/v0.4.0/Kiro.Gateway_0.4.0_amd64.AppImage) |
+| 🐧 **Linux (deb)** | [Kiro.Gateway_0.4.0_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/download/v0.4.0/Kiro.Gateway_0.4.0_amd64.deb) |
 
 ---
 
