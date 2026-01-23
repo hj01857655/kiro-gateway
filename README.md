@@ -459,6 +459,10 @@ Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射
 - [aiclientproxy/proxycast](https://github.com/aiclientproxy/proxycast) - Tauri 桌面应用参考
 - [hank9999/kiro.rs](https://github.com/hank9999/kiro.rs) - Rust + React 前端参考
 
+## 相关项目
+
+- **[kiro-account-manager](https://github.com/hj01857655/kiro-account-manager)** - Kiro IDE 账号管理器，支持多账号切换、配额监控、批量导入等功能
+
 感谢这些项目的开源贡献！
 
 ## 开发规范
