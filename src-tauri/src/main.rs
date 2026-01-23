@@ -22,6 +22,66 @@ pub mod thinking_parser;
 pub mod token_allocator;
 pub mod websearch;
 
+// Tauri 命令：获取所有账号
+#[tauri::command]
+async fn get_accounts(app: tauri::AppHandle) -> Result<Vec<serde_json::Value>, String> {
+    let data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("获取数据目录失败: {}", e))?;
+    let accounts_file = data_dir.join("accounts.json");
+    
+    if !accounts_file.exists() {
+        return Ok(vec![]);
+    }
+    
+    let content = std::fs::read_to_string(&accounts_file)
+        .map_err(|e| format!("读取账号文件失败: {}", e))?;
+    
+    let accounts: Vec<serde_json::Value> = serde_json::from_str(&content)
+        .map_err(|e| format!("解析账号文件失败: {}", e))?;
+    
+    Ok(accounts)
+}
+
+// Tauri 命令：添加账号
+#[tauri::command]
+async fn add_account(
+    app: tauri::AppHandle,
+    account: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    // 调用 HTTP API
+    proxy_request(app, "POST".to_string(), "/admin/accounts".to_string(), Some(account.to_string())).await
+        .and_then(|text| serde_json::from_str(&text).map_err(|e| e.to_string()))
+}
+
+// Tauri 命令：刷新账号 Token
+#[tauri::command]
+async fn refresh_account(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    proxy_request(app, "POST".to_string(), format!("/admin/accounts/{}/refresh", id), None).await
+}
+
+// Tauri 命令：删除账号
+#[tauri::command]
+async fn delete_account(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    proxy_request(app, "DELETE".to_string(), format!("/admin/accounts/{}", id), None).await
+}
+
+// Tauri 命令：更新账号
+#[tauri::command]
+async fn update_account(
+    app: tauri::AppHandle,
+    id: String,
+    updates: serde_json::Value,
+) -> Result<String, String> {
+    let body = serde_json::json!({ "id": id, "updates": updates });
+    proxy_request(app, "PATCH".to_string(), format!("/admin/accounts/{}", id), Some(body.to_string())).await
+}
+
+// Tauri 命令：获取账号配额
+#[tauri::command]
+async fn get_account_quota(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    proxy_request(app, "GET".to_string(), format!("/admin/accounts/{}/quota", id), None).await
+}
+
 // Tauri 命令：代理 HTTP 请求到本地 Axum 服务器
 #[tauri::command]
 async fn proxy_request(
@@ -140,6 +200,12 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            get_accounts,
+            add_account,
+            refresh_account,
+            delete_account,
+            update_account,
+            get_account_quota,
             proxy_request,
             get_data_dir,
             get_app_version,
