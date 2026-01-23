@@ -68,6 +68,7 @@ export default function Accounts() {
     region: 'us-east-1',
     clientId: '',
     clientSecret: '',
+    startUrl: '', // Enterprise 专用
   })
 
   const [jsonInput, setJsonInput] = useState(`[
@@ -159,6 +160,7 @@ export default function Accounts() {
       region: formData.region || 'us-east-1',
       clientId: formData.clientId || undefined,
       clientSecret: formData.clientSecret || undefined,
+      startUrl: formData.startUrl || undefined, // Enterprise 专用
       enabled: true,
     }
 
@@ -173,6 +175,7 @@ export default function Accounts() {
         region: 'us-east-1',
         clientId: '',
         clientSecret: '',
+        startUrl: '',
       })
       notifications.show({
         title: '成功',
@@ -893,7 +896,7 @@ export default function Accounts() {
                 onChange={(value) => setFormData({ ...formData, authMethod: value || 'social' })}
                 data={[
                   { value: 'social', label: 'Social (Google/GitHub)' },
-                  { value: 'idc', label: 'IDC (Builder ID)' },
+                  { value: 'idc', label: 'IDC (Builder ID / Enterprise)' },
                 ]}
                 required
               />
@@ -919,6 +922,13 @@ export default function Accounts() {
                       { value: 'ap-northeast-1', label: 'Asia Pacific (Tokyo)' },
                     ]}
                     required
+                  />
+                  <TextInput
+                    label="Start URL (Enterprise 专用)"
+                    placeholder="https://xxx.awsapps.com/start"
+                    description="仅 Enterprise 账号需要填写，Builder ID 留空"
+                    value={formData.startUrl}
+                    onChange={(e) => setFormData({ ...formData, startUrl: e.target.value })}
                   />
                   <TextInput
                     label="Client ID"

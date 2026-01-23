@@ -13,6 +13,7 @@ export interface Account {
   expire?: string
   clientId?: string
   clientSecret?: string
+  startUrl?: string  // Enterprise 专用
   enabled: boolean
   status: 'active' | 'expired' | 'throttled' | 'error' | 'disabled' | 'banned'
   throttledUntil?: number
