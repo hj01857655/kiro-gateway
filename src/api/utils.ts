@@ -1,26 +1,19 @@
-import { tauriFetch } from '../lib/tauri'
-
-// 检测是否在 Tauri 环境
-const isTauri = '__TAURI_INTERNALS__' in window
+// kiro-gateway 直接使用 Axum HTTP 服务器，不需要 Tauri 代理
+const API_BASE_URL = 'http://127.0.0.1:8080'
 
 export async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
   timeout = 10000
 ): Promise<Response> {
-  // 生产环境使用 Tauri invoke
-  if (isTauri) {
-    // 提取路径（移除 base URL）
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
-    return tauriFetch(path, options)
-  }
+  // 构建完整 URL（如果是相对路径，添加 base URL）
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
 
-  // 开发环境使用原生 fetch
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeout)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       ...options,
       signal: controller.signal,
     })
