@@ -100,6 +100,17 @@ export default function About() {
           </Group>
           <Group>
             <Text size="sm" fw={500} w={100}>
+              官方网站
+            </Text>
+            <Anchor href="https://kiro-website-six.vercel.app/gateway" target="_blank" rel="noopener noreferrer" size="sm">
+              <Group gap={4}>
+                <Globe size={16} />
+                <Text size="sm">Kiro Gateway 官网</Text>
+              </Group>
+            </Anchor>
+          </Group>
+          <Group>
+            <Text size="sm" fw={500} w={100}>
               使用教程
             </Text>
             <Anchor href="https://xcn46cm1l4ir.feishu.cn/wiki/K1Y3wzZeQiByE3kfYO4cyh31npc" target="_blank" rel="noopener noreferrer" size="sm">
