@@ -909,9 +909,17 @@ export default function Accounts() {
               />
               {formData.authMethod === 'idc' && (
                 <>
+                  <TextInput
+                    label="Start URL (Enterprise 专用)"
+                    placeholder="your_subdomain.awsapps.com/start"
+                    description="仅 Enterprise 账号需要填写，Builder ID 留空"
+                    value={formData.startUrl}
+                    onChange={(e) => setFormData({ ...formData, startUrl: e.target.value })}
+                  />
                   <Select
                     label="Region"
                     placeholder="选择区域"
+                    description="AWS Region that hosts Identity directory"
                     value={formData.region}
                     onChange={(value) => setFormData({ ...formData, region: value || 'us-east-1' })}
                     data={[
@@ -922,13 +930,6 @@ export default function Accounts() {
                       { value: 'ap-northeast-1', label: 'Asia Pacific (Tokyo)' },
                     ]}
                     required
-                  />
-                  <TextInput
-                    label="Start URL (Enterprise 专用)"
-                    placeholder="https://xxx.awsapps.com/start"
-                    description="仅 Enterprise 账号需要填写，Builder ID 留空"
-                    value={formData.startUrl}
-                    onChange={(e) => setFormData({ ...formData, startUrl: e.target.value })}
                   />
                   <TextInput
                     label="Client ID"
