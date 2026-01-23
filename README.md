@@ -44,6 +44,12 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 
 ---
 
+## 🌐 官网
+
+**项目官网**：[https://kiro.ing/gateway](https://kiro.ing/gateway)
+
+---
+
 ## 💬 交流群
 
 **QQ 群**：[1081058179（Kiro GateWay交流群）](https://qm.qq.com/q/oQbUA0cxO2)
