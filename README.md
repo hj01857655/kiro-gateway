@@ -1,20 +1,41 @@
 # Kiro Gateway
 
-[![GitHub release](https://img.shields.io/github/v/release/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/releases/latest)
-[![License](https://img.shields.io/github/license/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/hj01857655/kiro-gateway)](https://github.com/hj01857655/kiro-gateway/stargazers)
-[![GitHub downloads](https://img.shields.io/github/downloads/hj01857655/kiro-gateway/total)](https://github.com/hj01857655/kiro-gateway/releases)
-[![QQ Group](https://img.shields.io/badge/QQ%20Group-1081058179-blue)](https://qm.qq.com/q/oQbUA0cxO2)
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platform">
+  <img src="https://img.shields.io/github/v/release/hj01857655/kiro-gateway?label=Version&color=green" alt="Version">
+  <img src="https://img.shields.io/github/downloads/hj01857655/kiro-gateway/total?color=brightgreen" alt="Downloads">
+  <img src="https://img.shields.io/github/license/hj01857655/kiro-gateway?color=orange" alt="License">
+  <img src="https://img.shields.io/badge/QQ群-1081058179-12B7F5?logo=tencentqq" alt="QQ群">
+</p>
 
-> 🚀 Kiro API 网关 - 提供 OpenAI/Anthropic 兼容接口的桌面应用
+<p align="center">
+  <b>🚀 Kiro API 网关 - 提供 OpenAI/Anthropic 兼容接口的桌面应用</b>
+</p>
 
-Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为标准的 OpenAI Chat Completions API 和 Anthropic Messages API，支持多账号管理、自动 Token 刷新、流式响应等功能。
+<p align="center">
+  🌐 <b><a href="https://kiro.ing/gateway">官方网站</a></b> | 
+  📥 <b><a href="#-下载">立即下载</a></b> | 
+  💬 <b><a href="https://qm.qq.com/q/oQbUA0cxO2">加入 QQ 群</a></b>
+</p>
 
 ---
 
-## 🌐 官网
+## 📥 下载
 
-**项目官网**：[https://kiro.ing/gateway](https://kiro.ing/gateway)
+**最新版本**：[GitHub Releases](https://github.com/hj01857655/kiro-gateway/releases/latest)
+
+| 平台 | 下载链接 |
+|------|---------|
+| 🪟 **Windows** | [Kiro.Gateway_0.4.0_x64_zh-CN.msi](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_x64_zh-CN.msi) |
+| 🍎 **macOS (Intel)** | [Kiro.Gateway_0.4.0_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_x64.dmg) |
+| 🍎 **macOS (Apple Silicon)** | [Kiro.Gateway_0.4.0_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_aarch64.dmg) |
+| 🐧 **Linux (AppImage)** | [Kiro.Gateway_0.4.0_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_amd64.AppImage) |
+| 🐧 **Linux (deb)** | [Kiro.Gateway_0.4.0_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_amd64.deb) |
+
+**系统要求**：
+- **Windows**: Windows 10/11 (64-bit)，需要 WebView2
+- **macOS**: macOS 10.15+ (Intel / Apple Silicon)
+- **Linux**: x86_64，需要 WebKitGTK
 
 ---
 
@@ -31,30 +52,6 @@ Kiro Gateway 是一个基于 Tauri 2.0 的桌面应用，将 Kiro API 转换为�
 | 🛠️ **工具调用** | 完整支持工具调用和图片上传 |
 | 💭 **Thinking 解析** | 支持解析和处理 `<thinking>` 标签 |
 | 🎯 **动态模型** | 从 Kiro API 动态加载可用模型列表 |
-
----
-
-## 📥 下载
-
-[![GitHub release](https://img.shields.io/github/v/release/hj01857655/kiro-gateway?label=最新版本)](https://github.com/hj01857655/kiro-gateway/releases/latest)
-
-**快速下载**：点击下方链接直接下载最新版本
-
-| 平台 | 下载链接 |
-|------|---------|
-| 🪟 **Windows** | [Kiro.Gateway_0.4.0_x64_zh-CN.msi](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_x64_zh-CN.msi) |
-| 🍎 **macOS (Intel)** | [Kiro.Gateway_0.4.0_x64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_x64.dmg) |
-| 🍎 **macOS (Apple Silicon)** | [Kiro.Gateway_0.4.0_aarch64.dmg](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_aarch64.dmg) |
-| 🐧 **Linux (AppImage)** | [Kiro.Gateway_0.4.0_amd64.AppImage](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_amd64.AppImage) |
-| 🐧 **Linux (deb)** | [Kiro.Gateway_0.4.0_amd64.deb](https://github.com/hj01857655/kiro-gateway/releases/latest/download/Kiro.Gateway_0.4.0_amd64.deb) |
-
----
-
----
-
-## 💬 交流群
-
-**QQ 群**：[1081058179（Kiro GateWay交流群）](https://qm.qq.com/q/oQbUA0cxO2)
 
 ---
 
@@ -306,7 +303,7 @@ x-admin-token: your-admin-token
 
 ---
 
-## �� 模型映射
+## 🤖 模型映射
 
 Kiro Gateway 支持从 Kiro API 动态获取可用模型列表，并自动映射到 OpenAI/Anthropic 模型名称。
 
