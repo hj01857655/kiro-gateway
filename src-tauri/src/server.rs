@@ -33,48 +33,7 @@ use crate::kiro_client::KiroClient;
 use crate::models::{AnthropicRequest, OpenAIRequest, Usage};
 use crate::session::SessionManager;
 
-// Tauri 命令：代理 HTTP 请求到 Axum 服务器
-#[tauri::command]
-async fn proxy_request(
-    method: String,
-    path: String,
-    body: Option<String>,
-) -> Result<String, String> {
-    let url = format!("http://127.0.0.1:8080{}", path);
-    let client = reqwest::Client::new();
-    
-    let mut request = match method.as_str() {
-        "GET" => client.get(&url),
-        "POST" => client.post(&url),
-        "PATCH" => client.patch(&url),
-        "DELETE" => client.delete(&url),
-        _ => return Err(format!("不支持的 HTTP 方法: {}", method)),
-    };
-    
-    // 添加 Content-Type
-    request = request.header("Content-Type", "application/json");
-    
-    // 添加请求体
-    if let Some(body_str) = body {
-        request = request.body(body_str);
-    }
-    
-    // 发送请求
-    let response = request.send().await.map_err(|e| e.to_string())?;
-    let status = response.status();
-    let text = response.text().await.map_err(|e| e.to_string())?;
-    
-    if !status.is_success() {
-        return Err(format!("HTTP {} - {}", status.as_u16(), text));
-    }
-    
-    Ok(text)
-}
-
-// 注册 Tauri 命令
-pub fn register_commands(builder: tauri::Builder) -> tauri::Builder {
-    builder.invoke_handler(tauri::generate_handler![proxy_request])
-}
+// 这个文件不再需要注册 Tauri 命令，所有命令已在 main.rs 中注册
 
 // Windows 文件权限设置（使用 ACL）
 #[cfg(windows)]

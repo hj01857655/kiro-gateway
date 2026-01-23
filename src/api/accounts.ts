@@ -8,24 +8,24 @@ export const accountsApi = {
   },
 
   add: async (account: Partial<Account>): Promise<Account> => {
-    const result = await invoke<any>('add_account', { account })
+    const result = await invoke<{ account: Account }>('add_account', { account })
     return result.account
   },
 
   update: async (id: string, updates: Partial<Account>): Promise<void> => {
-    await invoke('update_account', { id, updates })
+    await invoke<{ success: boolean }>('update_account', { id, updates })
   },
 
   delete: async (id: string): Promise<void> => {
-    await invoke('delete_account', { id })
+    await invoke<{ success: boolean }>('delete_account', { id })
   },
 
   refresh: async (id: string): Promise<void> => {
-    await invoke('refresh_account', { id })
+    await invoke<{ success: boolean }>('refresh_account', { id })
   },
 
   getQuota: async (id: string): Promise<import('../types').QuotaInfo> => {
-    const result = await invoke<string>('get_account_quota', { id })
-    return JSON.parse(result)
+    // 现在直接返回 JSON 对象，不需要 JSON.parse
+    return await invoke<import('../types').QuotaInfo>('get_account_quota', { id })
   },
 }
