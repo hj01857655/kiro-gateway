@@ -58,7 +58,8 @@ impl TokenManager {
 
         let (url, body) = if is_idc {
             // IDC 刷新（BuilderId/Enterprise）
-            let region = self.config.region.as_deref().unwrap_or("us-east-1");
+            // 必须有 region
+            let region = self.config.region.as_deref().ok_or("IDC 账号缺少 region")?;
             let url = format!("https://oidc.{}.amazonaws.com/token", region);
 
             let client_id = self

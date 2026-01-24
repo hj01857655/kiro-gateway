@@ -6,7 +6,7 @@ use axum::{
         sse::{Event, Sse},
         IntoResponse, Response,
     },
-    routing::{get, post, patch, delete},
+    routing::{get, post, patch},
     Json, Router,
 };
 use std::convert::Infallible;

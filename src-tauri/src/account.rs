@@ -925,7 +925,18 @@ impl AccountManager {
             .as_ref()
             .ok_or_else(|| AppError::TokenRefreshFailed("IDC 账号缺少 clientSecret".into()))?;
 
-        let region = account.region.as_deref().unwrap_or("us-east-1");
+        // IDC 账号必须有 region
+        let region = account.region.as_deref().ok_or_else(|| {
+            AppError::TokenRefreshFailed("IDC 账号缺少 region".into())
+        })?;
+
+        // Enterprise 账号必须有 startUrl
+        if let Some(provider) = &account.provider {
+            if provider == "Enterprise" && account.start_url.is_none() {
+                return Err(AppError::TokenRefreshFailed("Enterprise 账号缺少 startUrl".into()));
+            }
+        }
+        
         let url = format!("https://oidc.{}.amazonaws.com/token", region);
 
         // 按文档用 JSON + camelCase
