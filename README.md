@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/github/v/release/hj01857655/kiro-gateway?label=Version&color=green" alt="Version">
   <img src="https://img.shields.io/github/downloads/hj01857655/kiro-gateway/total?color=brightgreen" alt="Downloads">
   <img src="https://img.shields.io/github/license/hj01857655/kiro-gateway?color=orange" alt="License">
-  <img src="https://img.shields.io/badge/QQ群-1081058179-12B7F5?logo=tencentqq" alt="QQ群">
+  <img src="https://img.shields.io/badge/QQ群-656955516-12B7F5?logo=tencentqq" alt="QQ群">
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 <p align="center">
   🌐 <b><a href="https://kiro.ing/gateway">官方网站</a></b> | 
   📥 <b><a href="#-下载">立即下载</a></b> | 
-  💬 <b><a href="https://qm.qq.com/q/oQbUA0cxO2">加入 QQ 群</a></b>
+  💬 <b><a href="https://qm.qq.com/q/uXxXalrUTm">加入 QQ 群</a></b>
 </p>
 
 ---
